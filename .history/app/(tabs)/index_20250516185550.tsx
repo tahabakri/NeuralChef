@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import {  View,  Text,  StyleSheet,  ScrollView,  Image,  TouchableOpacity,  FlatList,  Dimensions,  Platform,  ActivityIndicator,  ImageBackground,  StatusBar,  Alert,  Pressable,  Modal, ListRenderItem } from 'react-native';
+import {  View,  Text,  StyleSheet,  ScrollView,  Image,  TouchableOpacity,  FlatList,  Dimensions,  Platform,  ActivityIndicator,  ImageBackground,  StatusBar,  Alert,  Pressable,  Modal,} from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronRight, Sparkles, History, Trash2, ShoppingBasket, Camera, Tag, Filter, X, Save, ArrowLeft } from 'lucide-react-native';
@@ -30,11 +30,6 @@ interface Tag {
   text: string;
 }
 
-interface ListSection {
-  type: 'input' | 'popular' | 'history' | 'recent';
-  data: any[];
-}
-
 export default function TabOneScreen() {
   const params = useLocalSearchParams();
   const [inputText, setInputText] = useState('');
@@ -61,8 +56,7 @@ export default function TabOneScreen() {
     dislikedIngredients, 
     spiceLevel,
     cuisineTypes,
-    cookingTimeLimit,
-    setDietaryPreference
+    cookingTimeLimit 
   } = usePreferencesStore();
   const { savedRecipes, getRecipesByTags, saveRecipe, updateRecipe } = useSavedRecipesStore();
   const [filteredRecipes, setFilteredRecipes] = useState<Recipe[]>([]);
@@ -411,216 +405,140 @@ export default function TabOneScreen() {
     }
   };
 
-    const handleToggleTagFilter = () => {    setShowTagFilter(!showTagFilter);  };    const handleTagsChange = (tags: string[]) => {    setSelectedTags(tags);  };
-
-  const renderListItem: ListRenderItem<ListSection> = ({ item }) => {
-    switch (item.type) {
-      case 'input':
-        return (
-          <View style={styles.inputSection}>
-            <TextArea
-              value={inputText}
-              onChangeText={setInputText}
-              onAddTag={handleAddTag}
-              onRemoveTag={handleRemoveTag}
-              tags={tags}
-              placeholder="Type ingredients separated by commas..."
-              style={styles.textArea}
-              validateTag={validateTag}
-            />
-            
-            <FilterDropdown
-              selectedValue={dietaryPreference}
-              onValueChange={(value) => setDietaryPreference(value)}
-              label="Dietary Preference"
-            />
-            
-            <Button
-              title={isEditMode ? "Generate Variation" : "Generate Recipe"}
-              onPress={handleGenerateRecipes}
-              loading={isLoading}
-              disabled={tags.length === 0}
-              fullWidth
-              icon={<Sparkles size={18} color="white" style={{ marginRight: 8 }} />}
-              style={styles.generateButton}
-            />
-          </View>
-        );
-      
-      case 'popular':
-        return (
-          <View style={styles.section}>
+    const handleToggleTagFilter = () => {    setShowTagFilter(!showTagFilter);  };    const handleTagsChange = (tags: string[]) => {    setSelectedTags(tags);  };    return (    <View style={styles.container}>      <StatusBar barStyle="dark-content" />            {/* Gradient background */}      <LinearGradient        colors={[colors.backgroundGradientStart, colors.backgroundGradientEnd]}        style={styles.gradientBackground}      />            {/* Save Options Modal */}      <Modal        animationType="slide"        transparent={true}        visible={showSaveOptions}        onRequestClose={() => setShowSaveOptions(false)}      >        <View style={styles.modalContainer}>          <View style={styles.modalContent}>            <View style={styles.modalHeader}>              <Text style={styles.modalTitle}>Save Recipe</Text>              <TouchableOpacity onPress={() => setShowSaveOptions(false)}>                <X size={24} color="#000000" />              </TouchableOpacity>            </View>                        <Text style={styles.modalText}>                How would you like to save this recipe?            </Text>                        <TouchableOpacity 
+              style={[
+                styles.saveOption, 
+                createNewVariation && styles.saveOptionSelected
+              ]}
+              onPress={() => setCreateNewVariation(true)}
+            >              <View style={styles.saveOptionIcon}>                <Save size={24} color={colors.primary} />              </View>              <View style={styles.saveOptionContent}>                <Text style={styles.saveOptionTitle}>Save as New Variation</Text>                <Text style={styles.saveOptionDescription}>                  Create a new recipe while keeping the original                </Text>              </View>            </TouchableOpacity>                        {editRecipeId && editRecipeId !== 'new' && (                <TouchableOpacity 
+                style={[
+                  styles.saveOption, 
+                  !createNewVariation && styles.saveOptionSelected
+                ]}
+                onPress={() => setCreateNewVariation(false)}
+              >                <View style={styles.saveOptionIcon}>                  <ArrowLeft size={24} color={colors.primary} />                </View>                <View style={styles.saveOptionContent}>                  <Text style={styles.saveOptionTitle}>Update Original Recipe</Text>                  <Text style={styles.saveOptionDescription}>                    Replace the original recipe with these changes                  </Text>                </View>              </TouchableOpacity>              )}                        <View style={styles.modalButtonsContainer}>                <Button                title="Cancel"                onPress={handleCancelSaveOptions}                style={styles.modalSecondaryButton}                textStyle={{ color: colors.primary }}              />                <Button                title="Save"                onPress={handleSaveRecipeVariation}                style={styles.modalPrimaryButton}              />              </View>          </View>        </View>      </Modal>            {/* Tag Filter Modal */}      <Modal        animationType="slide"        transparent={true}        visible={showTagFilter}        onRequestClose={() => setShowTagFilter(false)}      >        <View style={styles.modalContainer}>          <View style={styles.modalContent}>            <View style={styles.modalHeader}>              <Text style={styles.modalTitle}>Filter Recipes by Tags</Text>              <TouchableOpacity onPress={() => setShowTagFilter(false)}>                <X size={24} color="#000000" />              </TouchableOpacity>            </View>                        <TagFilter               selectedTags={selectedTags}              onTagsChange={handleTagsChange}            />                        <Button              title="Apply Filters"              onPress={() => setShowTagFilter(false)}              style={styles.applyButton}            />          </View>        </View>      </Modal>            <ScrollView        ref={scrollRef}        style={styles.scrollView}        contentContainerStyle={styles.contentContainer}        showsVerticalScrollIndicator={false}      >
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>
+            {isEditMode ? "Edit Recipe" : "What's in your fridge?"}
+          </Text>
+          <Text style={styles.headerSubtitle}>
+            {isEditMode 
+              ? "Modify ingredients to create a variation" 
+              : "Tell us what ingredients you have and we'll suggest delicious recipes!"}
+          </Text>
+        </View>
+        
+        {/* Add Photo Upload Button */}
+        <TouchableOpacity 
+          style={styles.photoUploadButton}
+          onPress={handlePhotoUpload}
+          disabled={isOcrLoading}
+        >
+          <Camera size={22} color={colors.primary} style={styles.photoIcon} />
+          <Text style={styles.photoButtonText}>
+            {isOcrLoading ? 'Processing...' : 'Scan Ingredients Photo'}
+          </Text>
+        </TouchableOpacity>
+        
+        <View style={styles.inputSection}>
+          <TextArea
+            value={inputText}
+            onChangeText={setInputText}
+            onAddTag={handleAddTag}
+            onRemoveTag={handleRemoveTag}
+            tags={tags}
+            placeholder="Type ingredients separated by commas..."
+            style={styles.textArea}
+            validateTag={validateTag}
+          />
+          
+          <FilterDropdown
+            selectedValue={dietaryPreference}
+            onValueChange={(value) => setDietaryPreference(value)}
+            label="Dietary Preference"
+          />
+          
+          <Button
+            title={isEditMode ? "Generate Variation" : "Generate Recipe"}
+            onPress={handleGenerateRecipes}
+            loading={isLoading}
+            disabled={tags.length === 0}
+            fullWidth
+            icon={<Sparkles size={18} color="white" style={{ marginRight: 8 }} />}
+            style={styles.generateButton}
+          />
+        </View>
+        
+                {/* Filter Button */}        {(recipeHistory.length > 0 || savedRecipes.length > 0) && (          <View style={styles.filterButtonContainer}>            <TouchableOpacity              style={styles.filterButton}              onPress={handleToggleTagFilter}            >              <Filter size={18} color={selectedTags.length > 0 ? colors.primary : "#666"} />              <Text style={[                styles.filterButtonText,                selectedTags.length > 0 && styles.activeFilterText              ]}>                Filter by Tags {selectedTags.length > 0 ? `(${selectedTags.length})` : ''}              </Text>            </TouchableOpacity>                        {selectedTags.length > 0 && (              <View style={styles.selectedTagsContainer}>                <ScrollView horizontal showsHorizontalScrollIndicator={false}>                  {selectedTags.map((tag: string) => (                    <CategoryTag                      key={tag}                      category={tag}                      size="small"                      isCustomTag                    />                  ))}                </ScrollView>                                <TouchableOpacity                  style={styles.clearFiltersButton}                  onPress={() => setSelectedTags([])}                >                  <Text style={styles.clearFiltersText}>Clear</Text>                </TouchableOpacity>              </View>            )}          </View>        )}              {(filteredHistory.length > 0 || recipeHistory.length > 0) && (          <View style={styles.recentRecipesSection}>            <View style={styles.sectionHeader}>              <View style={styles.sectionTitleContainer}>                <History size={20} color="#4A4A4A" style={styles.sectionTitleIcon} />                <Text style={styles.sectionTitle}>                  {selectedTags.length > 0                     ? `Filtered History (${filteredHistory.length})`                    : 'Recent Recipes'                  }                </Text>              </View>              <TouchableOpacity                 style={styles.clearHistoryButton}                 onPress={handleClearHistory}              >                <Trash2 size={16} color="#FF6B6B" />                <Text style={styles.clearHistoryText}>Clear</Text>              </TouchableOpacity>            </View>                        {selectedTags.length > 0 && filteredHistory.length === 0 ? (              <View style={styles.emptyFilterResults}>                <Text style={styles.emptyFilterText}>No recipes match the selected tags.</Text>              </View>            ) : (              <FlatList                data={selectedTags.length > 0 ? filteredHistory : recipeHistory}                horizontal                showsHorizontalScrollIndicator={false}                contentContainerStyle={styles.recentRecipesContainer}                initialNumToRender={3}                maxToRenderPerBatch={3}                windowSize={3}                removeClippedSubviews={Platform.OS !== 'web'}                keyExtractor={(item, index) => item.title + index}                renderItem={({ item }) => (                  <Card                    onPress={() => handleRecentRecipePress(item)}                    style={styles.recentRecipeCard}                    variant="elevated"                    imageUri={item.heroImage || 'https://via.placeholder.com/150?text=No+Image'}                    imageStyle={styles.recentRecipeImage}                  >                    <LinearGradient                      colors={['transparent', 'rgba(0,0,0,0.6)']}                      style={styles.recentRecipeGradient}                    >                      <Text style={styles.recentRecipeTitle} numberOfLines={2}>{item.title}</Text>                      {item.tags && item.tags.length > 0 && (                        <View style={styles.tagsList}>                          {item.tags.slice(0, 2).map((tag: string, i: number) => (                            <Text key={i} style={styles.recipeTag}>#{tag}</Text>                          ))}                          {item.tags.length > 2 && (                            <Text style={styles.recipeTag}>+{item.tags.length - 2}</Text>                          )}                        </View>                      )}                      <Text style={styles.viewRecipeText}>View Recipe</Text>                    </LinearGradient>                  </Card>                )}              />            )}          </View>        )}
+        
+        <View style={styles.popularSection}>
+          <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Popular Combinations</Text>
-            <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={popularCombinations}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <PopularCombinationCard
-                  combination={item}
-                  onPress={() => handleCombinationPress(item)}
-                />
-              )}
-              style={styles.horizontalList}
-            />
+            <TouchableOpacity 
+              style={styles.viewAllButton} 
+              onPress={() => router.push('/(tabs)/popular' as any)}
+            >
+              <Text style={styles.viewAllText}>View All</Text>
+              <ChevronRight size={16} color="#34C759" />
+            </TouchableOpacity>
           </View>
-        );
-      
-      case 'history':
-        return (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recipe History</Text>
-              {filteredHistory.length > 0 && (
-                <TouchableOpacity onPress={handleClearHistory}>
-                  <Trash2 size={20} color={colors.textSecondary} />
-                </TouchableOpacity>
-              )}
-            </View>
-            {filteredHistory.length > 0 ? (
+          
+          <FlatList
+            data={popularCombinations}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.combinationsContainer}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item, index }) => (
+              <PopularCombinationCard
+                item={item}
+                onPress={() => handleCombinationPress(item)}
+              />
+            )}
+          />
+        </View>
+        
+        <View style={styles.recentSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recently Used Ingredients</Text>
+          </View>
+          
+          <View style={styles.recentItems}>
+            {recentIngredients.length > 0 ? (
               <FlatList
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                data={filteredHistory}
-                keyExtractor={(item) => item.id || item.title}
+                data={recentIngredients}
+                horizontal={false}
+                numColumns={3}
+                showsVerticalScrollIndicator={false}
+                keyExtractor={(item, index) => `ingredient-${index}`}
                 renderItem={({ item }) => (
-                  <Card
-                    title={item.title}
-                    description={item.description}
-                    imageUrl={item.heroImage}
-                    onPress={() => handleRecentRecipePress(item)}
-                  />
+                  <AnimatedIngredientChip ingredient={item} />
                 )}
-                style={styles.horizontalList}
+                contentContainerStyle={styles.ingredientsContainer}
               />
             ) : (
-              <Text style={styles.emptyText}>No recipe history yet</Text>
+              <View style={styles.emptyStateContainer}>
+                <ExpoImage 
+                  source={require('../../assets/images/empty-basket.png')} 
+                  style={styles.emptyStateImage}
+                  contentFit="contain"
+                />
+                <Text style={styles.emptyStateText}>
+                  Your recently used ingredients will appear here.
+                </Text>
+                <TouchableOpacity
+                  style={styles.emptyStateButton}
+                  onPress={() => handleRecentIngredientPress('Chicken')}
+                  accessibilityLabel="Add chicken as ingredient"
+                >
+                  <Text style={styles.emptyStateButtonText}>Try adding chicken</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
-        );
-      
-      case 'recent':
-        return (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Ingredients</Text>
-            <View style={styles.recentIngredientsContainer}>
-              {recentIngredients.map((ingredient, index) => (
-                <TouchableOpacity
-                  key={`${ingredient}-${index}`}
-                  style={styles.recentIngredient}
-                  onPress={() => handleRecentIngredientPress(ingredient)}
-                >
-                  <Text style={styles.recentIngredientText}>{ingredient}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        );
-      
-      default:
-        return null;
-    }
-  };
-
-  const sections: ListSection[] = [
-    { type: 'input', data: [] },
-    { type: 'popular', data: popularCombinations },
-    { type: 'history', data: filteredHistory },
-    { type: 'recent', data: recentIngredients },
-  ];
-
-  return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      
-      <LinearGradient
-        colors={[colors.backgroundGradientStart, colors.backgroundGradientEnd]}
-        style={styles.gradientBackground}
-      />
-      
-      <FlatList
-        data={sections}
-        renderItem={renderListItem}
-        keyExtractor={(item) => item.type}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-      />
-      
-      {/* Save Options Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={showSaveOptions}
-        onRequestClose={() => setShowSaveOptions(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Save Recipe</Text>
-              <TouchableOpacity onPress={() => setShowSaveOptions(false)}>
-                <X size={24} color="#000000" />
-              </TouchableOpacity>
-            </View>
-            
-            <Text style={styles.modalText}>
-              How would you like to save this recipe?
-            </Text>
-            
-            <TouchableOpacity
-              style={[styles.modalButton, createNewVariation && styles.modalButtonSelected]}
-              onPress={() => setCreateNewVariation(true)}
-            >
-              <Text style={styles.modalButtonText}>Create New Variation</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.modalButton, !createNewVariation && styles.modalButtonSelected]}
-              onPress={() => setCreateNewVariation(false)}
-            >
-              <Text style={styles.modalButtonText}>Update Existing Recipe</Text>
-            </TouchableOpacity>
-            
-            <View style={styles.modalActions}>
-              <Button
-                title="Cancel"
-                onPress={handleCancelSaveOptions}
-                variant="outline"
-                style={styles.modalActionButton}
-              />
-              <Button
-                title="Save"
-                onPress={handleSaveRecipeVariation}
-                style={styles.modalActionButton}
-              />
-            </View>
-          </View>
         </View>
-      </Modal>
-      
-      {/* Tag Filter Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={showTagFilter}
-        onRequestClose={() => setShowTagFilter(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Filter by Tags</Text>
-              <TouchableOpacity onPress={() => setShowTagFilter(false)}>
-                <X size={24} color="#000000" />
-              </TouchableOpacity>
-            </View>
-            
-            <TagFilter
-              selectedTags={selectedTags}
-              onTagsChange={handleTagsChange}
-            />
-          </View>
-        </View>
-      </Modal>
+      </ScrollView>
     </View>
   );
 }
@@ -628,7 +546,7 @@ export default function TabOneScreen() {
 const { width } = Dimensions.get('window');
 const cardWidth = width * 0.7;
 
-const styles = StyleSheet.create({  container: {    flex: 1,    position: 'relative',  },  modalContainer: {    flex: 1,    justifyContent: 'center',    alignItems: 'center',    backgroundColor: 'rgba(0, 0, 0, 0.5)',  },  modalContent: {    width: '90%',    backgroundColor: 'white',    borderRadius: 15,    padding: 20,    shadowColor: '#000',    shadowOffset: {      width: 0,      height: 2,    },    shadowOpacity: 0.25,    shadowRadius: 3.84,    elevation: 5,  },  modalHeader: {    flexDirection: 'row',    justifyContent: 'space-between',    alignItems: 'center',    marginBottom: 20,  },  modalTitle: {    fontSize: 18,    fontWeight: '600',    color: colors.text,  },  modalText: {    fontSize: 16,    color: colors.text,    marginBottom: 20,  },  modalButton: {    flexDirection: 'row',    alignItems: 'center',    marginBottom: 15,    padding: 15,    borderWidth: 1,    borderColor: colors.border,    borderRadius: 10,  },  modalButtonSelected: {    borderColor: colors.primary,    backgroundColor: colors.primaryLight,  },  modalButtonText: {    fontSize: 16,    fontWeight: '600',    color: colors.text,  },  modalActions: {    flexDirection: 'row',    justifyContent: 'space-between',    marginTop: 20,  },  modalActionButton: {    flex: 1,    marginLeft: 10,  },  gradientBackground: {    position: 'absolute',    left: 0,    right: 0,    top: 0,    bottom: 0,  },  filterButtonContainer: {    paddingHorizontal: 20,    marginBottom: 20,  },  filterButton: {    flexDirection: 'row',    alignItems: 'center',    backgroundColor: '#F5F5F5',    paddingHorizontal: 16,    paddingVertical: 10,    borderRadius: 12,    alignSelf: 'flex-start',  },  filterButtonText: {    marginLeft: 8,    color: '#666',    fontWeight: '500',  },  activeFilterText: {    color: colors.primary,    fontWeight: '600',  },  selectedTagsContainer: {    flexDirection: 'row',    alignItems: 'center',    marginTop: 10,  },  clearFiltersButton: {    paddingHorizontal: 10,    paddingVertical: 6,    backgroundColor: 'rgba(255, 59, 48, 0.1)',    borderRadius: 12,    marginLeft: 8,  },  clearFiltersText: {    color: '#FF3B30',    fontSize: 12,    fontWeight: '500',  },  emptyFilterResults: {    padding: 20,    alignItems: 'center',    justifyContent: 'center',  },  emptyFilterText: {    color: '#8E8E93',    fontSize: 14,    fontStyle: 'italic',  },  tagsList: {    flexDirection: 'row',    marginBottom: 4,  },  recipeTag: {    color: '#34C759',    fontSize: 12,    marginRight: 4,  },
+const styles = StyleSheet.create({  container: {    flex: 1,    position: 'relative',  },  modalContainer: {    flex: 1,    justifyContent: 'center',    alignItems: 'center',    backgroundColor: 'rgba(0, 0, 0, 0.5)',  },  modalContent: {    width: '90%',    backgroundColor: 'white',    borderRadius: 15,    padding: 20,    shadowColor: '#000',    shadowOffset: {      width: 0,      height: 2,    },    shadowOpacity: 0.25,    shadowRadius: 3.84,    elevation: 5,  },  modalHeader: {    flexDirection: 'row',    justifyContent: 'space-between',    alignItems: 'center',    marginBottom: 20,  },  modalTitle: {    fontSize: 18,    fontWeight: '600',    color: colors.text,  },  modalText: {    fontSize: 16,    color: colors.text,    marginBottom: 20,  },  saveOption: {    flexDirection: 'row',    alignItems: 'center',    marginBottom: 15,    padding: 15,    borderWidth: 1,    borderColor: colors.border,    borderRadius: 10,  },  saveOptionSelected: {    borderColor: colors.primary,    backgroundColor: colors.primaryLight,  },  saveOptionIcon: {    marginRight: 15,  },  saveOptionContent: {    flex: 1,  },  saveOptionTitle: {    fontSize: 16,    fontWeight: '600',    color: colors.text,  },  saveOptionDescription: {    fontSize: 14,    color: colors.textLight,    marginTop: 4,  },  modalButtonsContainer: {    flexDirection: 'row',    justifyContent: 'space-between',    marginTop: 20,  },  modalPrimaryButton: {    flex: 1,    marginLeft: 10,  },  modalSecondaryButton: {    flex: 1,    marginRight: 10,    backgroundColor: 'transparent',    borderWidth: 1,    borderColor: colors.primary,  },  gradientBackground: {    position: 'absolute',    left: 0,    right: 0,    top: 0,    bottom: 0,  },  filterButtonContainer: {    paddingHorizontal: 20,    marginBottom: 20,  },  filterButton: {    flexDirection: 'row',    alignItems: 'center',    backgroundColor: '#F5F5F5',    paddingHorizontal: 16,    paddingVertical: 10,    borderRadius: 12,    alignSelf: 'flex-start',  },  filterButtonText: {    marginLeft: 8,    color: '#666',    fontWeight: '500',  },  activeFilterText: {    color: colors.primary,    fontWeight: '600',  },  selectedTagsContainer: {    flexDirection: 'row',    alignItems: 'center',    marginTop: 10,  },  clearFiltersButton: {    paddingHorizontal: 10,    paddingVertical: 6,    backgroundColor: 'rgba(255, 59, 48, 0.1)',    borderRadius: 12,    marginLeft: 8,  },  clearFiltersText: {    color: '#FF3B30',    fontSize: 12,    fontWeight: '500',  },  emptyFilterResults: {    padding: 20,    alignItems: 'center',    justifyContent: 'center',  },  emptyFilterText: {    color: '#8E8E93',    fontSize: 14,    fontStyle: 'italic',  },  tagsList: {    flexDirection: 'row',    marginBottom: 4,  },  recipeTag: {    color: '#34C759',    fontSize: 12,    marginRight: 4,  },
   scrollView: {
     flex: 1,
   },
@@ -828,36 +746,5 @@ const styles = StyleSheet.create({  container: {    flex: 1,    position: 'relat
     backgroundColor: colors.primary,
     paddingVertical: 12,
     borderRadius: 10,
-  },
-  horizontalList: {
-    paddingLeft: 20,
-    paddingRight: 10,
-  },
-  emptyText: {
-    color: '#8E8E93',
-    fontSize: 14,
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
-  recentIngredientsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start',
-  },
-  recentIngredient: {
-    padding: 8,
-    borderWidth: 1,
-    borderColor: '#34C759',
-    borderRadius: 16,
-    margin: 4,
-  },
-  recentIngredientText: {
-    color: '#34C759',
-    fontWeight: '500',
-    fontSize: 14,
-  },
-  section: {
-    marginBottom: 30,
   },
 });

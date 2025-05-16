@@ -346,17 +346,7 @@ export async function generateRecipe(
       // If this filter removed all recipes, restore the previous set
       if (filteredRecipes.length === 0 && preFilterCount > 0) {
         console.warn('Ignoring cooking time filter as it eliminated all recipes');
-        filteredRecipes = [...mockRecipes];
-        if (allergies && allergies.length > 0) {
-          // Re-apply allergy filter
-          filteredRecipes = filteredRecipes.filter(recipe => {
-            return !recipe.ingredients.some(ingredient => 
-              allergies.some(allergen => 
-                ingredient.toLowerCase().includes(allergen.toLowerCase())
-              )
-            );
-          });
-        }
+        filteredRecipes = [...preFilterCount];
       }
     }
     
@@ -705,10 +695,7 @@ export async function modifyRecipe(
     }
     
     // Apply spice level preference
-    const spiceModifiedRecipe = applySpiceLevelPreference(modifiedRecipe, spiceLevel);
-    
-    // Update modifiedRecipe with the spice modified recipe
-    Object.assign(modifiedRecipe, spiceModifiedRecipe);
+    modifiedRecipe = applySpiceLevelPreference(modifiedRecipe, spiceLevel);
     
     // Adjust cooking times slightly to make the variation different
     const prepMinutes = parseInt(modifiedRecipe.prepTime);

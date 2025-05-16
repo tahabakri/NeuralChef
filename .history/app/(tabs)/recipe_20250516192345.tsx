@@ -562,10 +562,10 @@ interface Recipe {
   cookTime: string;
   servings: number;
   nutritionInfo?: {
-    calories?: string;
-    protein?: string;
-    carbs?: string;
-    fat?: string;
+    calories?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
   };
   category?: string;
   heroImage?: string;
@@ -1234,7 +1234,7 @@ export default function RecipeScreen() {
         {recipe && (
           <FlatList<Section>
             data={[
-              { type: 'info', data: recipe as Recipe },
+              { type: 'info', data: recipe },
               { type: 'ingredients', data: recipe.ingredients },
               { type: 'steps', data: recipe.steps },
               { type: 'related', data: RELATED_RECIPES }

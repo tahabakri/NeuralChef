@@ -545,35 +545,9 @@ const RELATED_RECIPES = [
   },
 ];
 
-interface RecipeStep {
-  instruction: string;
-  imageUrl?: string;
-  hasTimer?: boolean;
-  timerDuration?: number;
-}
-
-interface Recipe {
-  id?: string;
-  title: string;
-  description: string;
-  ingredients: string[];
-  steps: RecipeStep[];
-  prepTime: string;
-  cookTime: string;
-  servings: number;
-  nutritionInfo?: {
-    calories?: string;
-    protein?: string;
-    carbs?: string;
-    fat?: string;
-  };
-  category?: string;
-  heroImage?: string;
-}
-
 interface Section {
   type: 'info' | 'ingredients' | 'steps' | 'related';
-  data: Recipe | string[] | RecipeStep[] | RelatedRecipe[];
+  data: any;
 }
 
 interface RelatedRecipe {
@@ -904,26 +878,23 @@ export default function RecipeScreen() {
     </Pressable>
   );
 
-  const renderSection = ({ item }: { item: Section }): JSX.Element | null => {
-    if (!recipe) return null;
-
+  const renderSection = ({ item }: { item: Section }) => {
     switch (item.type) {
       case 'info':
-        const recipeData = item.data as Recipe;
         return (
           <>
             <View style={styles.pillsContainer}>
               <View style={styles.pill}>
                 <Clock size={18} color={colors.accentBlue} />
                 <Text style={styles.pillText}>
-                  <Text style={styles.pillHighlight}>{recipeData.prepTime}</Text> prep
+                  <Text style={styles.pillHighlight}>{recipe.prepTime}</Text> prep
                 </Text>
               </View>
               
               <View style={styles.pill}>
                 <Flame size={18} color={colors.accentOrange} />
                 <Text style={styles.pillText}>
-                  <Text style={styles.pillHighlight}>{recipeData.cookTime}</Text> cook
+                  <Text style={styles.pillHighlight}>{recipe.cookTime}</Text> cook
                 </Text>
               </View>
               
@@ -939,12 +910,12 @@ export default function RecipeScreen() {
               <View style={styles.pill}>
                 <Users size={18} color={colors.accentYellow} />
                 <Text style={styles.pillText}>
-                  <Text style={styles.pillHighlight}>{recipeData.servings}</Text> servings
+                  <Text style={styles.pillHighlight}>{recipe.servings}</Text> servings
                 </Text>
               </View>
             </View>
             
-            {recipeData.nutritionInfo && (
+            {recipe.nutritionInfo && (
               <View style={styles.nutritionContainer}>
                 <Pressable 
                   style={styles.nutritionHeader}
@@ -962,28 +933,28 @@ export default function RecipeScreen() {
                 
                 {showNutrition && (
                   <View style={styles.nutritionGrid}>
-                    {recipeData.nutritionInfo.calories && (
+                    {recipe.nutritionInfo.calories && (
                       <View>
                         <Text style={styles.nutritionLabel}>Calories</Text>
-                        <Text style={styles.nutritionValue}>{recipeData.nutritionInfo.calories}</Text>
+                        <Text style={styles.nutritionValue}>{recipe.nutritionInfo.calories}</Text>
                       </View>
                     )}
-                    {recipeData.nutritionInfo.protein && (
+                    {recipe.nutritionInfo.protein && (
                       <View>
                         <Text style={styles.nutritionLabel}>Protein</Text>
-                        <Text style={styles.nutritionValue}>{recipeData.nutritionInfo.protein}</Text>
+                        <Text style={styles.nutritionValue}>{recipe.nutritionInfo.protein}</Text>
                       </View>
                     )}
-                    {recipeData.nutritionInfo.carbs && (
+                    {recipe.nutritionInfo.carbs && (
                       <View>
                         <Text style={styles.nutritionLabel}>Carbs</Text>
-                        <Text style={styles.nutritionValue}>{recipeData.nutritionInfo.carbs}</Text>
+                        <Text style={styles.nutritionValue}>{recipe.nutritionInfo.carbs}</Text>
                       </View>
                     )}
-                    {recipeData.nutritionInfo.fat && (
+                    {recipe.nutritionInfo.fat && (
                       <View>
                         <Text style={styles.nutritionLabel}>Fat</Text>
-                        <Text style={styles.nutritionValue}>{recipeData.nutritionInfo.fat}</Text>
+                        <Text style={styles.nutritionValue}>{recipe.nutritionInfo.fat}</Text>
                       </View>
                     )}
                   </View>
@@ -1009,7 +980,7 @@ export default function RecipeScreen() {
         return (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Directions</Text>
-            {(item.data as RecipeStep[]).map((step, index) => (
+            {(item.data as Array<{ instruction: string; imageUrl?: string }>).map((step, index) => (
               <RecipeStep
                 key={index}
                 number={index + 1}
@@ -1025,7 +996,7 @@ export default function RecipeScreen() {
           <>
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Related Recipes</Text>
-              <FlatList<RelatedRecipe>
+              <FlatList
                 horizontal
                 data={item.data as RelatedRecipe[]}
                 renderItem={renderRelatedRecipe}
@@ -1231,47 +1202,45 @@ export default function RecipeScreen() {
       <View style={styles.contentCard}>
         <View style={styles.dragHandle} />
         
-        {recipe && (
-          <FlatList<Section>
-            data={[
-              { type: 'info', data: recipe as Recipe },
-              { type: 'ingredients', data: recipe.ingredients },
-              { type: 'steps', data: recipe.steps },
-              { type: 'related', data: RELATED_RECIPES }
-            ]}
-            renderItem={renderSection}
-            keyExtractor={(item) => item.type}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            stickyHeaderIndices={[0]}
-            ListHeaderComponent={() => (
-              headerVisible && (
-                <View style={styles.stickyHeader}>
-                  <Text style={styles.stickyTitle} numberOfLines={1}>{recipe.title}</Text>
-                  <View style={styles.stickyHeaderActions}>
-                    <Pressable style={styles.stickyActionButton} onPress={handleToggleSave}>
-                      <Bookmark 
-                        size={20} 
-                        color={colors.primary} 
-                        fill={isRecipeSaved ? colors.primary : 'none'}
-                      />
-                    </Pressable>
-                    <Pressable style={styles.stickyActionButton} onPress={handleToggleFavorite}>
-                      <Heart 
-                        size={20} 
-                        color={colors.primary} 
-                        fill={isFavorited ? colors.primary : 'none'} 
-                      />
-                    </Pressable>
-                    <Pressable style={styles.stickyActionButton} onPress={handleShareRecipe}>
-                      <Share2 size={20} color={colors.primary} />
-                    </Pressable>
-                  </View>
+        <FlatList<Section>
+          data={[
+            { type: 'info', data: recipe },
+            { type: 'ingredients', data: recipe.ingredients },
+            { type: 'steps', data: recipe.steps },
+            { type: 'related', data: RELATED_RECIPES }
+          ]}
+          renderItem={renderSection}
+          keyExtractor={(item) => item.type}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          stickyHeaderIndices={[0]}
+          ListHeaderComponent={() => (
+            headerVisible && (
+              <View style={styles.stickyHeader}>
+                <Text style={styles.stickyTitle} numberOfLines={1}>{recipe.title}</Text>
+                <View style={styles.stickyHeaderActions}>
+                  <Pressable style={styles.stickyActionButton} onPress={handleToggleSave}>
+                    <Bookmark 
+                      size={20} 
+                      color={colors.primary} 
+                      fill={isRecipeSaved ? colors.primary : 'none'}
+                    />
+                  </Pressable>
+                  <Pressable style={styles.stickyActionButton} onPress={handleToggleFavorite}>
+                    <Heart 
+                      size={20} 
+                      color={colors.primary} 
+                      fill={isFavorited ? colors.primary : 'none'} 
+                    />
+                  </Pressable>
+                  <Pressable style={styles.stickyActionButton} onPress={handleShareRecipe}>
+                    <Share2 size={20} color={colors.primary} />
+                  </Pressable>
                 </View>
-              )
-            )}
-          />
-        )}
+              </View>
+            )
+          )}
+        />
       </View>
 
       <Toast />

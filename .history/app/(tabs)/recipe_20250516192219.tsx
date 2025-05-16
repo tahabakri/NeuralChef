@@ -553,7 +553,7 @@ interface RecipeStep {
 }
 
 interface Recipe {
-  id?: string;
+  id: string;
   title: string;
   description: string;
   ingredients: string[];
@@ -562,10 +562,10 @@ interface Recipe {
   cookTime: string;
   servings: number;
   nutritionInfo?: {
-    calories?: string;
-    protein?: string;
-    carbs?: string;
-    fat?: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
   };
   category?: string;
   heroImage?: string;
@@ -905,25 +905,22 @@ export default function RecipeScreen() {
   );
 
   const renderSection = ({ item }: { item: Section }): JSX.Element | null => {
-    if (!recipe) return null;
-
     switch (item.type) {
       case 'info':
-        const recipeData = item.data as Recipe;
         return (
           <>
             <View style={styles.pillsContainer}>
               <View style={styles.pill}>
                 <Clock size={18} color={colors.accentBlue} />
                 <Text style={styles.pillText}>
-                  <Text style={styles.pillHighlight}>{recipeData.prepTime}</Text> prep
+                  <Text style={styles.pillHighlight}>{(item.data as Recipe).prepTime}</Text> prep
                 </Text>
               </View>
               
               <View style={styles.pill}>
                 <Flame size={18} color={colors.accentOrange} />
                 <Text style={styles.pillText}>
-                  <Text style={styles.pillHighlight}>{recipeData.cookTime}</Text> cook
+                  <Text style={styles.pillHighlight}>{(item.data as Recipe).cookTime}</Text> cook
                 </Text>
               </View>
               
@@ -939,12 +936,12 @@ export default function RecipeScreen() {
               <View style={styles.pill}>
                 <Users size={18} color={colors.accentYellow} />
                 <Text style={styles.pillText}>
-                  <Text style={styles.pillHighlight}>{recipeData.servings}</Text> servings
+                  <Text style={styles.pillHighlight}>{(item.data as Recipe).servings}</Text> servings
                 </Text>
               </View>
             </View>
             
-            {recipeData.nutritionInfo && (
+            {(item.data as Recipe).nutritionInfo && (
               <View style={styles.nutritionContainer}>
                 <Pressable 
                   style={styles.nutritionHeader}
@@ -962,28 +959,28 @@ export default function RecipeScreen() {
                 
                 {showNutrition && (
                   <View style={styles.nutritionGrid}>
-                    {recipeData.nutritionInfo.calories && (
+                    {(item.data as Recipe).nutritionInfo?.calories && (
                       <View>
                         <Text style={styles.nutritionLabel}>Calories</Text>
-                        <Text style={styles.nutritionValue}>{recipeData.nutritionInfo.calories}</Text>
+                        <Text style={styles.nutritionValue}>{(item.data as Recipe).nutritionInfo.calories}</Text>
                       </View>
                     )}
-                    {recipeData.nutritionInfo.protein && (
+                    {(item.data as Recipe).nutritionInfo?.protein && (
                       <View>
                         <Text style={styles.nutritionLabel}>Protein</Text>
-                        <Text style={styles.nutritionValue}>{recipeData.nutritionInfo.protein}</Text>
+                        <Text style={styles.nutritionValue}>{(item.data as Recipe).nutritionInfo.protein}</Text>
                       </View>
                     )}
-                    {recipeData.nutritionInfo.carbs && (
+                    {(item.data as Recipe).nutritionInfo?.carbs && (
                       <View>
                         <Text style={styles.nutritionLabel}>Carbs</Text>
-                        <Text style={styles.nutritionValue}>{recipeData.nutritionInfo.carbs}</Text>
+                        <Text style={styles.nutritionValue}>{(item.data as Recipe).nutritionInfo.carbs}</Text>
                       </View>
                     )}
-                    {recipeData.nutritionInfo.fat && (
+                    {(item.data as Recipe).nutritionInfo?.fat && (
                       <View>
                         <Text style={styles.nutritionLabel}>Fat</Text>
-                        <Text style={styles.nutritionValue}>{recipeData.nutritionInfo.fat}</Text>
+                        <Text style={styles.nutritionValue}>{(item.data as Recipe).nutritionInfo.fat}</Text>
                       </View>
                     )}
                   </View>
@@ -1231,47 +1228,45 @@ export default function RecipeScreen() {
       <View style={styles.contentCard}>
         <View style={styles.dragHandle} />
         
-        {recipe && (
-          <FlatList<Section>
-            data={[
-              { type: 'info', data: recipe as Recipe },
-              { type: 'ingredients', data: recipe.ingredients },
-              { type: 'steps', data: recipe.steps },
-              { type: 'related', data: RELATED_RECIPES }
-            ]}
-            renderItem={renderSection}
-            keyExtractor={(item) => item.type}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            stickyHeaderIndices={[0]}
-            ListHeaderComponent={() => (
-              headerVisible && (
-                <View style={styles.stickyHeader}>
-                  <Text style={styles.stickyTitle} numberOfLines={1}>{recipe.title}</Text>
-                  <View style={styles.stickyHeaderActions}>
-                    <Pressable style={styles.stickyActionButton} onPress={handleToggleSave}>
-                      <Bookmark 
-                        size={20} 
-                        color={colors.primary} 
-                        fill={isRecipeSaved ? colors.primary : 'none'}
-                      />
-                    </Pressable>
-                    <Pressable style={styles.stickyActionButton} onPress={handleToggleFavorite}>
-                      <Heart 
-                        size={20} 
-                        color={colors.primary} 
-                        fill={isFavorited ? colors.primary : 'none'} 
-                      />
-                    </Pressable>
-                    <Pressable style={styles.stickyActionButton} onPress={handleShareRecipe}>
-                      <Share2 size={20} color={colors.primary} />
-                    </Pressable>
-                  </View>
+        <FlatList<Section>
+          data={[
+            { type: 'info', data: recipe },
+            { type: 'ingredients', data: recipe.ingredients },
+            { type: 'steps', data: recipe.steps },
+            { type: 'related', data: RELATED_RECIPES }
+          ]}
+          renderItem={renderSection}
+          keyExtractor={(item) => item.type}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          stickyHeaderIndices={[0]}
+          ListHeaderComponent={() => (
+            headerVisible && (
+              <View style={styles.stickyHeader}>
+                <Text style={styles.stickyTitle} numberOfLines={1}>{recipe.title}</Text>
+                <View style={styles.stickyHeaderActions}>
+                  <Pressable style={styles.stickyActionButton} onPress={handleToggleSave}>
+                    <Bookmark 
+                      size={20} 
+                      color={colors.primary} 
+                      fill={isRecipeSaved ? colors.primary : 'none'}
+                    />
+                  </Pressable>
+                  <Pressable style={styles.stickyActionButton} onPress={handleToggleFavorite}>
+                    <Heart 
+                      size={20} 
+                      color={colors.primary} 
+                      fill={isFavorited ? colors.primary : 'none'} 
+                    />
+                  </Pressable>
+                  <Pressable style={styles.stickyActionButton} onPress={handleShareRecipe}>
+                    <Share2 size={20} color={colors.primary} />
+                  </Pressable>
                 </View>
-              )
-            )}
-          />
-        )}
+              </View>
+            )
+          )}
+        />
       </View>
 
       <Toast />

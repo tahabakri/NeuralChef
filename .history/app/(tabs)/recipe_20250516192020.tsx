@@ -545,43 +545,6 @@ const RELATED_RECIPES = [
   },
 ];
 
-interface RecipeStep {
-  instruction: string;
-  imageUrl?: string;
-  hasTimer?: boolean;
-  timerDuration?: number;
-}
-
-interface Recipe {
-  id?: string;
-  title: string;
-  description: string;
-  ingredients: string[];
-  steps: RecipeStep[];
-  prepTime: string;
-  cookTime: string;
-  servings: number;
-  nutritionInfo?: {
-    calories?: string;
-    protein?: string;
-    carbs?: string;
-    fat?: string;
-  };
-  category?: string;
-  heroImage?: string;
-}
-
-interface Section {
-  type: 'info' | 'ingredients' | 'steps' | 'related';
-  data: Recipe | string[] | RecipeStep[] | RelatedRecipe[];
-}
-
-interface RelatedRecipe {
-  id: string;
-  title: string;
-  image: string;
-}
-
 export default function RecipeScreen() {
   const { recipe, isLoading, error, clearRecipe, addToFavorites, removeFromFavorites, isFavorite } = useRecipeStore();
   const { saveRecipe, removeSavedRecipe, isSaved, updateRecipeTags } = useSavedRecipesStore();
@@ -886,7 +849,7 @@ export default function RecipeScreen() {
     }
   };
 
-  const renderRelatedRecipe = ({ item }: { item: RelatedRecipe }) => (
+  const renderRelatedRecipe = ({ item }: { item: typeof RELATED_RECIPES[0] }) => (
     <Pressable 
       style={styles.relatedRecipeCard}
       onPress={() => {
@@ -903,160 +866,6 @@ export default function RecipeScreen() {
       </View>
     </Pressable>
   );
-
-  const renderSection = ({ item }: { item: Section }): JSX.Element | null => {
-    if (!recipe) return null;
-
-    switch (item.type) {
-      case 'info':
-        const recipeData = item.data as Recipe;
-        return (
-          <>
-            <View style={styles.pillsContainer}>
-              <View style={styles.pill}>
-                <Clock size={18} color={colors.accentBlue} />
-                <Text style={styles.pillText}>
-                  <Text style={styles.pillHighlight}>{recipeData.prepTime}</Text> prep
-                </Text>
-              </View>
-              
-              <View style={styles.pill}>
-                <Flame size={18} color={colors.accentOrange} />
-                <Text style={styles.pillText}>
-                  <Text style={styles.pillHighlight}>{recipeData.cookTime}</Text> cook
-                </Text>
-              </View>
-              
-              {totalTime && (
-                <View style={[styles.pill, styles.totalTimePill]}>
-                  <TimerOff size={18} color={colors.success} />
-                  <Text style={styles.pillText}>
-                    <Text style={styles.pillHighlight}>{totalTime}</Text> total
-                  </Text>
-                </View>
-              )}
-              
-              <View style={styles.pill}>
-                <Users size={18} color={colors.accentYellow} />
-                <Text style={styles.pillText}>
-                  <Text style={styles.pillHighlight}>{recipeData.servings}</Text> servings
-                </Text>
-              </View>
-            </View>
-            
-            {recipeData.nutritionInfo && (
-              <View style={styles.nutritionContainer}>
-                <Pressable 
-                  style={styles.nutritionHeader}
-                  onPress={() => setShowNutrition(!showNutrition)}
-                >
-                  <View style={styles.nutritionTitleContainer}>
-                    <BarChart size={20} color={colors.text} style={styles.nutritionIcon} />
-                    <Text style={styles.nutritionTitle}>Nutrition Information</Text>
-                  </View>
-                  {showNutrition ? 
-                    <ChevronUp size={20} color={colors.textSecondary} /> : 
-                    <ChevronDown size={20} color={colors.textSecondary} />
-                  }
-                </Pressable>
-                
-                {showNutrition && (
-                  <View style={styles.nutritionGrid}>
-                    {recipeData.nutritionInfo.calories && (
-                      <View>
-                        <Text style={styles.nutritionLabel}>Calories</Text>
-                        <Text style={styles.nutritionValue}>{recipeData.nutritionInfo.calories}</Text>
-                      </View>
-                    )}
-                    {recipeData.nutritionInfo.protein && (
-                      <View>
-                        <Text style={styles.nutritionLabel}>Protein</Text>
-                        <Text style={styles.nutritionValue}>{recipeData.nutritionInfo.protein}</Text>
-                      </View>
-                    )}
-                    {recipeData.nutritionInfo.carbs && (
-                      <View>
-                        <Text style={styles.nutritionLabel}>Carbs</Text>
-                        <Text style={styles.nutritionValue}>{recipeData.nutritionInfo.carbs}</Text>
-                      </View>
-                    )}
-                    {recipeData.nutritionInfo.fat && (
-                      <View>
-                        <Text style={styles.nutritionLabel}>Fat</Text>
-                        <Text style={styles.nutritionValue}>{recipeData.nutritionInfo.fat}</Text>
-                      </View>
-                    )}
-                  </View>
-                )}
-              </View>
-            )}
-          </>
-        );
-      
-      case 'ingredients':
-        return (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ingredients</Text>
-            <IngredientsList ingredients={item.data as string[]} />
-            
-            <Pressable onPress={handleCopyIngredients} style={styles.copyButton}>
-              <Text style={styles.copyButtonText}>Copy Ingredients</Text>
-            </Pressable>
-          </View>
-        );
-      
-      case 'steps':
-        return (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Directions</Text>
-            {(item.data as RecipeStep[]).map((step, index) => (
-              <RecipeStep
-                key={index}
-                number={index + 1}
-                instruction={step.instruction}
-                imageUrl={step.imageUrl}
-              />
-            ))}
-          </View>
-        );
-      
-      case 'related':
-        return (
-          <>
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Related Recipes</Text>
-              <FlatList<RelatedRecipe>
-                horizontal
-                data={item.data as RelatedRecipe[]}
-                renderItem={renderRelatedRecipe}
-                keyExtractor={(item) => item.id}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.relatedRecipesContainer}
-              />
-            </View>
-
-            <Pressable
-              style={styles.editButton}
-              onPress={handleEditRecipe}
-              android_ripple={{ color: 'rgba(255,255,255,0.2)', radius: 20 }}
-            >
-              <Sparkles size={20} color="#fff" />
-              <Text style={styles.editButtonText}>Edit Recipe / Create Variation</Text>
-            </Pressable>
-
-            <Button
-              title="Create New Recipe"
-              onPress={handleNewRecipe}
-              style={styles.newRecipeButton}
-              variant="gradient"
-            />
-          </>
-        );
-      
-      default:
-        return null;
-    }
-  };
 
   if (error) {
     return (
@@ -1231,47 +1040,191 @@ export default function RecipeScreen() {
       <View style={styles.contentCard}>
         <View style={styles.dragHandle} />
         
-        {recipe && (
-          <FlatList<Section>
-            data={[
-              { type: 'info', data: recipe as Recipe },
-              { type: 'ingredients', data: recipe.ingredients },
-              { type: 'steps', data: recipe.steps },
-              { type: 'related', data: RELATED_RECIPES }
-            ]}
-            renderItem={renderSection}
-            keyExtractor={(item) => item.type}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            stickyHeaderIndices={[0]}
-            ListHeaderComponent={() => (
-              headerVisible && (
-                <View style={styles.stickyHeader}>
-                  <Text style={styles.stickyTitle} numberOfLines={1}>{recipe.title}</Text>
-                  <View style={styles.stickyHeaderActions}>
-                    <Pressable style={styles.stickyActionButton} onPress={handleToggleSave}>
-                      <Bookmark 
-                        size={20} 
-                        color={colors.primary} 
-                        fill={isRecipeSaved ? colors.primary : 'none'}
-                      />
-                    </Pressable>
-                    <Pressable style={styles.stickyActionButton} onPress={handleToggleFavorite}>
-                      <Heart 
-                        size={20} 
-                        color={colors.primary} 
-                        fill={isFavorited ? colors.primary : 'none'} 
-                      />
-                    </Pressable>
-                    <Pressable style={styles.stickyActionButton} onPress={handleShareRecipe}>
-                      <Share2 size={20} color={colors.primary} />
+        <FlatList
+          data={[
+            { type: 'info', data: recipe },
+            { type: 'ingredients', data: recipe.ingredients },
+            { type: 'steps', data: recipe.steps },
+            { type: 'related', data: RELATED_RECIPES }
+          ]}
+          renderItem={({ item }) => {
+            switch (item.type) {
+              case 'info':
+                return (
+                  <>
+                    <View style={styles.pillsContainer}>
+                      <View style={styles.pill}>
+                        <Clock size={18} color={colors.accentBlue} />
+                        <Text style={styles.pillText}>
+                          <Text style={styles.pillHighlight}>{recipe.prepTime}</Text> prep
+                        </Text>
+                      </View>
+                      
+                      <View style={styles.pill}>
+                        <Flame size={18} color={colors.accentOrange} />
+                        <Text style={styles.pillText}>
+                          <Text style={styles.pillHighlight}>{recipe.cookTime}</Text> cook
+                        </Text>
+                      </View>
+                      
+                      {totalTime && (
+                        <View style={[styles.pill, styles.totalTimePill]}>
+                          <TimerOff size={18} color={colors.success} />
+                          <Text style={styles.pillText}>
+                            <Text style={styles.pillHighlight}>{totalTime}</Text> total
+                          </Text>
+                        </View>
+                      )}
+                      
+                      <View style={styles.pill}>
+                        <Users size={18} color={colors.accentYellow} />
+                        <Text style={styles.pillText}>
+                          <Text style={styles.pillHighlight}>{recipe.servings}</Text> servings
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    {recipe.nutritionInfo && (
+                      <View style={styles.nutritionContainer}>
+                        <Pressable 
+                          style={styles.nutritionHeader}
+                          onPress={() => setShowNutrition(!showNutrition)}
+                        >
+                          <View style={styles.nutritionTitleContainer}>
+                            <BarChart size={20} color={colors.text} style={styles.nutritionIcon} />
+                            <Text style={styles.nutritionTitle}>Nutrition Information</Text>
+                          </View>
+                          {showNutrition ? 
+                            <ChevronUp size={20} color={colors.textSecondary} /> : 
+                            <ChevronDown size={20} color={colors.textSecondary} />
+                          }
+                        </Pressable>
+                        
+                        {showNutrition && (
+                          <View style={styles.nutritionGrid}>
+                            {recipe.nutritionInfo.calories && (
+                              <View>
+                                <Text style={styles.nutritionLabel}>Calories</Text>
+                                <Text style={styles.nutritionValue}>{recipe.nutritionInfo.calories}</Text>
+                              </View>
+                            )}
+                            {recipe.nutritionInfo.protein && (
+                              <View>
+                                <Text style={styles.nutritionLabel}>Protein</Text>
+                                <Text style={styles.nutritionValue}>{recipe.nutritionInfo.protein}</Text>
+                              </View>
+                            )}
+                            {recipe.nutritionInfo.carbs && (
+                              <View>
+                                <Text style={styles.nutritionLabel}>Carbs</Text>
+                                <Text style={styles.nutritionValue}>{recipe.nutritionInfo.carbs}</Text>
+                              </View>
+                            )}
+                            {recipe.nutritionInfo.fat && (
+                              <View>
+                                <Text style={styles.nutritionLabel}>Fat</Text>
+                                <Text style={styles.nutritionValue}>{recipe.nutritionInfo.fat}</Text>
+                              </View>
+                            )}
+                          </View>
+                        )}
+                      </View>
+                    )}
+                  </>
+                );
+              
+              case 'ingredients':
+                return (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Ingredients</Text>
+                    <IngredientsList ingredients={item.data} />
+                    
+                    <Pressable onPress={handleCopyIngredients} style={styles.copyButton}>
+                      <Text style={styles.copyButtonText}>Copy Ingredients</Text>
                     </Pressable>
                   </View>
+                );
+              
+              case 'steps':
+                return (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Directions</Text>
+                    {item.data.map((step, index) => (
+                      <RecipeStep
+                        key={index}
+                        number={index + 1}
+                        instruction={step.instruction}
+                        imageUrl={step.imageUrl}
+                      />
+                    ))}
+                  </View>
+                );
+              
+              case 'related':
+                return (
+                  <>
+                    <View style={styles.section}>
+                      <Text style={styles.sectionTitle}>Related Recipes</Text>
+                      <FlatList
+                        horizontal
+                        data={item.data}
+                        renderItem={renderRelatedRecipe}
+                        keyExtractor={(item) => item.id}
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.relatedRecipesContainer}
+                      />
+                    </View>
+
+                    <Pressable
+                      style={styles.editButton}
+                      onPress={handleEditRecipe}
+                      android_ripple={{ color: 'rgba(255,255,255,0.2)', radius: 20 }}
+                    >
+                      <Sparkles size={20} color="#fff" />
+                      <Text style={styles.editButtonText}>Edit Recipe / Create Variation</Text>
+                    </Pressable>
+
+                    <Button
+                      title="Create New Recipe"
+                      onPress={handleNewRecipe}
+                      style={styles.newRecipeButton}
+                      variant="gradient"
+                    />
+                  </>
+                );
+            }
+          }}
+          keyExtractor={(item) => item.type}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          stickyHeaderIndices={[0]}
+          ListHeaderComponent={() => (
+            headerVisible && (
+              <View style={styles.stickyHeader}>
+                <Text style={styles.stickyTitle} numberOfLines={1}>{recipe.title}</Text>
+                <View style={styles.stickyHeaderActions}>
+                  <Pressable style={styles.stickyActionButton} onPress={handleToggleSave}>
+                    <Bookmark 
+                      size={20} 
+                      color={colors.primary} 
+                      fill={isRecipeSaved ? colors.primary : 'none'}
+                    />
+                  </Pressable>
+                  <Pressable style={styles.stickyActionButton} onPress={handleToggleFavorite}>
+                    <Heart 
+                      size={20} 
+                      color={colors.primary} 
+                      fill={isFavorited ? colors.primary : 'none'} 
+                    />
+                  </Pressable>
+                  <Pressable style={styles.stickyActionButton} onPress={handleShareRecipe}>
+                    <Share2 size={20} color={colors.primary} />
+                  </Pressable>
                 </View>
-              )
-            )}
-          />
-        )}
+              </View>
+            )
+          )}
+        />
       </View>
 
       <Toast />

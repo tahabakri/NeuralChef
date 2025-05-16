@@ -195,7 +195,7 @@ export default function TabLayout() {
           },
           tabBarBackground: () => (
             <LinearGradient
-              colors={['#FFFFFF', '#F0F4F8']}
+              colors={['#FFFFFF', '#F0F4F8']} // Gradient as requested
               style={{ 
                 flex: 1,
                 borderTopLeftRadius: 20, 
@@ -281,28 +281,13 @@ export default function TabLayout() {
         }}
         listeners={{
           tabPress: () => {
+            // Mark recipes as viewed when the recipe tab is pressed
             useRecipeStore.getState().markRecipeAsViewed();
           },
         }}
       />
-      <Tabs.Screen 
-        name="popular" 
-        options={{
-          title: "Popular Recipes",
-          tabBarLabel: "Popular",
-          tabBarAccessibilityLabel: "Browse popular recipes",
-          headerShown: false,
-        }}
-      />
-      <Tabs.Screen 
-        name="settings" 
-        options={{
-          title: "Settings",
-          tabBarLabel: "Settings",
-          tabBarAccessibilityLabel: "Customize app settings and preferences",
-          headerShown: false,
-        }}
-      />
+      <Tabs.Screen name="popular" />
+      <Tabs.Screen name="settings" />
     </Tabs>
   );
 }

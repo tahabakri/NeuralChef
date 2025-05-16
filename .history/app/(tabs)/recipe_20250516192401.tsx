@@ -562,10 +562,10 @@ interface Recipe {
   cookTime: string;
   servings: number;
   nutritionInfo?: {
-    calories?: string;
-    protein?: string;
-    carbs?: string;
-    fat?: string;
+    calories?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
   };
   category?: string;
   heroImage?: string;
