@@ -388,11 +388,11 @@ export default function TabOneScreen() {
     return (
       <Animated.View style={animatedStyle}>
         <TouchableOpacity
-          style={styles.recentIngredient}
+          style={styles.ingredientChip}
           onPress={handlePress}
           activeOpacity={0.7}
         >
-          <Text style={styles.recentIngredientText}>{ingredient}</Text>
+          <Text style={styles.ingredientChipText}>{ingredient}</Text>
         </TouchableOpacity>
       </Animated.View>
     );
@@ -400,8 +400,6 @@ export default function TabOneScreen() {
 
   // Handle photo upload for ingredient extraction
   const handlePhotoUpload = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
     try {
       // Request camera permissions
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
@@ -498,24 +496,6 @@ export default function TabOneScreen() {
       case 'input':
         return (
           <View style={styles.inputSection}>
-            <Text style={{
-              fontSize: 24,
-              fontWeight: '700',
-              color: colors.text,
-              marginBottom: 16,
-            }}>
-              Get Started
-            </Text>
-            
-            <TouchableOpacity
-              style={styles.photoUploadButton}
-              onPress={handlePhotoUpload}
-              activeOpacity={0.8}
-            >
-              <Camera size={24} color={colors.primary} style={styles.photoIcon} />
-              <Text style={styles.photoButtonText}>Upload Ingredients Photo</Text>
-            </TouchableOpacity>
-            
             <TextArea
               value={inputText}
               onChangeText={setInputText}
@@ -527,19 +507,20 @@ export default function TabOneScreen() {
               validateTag={validateTag}
             />
             
-            <ActiveFilters onEditPress={() => router.push('/preferences')} />
             <FilterDropdown
-              type="dietary"
-              selectedDietaryValue={dietaryPreference}
-              onDietaryChange={setDietaryPreference}
-              label="Dietary Filter"
+              selectedValue={dietaryPreference}
+              onValueChange={(value) => setDietaryPreference(value)}
+              label="Dietary Preference"
             />
             
-            <AnimatedGenerateButton
+            <Button
               title={isEditMode ? "Generate Variation" : "Generate Recipe"}
               onPress={handleGenerateRecipes}
               loading={isLoading}
               disabled={tags.length === 0}
+              fullWidth
+              icon={<Sparkles size={18} color="white" style={{ marginRight: 8 }} />}
+              style={styles.generateButton}
             />
           </View>
         );
@@ -592,9 +573,7 @@ export default function TabOneScreen() {
                 style={styles.horizontalList}
               />
             ) : (
-              <View style={styles.emptyFilterResults}>
-                <Text style={styles.emptyFilterText}>No recipe history yet</Text>
-              </View>
+              <Text style={styles.emptyText}>No recipe history yet</Text>
             )}
           </View>
         );
@@ -727,265 +706,73 @@ export default function TabOneScreen() {
 const { width } = Dimensions.get('window');
 const cardWidth = width * 0.7;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    position: 'relative',
-    backgroundColor: colors.backgroundGradientEnd,
-  },
-  // Modal styles
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    width: '90%',
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: colors.shadowDark,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  modalText: {
-    fontSize: 16,
-    color: colors.text,
-    marginBottom: 20,
-    lineHeight: 22,
-  },
-  modalButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-  },
-  modalButtonSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryLight,
-  },
-  modalButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 24,
-  },
-  modalActionButton: {
-    flex: 1,
-    marginHorizontal: 6,
-  },
-  
-  // Background elements
-  gradientBackground: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-  },
-  
-  // Filter section
-  filterSection: {
-    marginHorizontal: 20,
-    marginBottom: 16,
-  },
-  filterHeader: {
-    marginBottom: 12,
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  filterButtonContainer: {
-    marginBottom: 16,
-  },
-  filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.white,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 16,
-    alignSelf: 'flex-start',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  filterButtonText: {
-    marginLeft: 8,
-    color: colors.textSecondary,
-    fontWeight: '500',
-    fontSize: 16,
-  },
-  activeFilterText: {
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  selectedTagsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    flexWrap: 'wrap',
-  },
-  clearFiltersButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: 'rgba(255, 59, 48, 0.1)',
-    borderRadius: 16,
-    marginLeft: 8,
-    marginVertical: 4,
-  },
-  clearFiltersText: {
-    color: '#FF3B30',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  
-  // Empty states
-  emptyFilterResults: {
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    margin: 20,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  emptyFilterText: {
-    color: colors.textTertiary,
-    fontSize: 16,
-    fontStyle: 'italic',
-    marginTop: 12,
-  },
-  
-  // Main content areas
+const styles = StyleSheet.create({  container: {    flex: 1,    position: 'relative',  },  modalContainer: {    flex: 1,    justifyContent: 'center',    alignItems: 'center',    backgroundColor: 'rgba(0, 0, 0, 0.5)',  },  modalContent: {    width: '90%',    backgroundColor: 'white',    borderRadius: 15,    padding: 20,    shadowColor: '#000',    shadowOffset: {      width: 0,      height: 2,    },    shadowOpacity: 0.25,    shadowRadius: 3.84,    elevation: 5,  },  modalHeader: {    flexDirection: 'row',    justifyContent: 'space-between',    alignItems: 'center',    marginBottom: 20,  },  modalTitle: {    fontSize: 18,    fontWeight: '600',    color: colors.text,  },  modalText: {    fontSize: 16,    color: colors.text,    marginBottom: 20,  },  modalButton: {    flexDirection: 'row',    alignItems: 'center',    marginBottom: 15,    padding: 15,    borderWidth: 1,    borderColor: colors.border,    borderRadius: 10,  },  modalButtonSelected: {    borderColor: colors.primary,    backgroundColor: colors.primaryLight,  },  modalButtonText: {    fontSize: 16,    fontWeight: '600',    color: colors.text,  },  modalActions: {    flexDirection: 'row',    justifyContent: 'space-between',    marginTop: 20,  },  modalActionButton: {    flex: 1,    marginLeft: 10,  },  gradientBackground: {    position: 'absolute',    left: 0,    right: 0,    top: 0,    bottom: 0,  },  filterButtonContainer: {    paddingHorizontal: 20,    marginBottom: 20,  },  filterButton: {    flexDirection: 'row',    alignItems: 'center',    backgroundColor: '#F5F5F5',    paddingHorizontal: 16,    paddingVertical: 10,    borderRadius: 12,    alignSelf: 'flex-start',  },  filterButtonText: {    marginLeft: 8,    color: '#666',    fontWeight: '500',  },  activeFilterText: {    color: colors.primary,    fontWeight: '600',  },  selectedTagsContainer: {    flexDirection: 'row',    alignItems: 'center',    marginTop: 10,  },  clearFiltersButton: {    paddingHorizontal: 10,    paddingVertical: 6,    backgroundColor: 'rgba(255, 59, 48, 0.1)',    borderRadius: 12,    marginLeft: 8,  },  clearFiltersText: {    color: '#FF3B30',    fontSize: 12,    fontWeight: '500',  },  emptyFilterResults: {    padding: 20,    alignItems: 'center',    justifyContent: 'center',  },  emptyFilterText: {    color: '#8E8E93',    fontSize: 14,    fontStyle: 'italic',  },  tagsList: {    flexDirection: 'row',    marginBottom: 4,  },  recipeTag: {    color: '#34C759',    fontSize: 12,    marginRight: 4,  },
   scrollView: {
     flex: 1,
   },
   contentContainer: {
     paddingBottom: 30,
   },
-  section: {
-    marginBottom: 24,
+  header: {
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingHorizontal: 20,
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    marginHorizontal: 16,
-    padding: 16,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    paddingBottom: 20,
   },
-  
-  // Title and inputs
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '700',
     color: colors.text,
-    marginBottom: 16,
+    marginBottom: 8,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: colors.textLight,
+    lineHeight: 22,
   },
   inputSection: {
-    marginHorizontal: 16,
-    marginVertical: 16,
-    padding: 16,
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    paddingHorizontal: 20,
+    marginBottom: 30,
   },
   textArea: {
     marginBottom: 16,
   },
-  
-  // Generate button
   generateButton: {
-    marginTop: 16,
-    transform: [{ scale: 1 }]
+    marginTop: 8,
   },
-  generateButtonPressed: {
-    transform: [{ scale: 0.98 }],
-  },
-  
-  // Popular combinations
   popularSection: {
-    marginBottom: 24,
+    marginBottom: 30,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    paddingHorizontal: 20,
+    marginBottom: 12,
   },
-  
-  // Buttons and actions
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333333',
+  },
   viewAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   viewAllText: {
     fontSize: 14,
-    color: colors.primary,
+    color: '#34C759',
     marginRight: 4,
-    fontWeight: '500',
-  },
-  
-  // Lists
-  horizontalList: {
-    paddingBottom: 8,
   },
   combinationsContainer: {
-    paddingBottom: 8,
+    paddingLeft: 20,
+    paddingRight: 10,
   },
-  
-  // Recipe history
   recentSection: {
-    marginHorizontal: 16,
-    marginBottom: 24,
-    padding: 16,
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    paddingHorizontal: 20,
+    marginBottom: 30,
   },
   recentItems: {
-    backgroundColor: colors.cardAlt,
+    backgroundColor: '#F8F8F8',
     borderRadius: 12,
     padding: 16,
     minHeight: 100,
@@ -993,149 +780,89 @@ const styles = StyleSheet.create({
   emptyStateContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 16,
   },
   emptyStateImage: {
     width: 100,
     height: 100,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   emptyStateText: {
-    color: colors.textTertiary,
+    color: '#999',
     textAlign: 'center',
-    fontSize: 16,
-    marginTop: 16,
+    fontSize: 14,
+    marginTop: 12,
   },
   emptyStateButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#34C759',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 16,
-    marginTop: 16,
   },
   emptyStateButtonText: {
-    color: colors.white,
+    color: 'white',
     fontSize: 14,
     fontWeight: '600',
   },
-  
-  // Recent Ingredients
-  recentIngredientsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  recentRecipesSection: {
+    marginBottom: 30,
   },
-  recentIngredient: {
-    backgroundColor: colors.tagBackground,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    margin: 4,
-    borderWidth: 1,
-    borderColor: colors.primaryLight,
+  recentRecipesContainer: {
+    paddingHorizontal: 20,
   },
-  recentIngredientText: {
-    color: colors.primary,
-    fontWeight: '500',
-    fontSize: 14,
-  },
-  
-  // Photo upload button
-  photoUploadButton: {
+  sectionTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: colors.primaryLight,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  photoIcon: {
-    marginRight: 10,
-    color: colors.primary,
+  sectionTitleIcon: {
+    marginRight: 8,
   },
-  photoButtonText: {
-    color: colors.primary,
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  
-  // Active filters styling
-  activeFiltersContainer: {
-    backgroundColor: colors.cardAlt,
+  recentRecipeCard: {
+    marginRight: 12,
+    width: cardWidth * 0.8,
+    padding: 0,
     borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
   },
-  activeFiltersTitle: {
+  recentRecipeImage: {
+    width: '100%',
+    height: 120,
+    justifyContent: 'flex-end',
+  },
+  recentRecipeGradient: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+  },
+  recentRecipeTitle: {
+    color: 'white',
     fontSize: 14,
     fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 8,
-  },
-  filterTagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  filterTag: {
-    backgroundColor: colors.tagBackground,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    margin: 4,
-  },
-  filterTagText: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  allergenTag: {
-    backgroundColor: colors.errorLight,
-  },
-  editFiltersButton: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    margin: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  editFiltersText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-
-  // Tag styles
-  tagsList: {
-    flexDirection: 'row',
     marginBottom: 4,
-    flexWrap: 'wrap',
   },
-  recipeTag: {
-    color: colors.primary,
+  viewRecipeText: {
+    color: '#34C759',
     fontSize: 12,
-    marginRight: 4,
-    backgroundColor: colors.tagBackground,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    marginBottom: 4,
+    fontWeight: '600',
   },
-  
-  // Add missing styles that were causing linter errors
+  clearHistoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 107, 107, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 16,
+  },
+  clearHistoryText: {
+    fontSize: 12,
+    color: '#FF6B6B',
+    marginLeft: 4,
+    fontWeight: '500',
+  },
   ingredientChip: {
-    backgroundColor: colors.white,
+    backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: '#34C759',
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -1144,81 +871,111 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ingredientChipText: {
-    color: colors.primary,
+    color: '#34C759',
     fontWeight: '500',
     fontSize: 14,
   },
+  ingredientsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+  },
+  photoUploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.cardAlt,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
+  },
+  photoIcon: {
+    marginRight: 8,
+  },
+  photoButtonText: {
+    fontSize: 16,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  applyButton: {
+    marginTop: 16,
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  horizontalList: {
+    paddingLeft: 20,
+    paddingRight: 10,
+  },
   emptyText: {
-    color: colors.textTertiary,
+    color: '#8E8E93',
     fontSize: 14,
     fontStyle: 'italic',
     textAlign: 'center',
-    padding: 16,
   },
-  
-  // Remaining styles from before
-  // ... existing code ...
+  recentIngredientsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+  },
+  recentIngredient: {
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#34C759',
+    borderRadius: 16,
+    margin: 4,
+  },
+  recentIngredientText: {
+    color: '#34C759',
+    fontWeight: '500',
+    fontSize: 14,
+  },
+  section: {
+    marginBottom: 30,
+  },
+  activeFiltersContainer: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  activeFiltersTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  filterTagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  filterTag: {
+    backgroundColor: colors.backgroundAlt,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  allergenTag: {
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+  },
+  filterTagText: {
+    fontSize: 13,
+    color: colors.text,
+  },
+  editFiltersButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginBottom: 8,
+  },
+  editFiltersText: {
+    fontSize: 13,
+    color: 'white',
+  },
 });
-
-// Update handlePhotoUpload with haptic feedback for better micro-interactions
-const handlePhotoUpload = async () => {
-  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-  
-  // ... existing code ...
-}
-
-// Add a visual feedback component for the Generate button
-const AnimatedGenerateButton = ({ onPress, title, loading, disabled }: 
-  { onPress: () => void, title: string, loading: boolean, disabled: boolean }) => {
-  const [isPressed, setIsPressed] = useState(false);
-  
-  return (
-    <TouchableOpacity
-      activeOpacity={0.8}
-      onPress={() => {
-        setIsPressed(true);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        setTimeout(() => setIsPressed(false), 150);
-        onPress();
-      }}
-      disabled={disabled || loading}
-      style={[
-        styles.generateButton,
-        isPressed && styles.generateButtonPressed,
-        disabled && { opacity: 0.6 }
-      ]}
-    >
-      <LinearGradient
-        colors={[colors.primary, colors.primaryDark]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0.8 }}
-        style={{
-          borderRadius: 16,
-          width: '100%',
-          height: 56,
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexDirection: 'row',
-        }}
-      >
-        {loading ? (
-          <ActivityIndicator color={colors.white} />
-        ) : (
-          <>
-            <Sparkles size={20} color="white" style={{ marginRight: 10 }} />
-            <Text style={{
-              fontSize: 18,
-              fontWeight: '700',
-              color: colors.white,
-              textShadowColor: 'rgba(0, 0, 0, 0.1)',
-              textShadowOffset: { width: 0, height: 1 },
-              textShadowRadius: 2,
-            }}>
-              {title}
-            </Text>
-          </>
-        )}
-      </LinearGradient>
-    </TouchableOpacity>
-  );
-};

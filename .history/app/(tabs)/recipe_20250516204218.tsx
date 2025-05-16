@@ -689,7 +689,7 @@ export default function RecipeScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     clearRecipe();
-    router.replace('/');
+    router.replace('/index');
   };
 
   const handleBack = () => {
@@ -838,7 +838,7 @@ export default function RecipeScreen() {
     
     // Navigate to the Create tab with some pre-filled ingredients
     router.replace({
-      pathname: '/',
+      pathname: '/index',
       params: { preset: 'pancakes' }
     });
   };

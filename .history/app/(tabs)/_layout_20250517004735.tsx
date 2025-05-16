@@ -201,7 +201,7 @@ export default function TabLayout() {
           },
           tabBarBackground: () => (
             <LinearGradient
-              colors={[colors.tabBarBackgroundGradientStart, colors.tabBarBackgroundGradientEnd]}
+              colors={[colors.white, colors.backgroundAlt]}
               style={{ 
                 flex: 1,
                 borderTopLeftRadius: 20,

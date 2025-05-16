@@ -388,11 +388,11 @@ export default function TabOneScreen() {
     return (
       <Animated.View style={animatedStyle}>
         <TouchableOpacity
-          style={styles.recentIngredient}
+          style={styles.ingredientChip}
           onPress={handlePress}
           activeOpacity={0.7}
         >
-          <Text style={styles.recentIngredientText}>{ingredient}</Text>
+          <Text style={styles.ingredientChipText}>{ingredient}</Text>
         </TouchableOpacity>
       </Animated.View>
     );
@@ -592,9 +592,7 @@ export default function TabOneScreen() {
                 style={styles.horizontalList}
               />
             ) : (
-              <View style={styles.emptyFilterResults}>
-                <Text style={styles.emptyFilterText}>No recipe history yet</Text>
-              </View>
+              <Text style={styles.emptyText}>No recipe history yet</Text>
             )}
           </View>
         );

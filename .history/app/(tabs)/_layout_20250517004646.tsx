@@ -140,7 +140,7 @@ function ActiveIndicator({ focused }: { focused: boolean }) {
       style={[
         {
           height: 3,
-          backgroundColor: colors.tabBarActiveIndicator,
+          backgroundColor: colors.primary,
           borderRadius: 1.5,
           marginTop: 4,
         },
@@ -178,8 +178,8 @@ export default function TabLayout() {
         
         return {
           // Tab bar styling
-          tabBarActiveTintColor: colors.tabBarActiveTint,
-          tabBarInactiveTintColor: colors.tabBarInactiveTint,
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textTertiary,
           headerShown: false,
           tabBarLabel: getTabLabel(),
           tabBarStyle: {
@@ -201,7 +201,7 @@ export default function TabLayout() {
           },
           tabBarBackground: () => (
             <LinearGradient
-              colors={[colors.tabBarBackgroundGradientStart, colors.tabBarBackgroundGradientEnd]}
+              colors={[colors.white, colors.backgroundAlt]}
               style={{ 
                 flex: 1,
                 borderTopLeftRadius: 20,

@@ -388,11 +388,11 @@ export default function TabOneScreen() {
     return (
       <Animated.View style={animatedStyle}>
         <TouchableOpacity
-          style={styles.recentIngredient}
+          style={styles.ingredientChip}
           onPress={handlePress}
           activeOpacity={0.7}
         >
-          <Text style={styles.recentIngredientText}>{ingredient}</Text>
+          <Text style={styles.ingredientChipText}>{ingredient}</Text>
         </TouchableOpacity>
       </Animated.View>
     );
@@ -592,9 +592,7 @@ export default function TabOneScreen() {
                 style={styles.horizontalList}
               />
             ) : (
-              <View style={styles.emptyFilterResults}>
-                <Text style={styles.emptyFilterText}>No recipe history yet</Text>
-              </View>
+              <Text style={styles.emptyText}>No recipe history yet</Text>
             )}
           </View>
         );
@@ -1129,31 +1127,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 10,
     marginBottom: 4,
-  },
-  
-  // Add missing styles that were causing linter errors
-  ingredientChip: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    margin: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ingredientChipText: {
-    color: colors.primary,
-    fontWeight: '500',
-    fontSize: 14,
-  },
-  emptyText: {
-    color: colors.textTertiary,
-    fontSize: 14,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    padding: 16,
   },
   
   // Remaining styles from before

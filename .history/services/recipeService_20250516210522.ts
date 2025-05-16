@@ -194,8 +194,8 @@ export async function generateRecipe(
   cuisineTypes: string[] = [],
   cookingTimeLimit: number = 0,
   maxCalories: number = 0,
-  portionSize: string = 'couple',
-  microPreferences: string[] = []
+  portionSize: PortionSize = 'couple',
+  microPreferences: MicroPreference[] = []
 ): Promise<Recipe> {
   try {
     // Validate input
@@ -335,7 +335,7 @@ export async function generateRecipe(
       }
     }
     
-    // 6. Max calories filter (new)
+    // 6. Max calories filter
     if (maxCalories > 0) {
       const preFilterCount = filteredRecipes.length;
       
@@ -362,7 +362,7 @@ export async function generateRecipe(
       }
     }
     
-    // 7. Apply micro-preferences filtering (new)
+    // 7. Apply micro-preferences filtering
     if (microPreferences && microPreferences.length > 0) {
       // Calculate a score for each recipe based on how many micro-preferences it matches
       const scoredRecipes = filteredRecipes.map(recipe => {
@@ -433,7 +433,7 @@ export async function generateRecipe(
       }
     }
     
-    // 8. Adjust servings based on portionSize (new)
+    // Adjust servings based on portionSize
     let servingsMultiplier = 1;
     switch(portionSize) {
       case 'single':

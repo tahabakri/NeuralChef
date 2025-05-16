@@ -592,9 +592,7 @@ export default function TabOneScreen() {
                 style={styles.horizontalList}
               />
             ) : (
-              <View style={styles.emptyFilterResults}>
-                <Text style={styles.emptyFilterText}>No recipe history yet</Text>
-              </View>
+              <Text style={styles.emptyText}>No recipe history yet</Text>
             )}
           </View>
         );
