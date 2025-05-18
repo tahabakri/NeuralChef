@@ -1,90 +1,158 @@
 import React from 'react';
-import { StyleSheet, TouchableOpacity, Text, View, StyleProp, ViewStyle } from 'react-native';
-import { Image } from 'expo-image';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ViewStyle } from 'react-native';
 import colors from '@/constants/colors';
+import { Ionicons } from '@expo/vector-icons';
 
-export interface CardProps {
+interface CardProps {
   title: string;
-  description?: string;
-  imageUrl?: string;
+  image?: string;
+  calories?: string;
+  time?: string;
+  rating?: number;
   onPress?: () => void;
-  style?: StyleProp<ViewStyle>;
-  children?: React.ReactNode;
+  style?: ViewStyle;
+  featured?: boolean;
 }
 
-export default function Card({ 
-  title, 
-  description, 
-  imageUrl, 
-  onPress, 
-  style, 
-  children 
+export default function Card({
+  title,
+  image,
+  calories,
+  time,
+  rating,
+  onPress,
+  style,
+  featured = false
 }: CardProps) {
-  const content = children || (
-    <>
-      <Image 
-        source={{ uri: imageUrl || 'https://via.placeholder.com/150?text=No+Image' }} 
-        style={styles.image} 
-        contentFit="cover" 
+  return (
+    <TouchableOpacity
+      style={[styles.container, featured && styles.featuredContainer, style]}
+      onPress={onPress}
+      activeOpacity={0.8}
+    >
+      <Image
+        source={
+          image
+            ? { uri: image }
+            : require('@/assets/images/empty-plate.png')
+        }
+        style={featured ? styles.featuredImage : styles.image}
+        resizeMode="cover"
       />
+      
       <View style={styles.overlay}>
-        <Text style={styles.title} numberOfLines={2}>{title}</Text>
-        {description && (
-          <Text style={styles.description} numberOfLines={2}>{description}</Text>
+        {calories && (
+          <View style={styles.calorieBadge}>
+            <Text style={styles.calorieText}>{calories}</Text>
+          </View>
+        )}
+      
+        {time && (
+          <View style={styles.timeBadge}>
+            <Ionicons name="time-outline" size={12} color={colors.white} />
+            <Text style={styles.timeText}>{time}</Text>
+          </View>
         )}
       </View>
-    </>
-  );
-
-  if (onPress) {
-    return (
-      <TouchableOpacity style={[styles.container, style]} onPress={onPress}>
-        {content}
-      </TouchableOpacity>
-    );
-  }
-
-  return (
-    <View style={[styles.container, style]}>
-      {content}
-    </View>
+      
+      <View style={styles.contentContainer}>
+        <Text style={featured ? styles.featuredTitle : styles.title} numberOfLines={2}>
+          {title}
+        </Text>
+        
+        {rating && (
+          <View style={styles.ratingContainer}>
+            <Ionicons name="star" size={12} color={colors.secondary} />
+            <Text style={styles.ratingText}>{rating}</Text>
+          </View>
+        )}
+      </View>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    width: 200,
-    height: 250,
-    marginRight: 16,
+    backgroundColor: colors.white,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: colors.card,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+    marginBottom: 15,
+  },
+  featuredContainer: {
+    width: '100%',
   },
   image: {
     width: '100%',
-    height: '100%',
+    height: 120,
+  },
+  featuredImage: {
+    width: '100%',
+    height: 180,
   },
   overlay: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    top: 10,
+    left: 10,
+    right: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  calorieBadge: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  calorieText: {
+    color: colors.white,
+    fontSize: 12,
+    fontFamily: 'Poppins-Medium',
+  },
+  timeBadge: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  timeText: {
+    color: colors.white,
+    fontSize: 12,
+    fontFamily: 'Poppins-Medium',
+    marginLeft: 4,
+  },
+  contentContainer: {
     padding: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
-    marginBottom: 4,
+    fontFamily: 'Poppins-Medium',
+    fontSize: 14,
+    color: colors.text,
+    flex: 1,
   },
-  description: {
+  featuredTitle: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 16,
+    color: colors.text,
+    flex: 1,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ratingText: {
+    fontFamily: 'Poppins-Medium',
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: colors.secondary,
+    marginLeft: 4,
   },
 });

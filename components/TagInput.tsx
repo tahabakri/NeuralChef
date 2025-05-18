@@ -26,7 +26,9 @@ import Animated, {
   Easing 
 } from 'react-native-reanimated';
 import colors from '@/constants/colors';
+import { commonIngredients, validateIngredient } from '@/constants/ingredients';
 import CustomTag from './CustomTag';
+import VoiceInputModal from './VoiceInputModal';
 
 interface TagInputProps {
   label?: string;
@@ -48,6 +50,15 @@ interface TagInputProps {
   recipeTitle?: string;
   maxTags?: number;
 }
+
+// Popular tags shown to users
+const POPULAR_TAGS = [
+  'breakfast', 'lunch', 'dinner',
+  'quick', 'easy', 'healthy',
+  'vegetarian', 'vegan',  
+  'italian', 'mexican', 'asian', 'indian',
+  'dessert', 'snack', 'soup', 'salad'
+];
 
 export default function TagInput({
   label,
@@ -73,6 +84,7 @@ export default function TagInput({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [invalidTags, setInvalidTags] = useState<Record<string, string>>({});
+  const [voiceModalVisible, setVoiceModalVisible] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const animatedHeight = useRef(new Animated.Value(0)).current;
   
@@ -84,28 +96,43 @@ export default function TagInput({
     
     // Show suggestions if text is not empty
     if (text.trim() !== '') {
-      const filtered = suggestions.filter(item => 
-        item.toLowerCase().includes(text.toLowerCase()) && 
-        !tagsArray.includes(item)
-      );
+      // Use the enhanced generateSuggestions function to get relevant matches
+      const filtered = generateSuggestions(text);
       setFilteredSuggestions(filtered);
       setShowSuggestions(filtered.length > 0);
       
       // Animate suggestion panel
       Animated.timing(animatedHeight, {
-        toValue: filtered.length > 0 ? 150 : 0,
+        toValue: filtered.length > 0 ? 250 : 0, // Increased height to show more suggestions
         duration: 200,
         useNativeDriver: false
       }).start();
     } else {
-      setShowSuggestions(false);
+      // If text is empty, show a selection of common ingredients as suggestions
+      const commonSuggestions = commonIngredients
+        .filter(item => !tagsArray.includes(item))
+        .slice(0, 15);
       
-      // Animate suggestion panel closed
-      Animated.timing(animatedHeight, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: false
-      }).start();
+      if (commonSuggestions.length > 0) {
+        setFilteredSuggestions(commonSuggestions);
+        setShowSuggestions(true);
+        
+        // Animate suggestion panel
+        Animated.timing(animatedHeight, {
+          toValue: 250,
+          duration: 200,
+          useNativeDriver: false
+        }).start();
+      } else {
+        setShowSuggestions(false);
+        
+        // Animate suggestion panel closed
+        Animated.timing(animatedHeight, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: false
+        }).start();
+      }
     }
   };
   
@@ -115,17 +142,27 @@ export default function TagInput({
     // Don't add duplicates
     if (tagsArray.includes(tag.trim())) return;
     
-    // Validate tag if validation function is provided
-    if (validateTag) {
-      const validationResult = validateTag(tag.trim());
-      if (typeof validationResult === 'string') {
-        setInvalidTags({...invalidTags, [tag.trim()]: validationResult});
-        return;
+    // Validate tag using the imported validateIngredient function
+    const validationResult = validateTag ? validateTag(tag.trim()) : validateIngredient(tag.trim());
+    
+    if (typeof validationResult === 'string') {
+      setInvalidTags({...invalidTags, [tag.trim()]: validationResult});
+      
+      // Provide haptic feedback for error
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
-      if (validationResult === false) {
-        setInvalidTags({...invalidTags, [tag.trim()]: 'Invalid ingredient'});
-        return;
+      return;
+    }
+    
+    if (validationResult === false) {
+      setInvalidTags({...invalidTags, [tag.trim()]: 'Invalid ingredient'});
+      
+      // Provide haptic feedback for error
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       }
+      return;
     }
     
     const newValue = [...tagsArray, tag.trim()].join(', ');
@@ -133,6 +170,24 @@ export default function TagInput({
     setInputValue('');
     setShowSuggestions(false);
     
+    // Show empty suggestions after adding a tag
+    const remainingSuggestions = commonIngredients
+      .filter(item => !tagsArray.includes(item) && !item.includes(tag.trim()))
+      .slice(0, 15);
+    
+    if (remainingSuggestions.length > 0) {
+      setFilteredSuggestions(remainingSuggestions);
+      setShowSuggestions(true);
+      
+      // Animate suggestion panel
+      Animated.timing(animatedHeight, {
+        toValue: 250,
+        duration: 200,
+        useNativeDriver: false
+      }).start();
+    }
+    
+    // Provide positive haptic feedback
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
@@ -190,8 +245,34 @@ export default function TagInput({
   };
   
   const handleVoiceInput = () => {
+    // Show the voice input modal
+    setVoiceModalVisible(true);
+    
+    // Also call the original onVoiceInput if provided (for backwards compatibility)
     if (onVoiceInput) {
       onVoiceInput();
+    }
+  };
+  
+  // Handle voice input result from the modal
+  const handleVoiceInputReceived = (text: string) => {
+    if (!text) return;
+    
+    // If the text contains multiple ingredients separated by common conjunctions,
+    // split them and add each one separately
+    const ingredients = text
+      .split(/,|and|with|plus/)
+      .map(item => item.trim())
+      .filter(item => item.length > 0);
+    
+    // Add each ingredient as a tag
+    ingredients.forEach(ingredient => {
+      addTag(ingredient);
+    });
+    
+    // Provide haptic feedback
+    if (Platform.OS !== 'web') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
   };
   
@@ -278,8 +359,11 @@ export default function TagInput({
   }, [inputValue]);
 
   const generateSuggestions = (query: string): string[] => {
-    // Start with popular tags
-    let tagSuggestions = [...POPULAR_TAGS];
+    // Start with common ingredients from our predefined list
+    let tagSuggestions = [...commonIngredients];
+    
+    // Also include popular tags
+    tagSuggestions = [...tagSuggestions, ...POPULAR_TAGS];
     
     // Add suggestions based on ingredients
     if (recipeIngredients.length > 0) {
@@ -306,11 +390,22 @@ export default function TagInput({
     // Remove duplicates
     tagSuggestions = Array.from(new Set(tagSuggestions));
     
-    // Filter by query
+    // Filter by query - improved matching for better suggestions
     if (query) {
-      tagSuggestions = tagSuggestions.filter(tag => 
-        tag.toLowerCase().includes(query.toLowerCase())
+      const lowerQuery = query.toLowerCase();
+      
+      // Prioritize suggestions: exact starts, contains, then fuzzy match
+      const startsWithMatches = tagSuggestions.filter(tag => 
+        tag.toLowerCase().startsWith(lowerQuery)
       );
+      
+      const containsMatches = tagSuggestions.filter(tag => 
+        !tag.toLowerCase().startsWith(lowerQuery) && 
+        tag.toLowerCase().includes(lowerQuery)
+      );
+      
+      // Combine with priority order
+      tagSuggestions = [...startsWithMatches, ...containsMatches];
     }
     
     // Filter out tags that are already added
@@ -318,8 +413,8 @@ export default function TagInput({
       !tagsArray.some(existingTag => existingTag.toLowerCase() === tag.toLowerCase())
     );
     
-    // Limit suggestions
-    return tagSuggestions.slice(0, 10);
+    // Limit suggestions but show more than before
+    return tagSuggestions.slice(0, 15);
   };
 
   const handleAddTag = (tag: string) => {
@@ -439,14 +534,12 @@ export default function TagInput({
         </ScrollView>
         
         {/* Voice input button */}
-        {onVoiceInput && (
-          <TouchableOpacity
-            style={styles.voiceButton}
-            onPress={handleVoiceInput}
-          >
-            <Mic size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          style={styles.voiceButton}
+          onPress={handleVoiceInput}
+        >
+          <Mic size={20} color={colors.textSecondary} />
+        </TouchableOpacity>
       </View>
       
       {/* Suggestions */}
@@ -455,14 +548,50 @@ export default function TagInput({
           <FlatList
             data={filteredSuggestions}
             keyExtractor={(item) => item}
-            renderItem={({ item }) => (
-              <TouchableOpacity 
-                style={styles.suggestionItem}
-                onPress={() => handleSuggestionPress(item)}
-              >
-                <Text style={styles.suggestionText}>{item}</Text>
-              </TouchableOpacity>
-            )}
+            renderItem={({ item }) => {
+              // Highlight matching text
+              if (inputValue.trim()) {
+                const index = item.toLowerCase().indexOf(inputValue.toLowerCase());
+                if (index >= 0) {
+                  const beforeMatch = item.substring(0, index);
+                  const match = item.substring(index, index + inputValue.length);
+                  const afterMatch = item.substring(index + inputValue.length);
+                  
+                  return (
+                    <TouchableOpacity 
+                      style={styles.suggestionItem}
+                      onPress={() => handleSuggestionPress(item)}
+                    >
+                      <Text style={styles.suggestionText}>
+                        {beforeMatch}
+                        <Text style={styles.highlightedText}>{match}</Text>
+                        {afterMatch}
+                      </Text>
+                      {commonIngredients.includes(item) && (
+                        <View style={styles.ingredientTag}>
+                          <Text style={styles.ingredientTagText}>Ingredient</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                }
+              }
+              
+              // Default rendering without highlighting
+              return (
+                <TouchableOpacity 
+                  style={styles.suggestionItem}
+                  onPress={() => handleSuggestionPress(item)}
+                >
+                  <Text style={styles.suggestionText}>{item}</Text>
+                  {commonIngredients.includes(item) && (
+                    <View style={styles.ingredientTag}>
+                      <Text style={styles.ingredientTagText}>Ingredient</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            }}
             horizontal={false}
             showsVerticalScrollIndicator={true}
           />
@@ -482,6 +611,13 @@ export default function TagInput({
           Some ingredients are not recognized. Please check and remove them.
         </Text>
       )}
+      
+      {/* Voice Input Modal */}
+      <VoiceInputModal 
+        visible={voiceModalVisible}
+        onClose={() => setVoiceModalVisible(false)}
+        onInputReceived={handleVoiceInputReceived}
+      />
     </View>
   );
 }
@@ -588,32 +724,31 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   suggestionsContainer: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
     backgroundColor: colors.card,
-    borderRadius: 16,
+    borderRadius: 8,
     marginTop: 4,
-    maxHeight: 200,
-    zIndex: 1000,
-    elevation: 5,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.border,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
+    shadowRadius: 4,
+    elevation: 2,
   },
   suggestionItem: {
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.divider,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   suggestionText: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.text,
+    flex: 1,
   },
   ocrLoadingContainer: {
     flexDirection: 'row',
@@ -633,5 +768,21 @@ const styles = StyleSheet.create({
   },
   ocrLoadingSpinner: {
     marginLeft: 4,
+  },
+  highlightedText: {
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  ingredientTag: {
+    backgroundColor: colors.tagBackground,
+    borderRadius: 16,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+    marginLeft: 8,
+  },
+  ingredientTagText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
   },
 }); 

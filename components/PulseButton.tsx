@@ -1,133 +1,141 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, TouchableOpacity, ViewStyle, TextStyle } from 'react-native';
-import Reanimated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withRepeat, 
-  withTiming, 
-  Easing,
-  interpolateColor,
-  interpolate,
-  Extrapolate
-} from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
-
-import Button from './Button';
+import React, { useEffect, useRef } from 'react';
+import { 
+  TouchableOpacity, 
+  Text, 
+  StyleSheet, 
+  Animated, 
+  ViewStyle, 
+  TextStyle, 
+  View 
+} from 'react-native';
+import colors from '@/constants/colors';
+import { Ionicons } from '@expo/vector-icons';
 
 interface PulseButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'gradient';
   style?: ViewStyle;
   textStyle?: TextStyle;
-  icon?: React.ReactNode;
-  gradientColors?: string[];
-  pulseDuration?: number;
-  pulseIntensity?: number;
-  fullWidth?: boolean;
-  accessibilityLabel?: string;
-  accessibilityHint?: string;
+  icon?: string;
+  color?: string;
+  size?: 'small' | 'medium' | 'large';
+  isPulsing?: boolean;
 }
 
-const PulseButton = ({
-  title,
-  onPress,
-  variant = 'gradient',
-  style,
-  textStyle,
-  icon,
-  gradientColors = ['#28A745', '#F4A261'],
-  pulseDuration = 2000,
-  pulseIntensity = 1.05,
-  fullWidth = false,
-  accessibilityLabel,
-  accessibilityHint
-}: PulseButtonProps) => {
-  // Animation values
-  const pulse = useSharedValue(0);
-  const glow = useSharedValue(0);
+export default function PulseButton({ 
+  title, 
+  onPress, 
+  style, 
+  textStyle, 
+  icon, 
+  color = colors.primary,
+  size = 'medium',
+  isPulsing = false
+}: PulseButtonProps) {
+  const pulseAnim = useRef(new Animated.Value(1)).current;
   
   useEffect(() => {
-    // Pulse animation
-    pulse.value = withRepeat(
-      withTiming(1, { 
-        duration: pulseDuration,
-        easing: Easing.inOut(Easing.ease)
-      }),
-      -1, // Infinite repeat
-      true // Reverse
-    );
+    if (isPulsing) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
+    }
     
-    // Glow animation
-    glow.value = withRepeat(
-      withTiming(1, { 
-        duration: pulseDuration / 2,
-        easing: Easing.inOut(Easing.ease)
-      }),
-      -1,
-      true
-    );
-  }, [pulseDuration]);
-  
-  // Animated styles
-  const pulseStyle = useAnimatedStyle(() => {
-    const scale = interpolate(
-      pulse.value,
-      [0, 1],
-      [1, pulseIntensity],
-      Extrapolate.CLAMP
-    );
-    
-    return {
-      transform: [{ scale }]
+    return () => {
+      pulseAnim.stopAnimation();
     };
-  });
+  }, [isPulsing, pulseAnim]);
+
+  const buttonStyles = [
+    styles.button,
+    size === 'small' && styles.smallButton,
+    size === 'large' && styles.largeButton,
+    { backgroundColor: color },
+    style,
+  ];
   
-  const shadowStyle = useAnimatedStyle(() => {
-    return {
-      shadowOpacity: interpolate(
-        glow.value,
-        [0, 1],
-        [0.2, 0.4],
-        Extrapolate.CLAMP
-      ),
-      shadowRadius: interpolate(
-        glow.value,
-        [0, 1],
-        [4, 8],
-        Extrapolate.CLAMP
-      ),
-    };
-  });
-  
+  const textStyles = [
+    styles.text,
+    size === 'small' && styles.smallText,
+    size === 'large' && styles.largeText,
+    textStyle,
+  ];
+
   return (
-    <Reanimated.View style={[styles.container, pulseStyle, shadowStyle, style]}>
-      <Button 
-        title={title}
+    <Animated.View
+      style={{
+        transform: [{ scale: pulseAnim }],
+      }}
+    >
+      <TouchableOpacity 
+        style={buttonStyles} 
         onPress={onPress}
-        variant={variant}
-        textStyle={textStyle}
-        icon={icon}
-        fullWidth={fullWidth}
-        accessibilityLabel={accessibilityLabel}
-        style={styles.button}
-      />
-    </Reanimated.View>
+        activeOpacity={0.8}
+      >
+        {icon && (
+          <Ionicons 
+            name={icon as any} 
+            size={size === 'small' ? 16 : size === 'large' ? 24 : 20} 
+            color={colors.white} 
+            style={styles.icon} 
+          />
+        )}
+        <Text style={textStyles}>{title}</Text>
+      </TouchableOpacity>
+    </Animated.View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
-    shadowColor: '#FF7043',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 8,
-    borderRadius: 12,
-  },
   button: {
-    // The button has its own styling
-  }
-});
-
-export default PulseButton; 
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 30,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    elevation: 2,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  smallButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  largeButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 40,
+  },
+  text: {
+    color: colors.white,
+    fontFamily: 'Poppins-Medium',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  smallText: {
+    fontSize: 14,
+  },
+  largeText: {
+    fontSize: 18,
+  },
+  icon: {
+    marginRight: 8,
+  },
+}); 

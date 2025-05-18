@@ -8,14 +8,16 @@ import {
   Platform,
   Dimensions,
   Alert,
-  Image as RNImage,
   Pressable,
   RefreshControl,
+  SafeAreaView,
+  Image
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Image } from 'expo-image';
+import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ArrowLeft, BookOpen, ChevronRight, Filter, FlaskConical, Trash2, Bookmark, Tag } from 'lucide-react-native';
+import { Trash2, Bookmark, Tag } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 
 import SearchBar from '@/components/SearchBar';
@@ -23,7 +25,6 @@ import RecipeFilter, { RecipeFilterOptions } from '@/components/RecipeFilter';
 import CategoryTag from '@/components/CategoryTag';
 import colors from '@/constants/colors';
 import { useSavedRecipesStore } from '@/stores/savedRecipesStore';
-import { useRecipeHistoryStore } from '@/stores/recipeHistoryStore';
 import { Recipe } from '@/services/recipeService';
 
 const { width } = Dimensions.get('window');
@@ -105,7 +106,7 @@ export default function SavedScreen() {
     setRefreshing(false);
   }, [resetFilters]);
 
-  // Handle recipe press
+  // Handle recipe press - navigate to recipe screen
   const handleRecipePress = useCallback((recipe: Recipe) => {
     router.push({
       pathname: '/recipe',
@@ -148,8 +149,7 @@ export default function SavedScreen() {
         <Image
           source={{ uri: item.heroImage || item.steps[0]?.imageUrl || 'https://images.unsplash.com/photo-1542010589005-d1eacc3918f2?q=80&w=2892&auto=format&fit=crop' }}
           style={styles.cardImage}
-          contentFit="cover"
-          onError={() => console.warn('Image failed to load:', item.title)}
+          resizeMode="cover"
         />
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.7)']}
@@ -169,7 +169,10 @@ export default function SavedScreen() {
         
         <View style={styles.cardMetaContainer}>
           {item.category && (
-            <CategoryTag category={item.category} size="small" />
+            <CategoryTag 
+              label={item.category}
+              selected={true}
+            />
           )}
           
           <View style={styles.cardTagsContainer}>
@@ -213,7 +216,7 @@ export default function SavedScreen() {
           <Image
             source={{ uri: 'https://images.unsplash.com/photo-1465101162946-4377e57745c3?q=80&w=1818&auto=format&fit=crop' }}
             style={styles.emptyImage}
-            contentFit="cover"
+            resizeMode="cover"
           />
           <Text style={styles.emptyTitle}>No matching recipes</Text>
           <Text style={styles.emptyText}>
@@ -235,7 +238,7 @@ export default function SavedScreen() {
         <Image
           source={{ uri: 'https://images.unsplash.com/photo-1605522561233-768ad7a8fabf?q=80&w=1587&auto=format&fit=crop' }}
           style={styles.emptyImage}
-          contentFit="cover"
+          resizeMode="cover"
         />
         <Text style={styles.emptyTitle}>No saved recipes yet</Text>
         <Text style={styles.emptyText}>
@@ -245,8 +248,7 @@ export default function SavedScreen() {
           style={styles.createButton}
           onPress={() => router.push('/')}
         >
-          <FlaskConical size={16} color="white" style={{ marginRight: 8 }} />
-          <Text style={styles.createButtonText}>Create New Recipe</Text>
+          <Text style={styles.createButtonText}>Discover Recipes</Text>
         </TouchableOpacity>
       </View>
     );
@@ -258,50 +260,77 @@ export default function SavedScreen() {
     router
   ]);
 
+  if (savedRecipes.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="dark" />
+        <View style={styles.header}>
+          <Text style={styles.title}>Saved Recipes</Text>
+        </View>
+        
+        <View style={styles.emptyContainer}>
+          <Ionicons name="bookmark" size={80} color={colors.border} />
+          <Text style={styles.emptyTitle}>No Saved Recipes</Text>
+          <Text style={styles.emptyText}>
+            Your saved recipes will appear here
+          </Text>
+          <TouchableOpacity 
+            style={styles.exploreButton}
+            onPress={() => router.push('/')}
+          >
+            <Text style={styles.exploreButtonText}>Explore Recipes</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" />
       <View style={styles.header}>
         <Text style={styles.title}>Saved Recipes</Text>
-        <View style={styles.headerIcons}>
-          <Bookmark size={20} color={colors.primary} />
-        </View>
-      </View>
-      
-      <View style={styles.filterContainer}>
-        <SearchBar
-          value={searchQuery}
-          onChangeText={handleSearch}
-          placeholder="Search saved recipes..."
-          onClear={() => handleSearch('')}
-          onDebounce={handleSearch}
-        />
-        
-        <View style={styles.filterRow}>
-          <RecipeFilter
-            filterOptions={filterOptions}
-            onFilterChange={handleFilterChange}
-            allTags={allTags}
-          />
-        </View>
       </View>
       
       <FlatList
         data={filteredRecipes}
-        renderItem={renderRecipeItem}
         keyExtractor={(item) => item.id || item.title}
-        contentContainerStyle={styles.recipeList}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={renderEmptyState}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
-        }
+        renderItem={({ item }) => (
+          <TouchableOpacity 
+            style={styles.recipeCard}
+            onPress={() => router.push({
+              pathname: '/recipe',
+              params: { recipeId: item.id }
+            })}
+          >
+            <Image 
+              source={{ uri: item.heroImage || item.steps?.[0]?.imageUrl || 'https://images.unsplash.com/photo-1542010589005-d1eacc3918f2' }}
+              style={styles.recipeImage}
+            />
+            <View style={styles.recipeInfo}>
+              <Text style={styles.recipeTitle}>{item.title}</Text>
+              <View style={styles.recipeMetaContainer}>
+                <View style={styles.recipeMeta}>
+                  <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
+                  <Text style={styles.recipeMetaText}>{item.cookTime || '30 min'}</Text>
+                </View>
+                <View style={styles.recipeMeta}>
+                  <Ionicons name="star" size={14} color={colors.secondary} />
+                  <Text style={styles.recipeMetaText}>{item.rating || '4.5'}</Text>
+                </View>
+              </View>
+            </View>
+            <TouchableOpacity 
+              style={styles.deleteButton}
+              onPress={() => handleDeleteRecipe(item)}
+            >
+              <Ionicons name="trash-outline" size={20} color={colors.error} />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        )}
+        contentContainerStyle={styles.listContent}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -311,50 +340,94 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 10,
-    backgroundColor: colors.background,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   title: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: colors.text,
   },
-  headerIcons: {
-    flexDirection: 'row',
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+    padding: 16,
   },
-  filterContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: colors.background,
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginTop: 16,
+    marginBottom: 8,
   },
-  filterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  emptyText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
   },
-  recipeList: {
-    paddingHorizontal: 20,
-    paddingBottom: 100,
+  exploreButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  exploreButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  listContent: {
+    padding: 16,
   },
   recipeCard: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 16,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 4,
     elevation: 2,
   },
+  recipeImage: {
+    width: 100,
+    height: 100,
+  },
+  recipeInfo: {
+    flex: 1,
+    padding: 12,
+    justifyContent: 'center',
+  },
+  recipeTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  recipeMetaContainer: {
+    flexDirection: 'row',
+  },
+  recipeMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  recipeMetaText: {
+    marginLeft: 4,
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  deleteButton: {
+    padding: 12,
+    justifyContent: 'center',
+  },
   cardImageContainer: {
-    height: 140,
+    height: 160,
     width: '100%',
     position: 'relative',
   },
@@ -385,11 +458,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 4,
+    fontFamily: 'Poppins-SemiBold',
   },
   cardDescription: {
     fontSize: 14,
     color: colors.textSecondary,
     marginBottom: 8,
+    fontFamily: 'Poppins-Regular',
   },
   cardMetaContainer: {
     flexDirection: 'row',
@@ -401,6 +476,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    marginLeft: 8,
   },
   tagIcon: {
     marginRight: 4,
@@ -408,47 +484,23 @@ const styles = StyleSheet.create({
   cardTags: {
     fontSize: 12,
     color: colors.textSecondary,
+    fontFamily: 'Poppins-Regular',
   },
   categoryTag: {
     marginRight: 8,
   },
-  deleteButton: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2,
+  resetButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
   },
-  emptyContainer: {
-    padding: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 40,
-  },
-  emptyImage: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    marginBottom: 24,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
+  resetButtonText: {
     color: colors.text,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  emptyText: {
     fontSize: 16,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 24,
+    fontWeight: '500',
+    fontFamily: 'Poppins-Medium',
   },
   createButton: {
     backgroundColor: colors.primary,
@@ -463,17 +515,12 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
   },
-  resetButton: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-  },
-  resetButtonText: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '500',
+  emptyImage: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    marginBottom: 24,
   },
 }); 

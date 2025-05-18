@@ -1111,10 +1111,7 @@ export default function RecipeScreen() {
             title="Get Started" 
             onPress={() => router.push('/')} 
             style={styles.emptyButton}
-            gradientColors={['#28A745', '#F4A261']}
-            icon={<ChefHat size={18} color="white" style={{ marginRight: 8 }} />}
-            accessibilityLabel="Create a new recipe"
-            accessibilityHint="Navigates to the Create tab to generate a recipe"
+            icon="chef-hat" 
           />
           
           <Pressable 
@@ -1221,7 +1218,10 @@ export default function RecipeScreen() {
 
         <View style={styles.heroTitleContainer}>
           {recipe.category && (
-            <CategoryTag category={recipe.category} size="small" />
+            <CategoryTag 
+              label={recipe.category} 
+              selected={true}
+            />
           )}
           <Text style={styles.heroTitle}>{recipe.title}</Text>
           <Text style={styles.heroSubtitle}>{recipe.description}</Text>

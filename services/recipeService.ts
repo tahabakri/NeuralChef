@@ -28,8 +28,10 @@ export interface Recipe {
   };
   totalTime?: string; // Combined prep and cook time
   category?: string; // e.g., "Dinner", "Breakfast", "Dessert"
-  difficulty?: 'Easy' | 'Medium' | 'Hard'; // Recipe difficulty
+  difficulty?: 'Easy' | 'Medium' | 'Hard' | 'EASY' | 'MEDIUM' | 'HARD'; // Recipe difficulty
   tags?: string[]; // Custom user tags like "quick", "weeknight", "comfort food"
+  rating?: number; // Rating from 0 to 5
+  author?: string; // Recipe author or creator
 }
 
 export interface RecipeServiceError {

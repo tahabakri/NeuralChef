@@ -1,8 +1,7 @@
 import React from "react";
 import { Tabs } from "expo-router";
-import { View, Platform, Dimensions } from "react-native";
-import { Home, BookOpen, History, Settings, Bookmark } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Platform, Dimensions, StyleSheet } from "react-native";
+import { Home, Bookmark, History, Settings } from 'lucide-react-native';
 import Animated, { 
   useAnimatedStyle, 
   withTiming, 
@@ -13,6 +12,7 @@ import Animated, {
 import colors from "@/constants/colors";
 import typography from "@/constants/typography";
 import { useRecipeStore } from "@/stores/recipeStore";
+import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 84 : 64;
@@ -150,147 +150,56 @@ function ActiveIndicator({ focused }: { focused: boolean }) {
   );
 }
 
-export default function TabLayout() {
+export default function TabsLayout() {
   return (
     <Tabs
-      screenOptions={({ route }) => {
-        // Get labels for accessibility
-        const getAccessibilityLabel = () => {
-          switch (route.name) {
-            case 'index': return 'Home';
-            case 'saved': return 'Saved Recipes';
-            case 'history': return 'Recipe History';
-            case 'settings': return 'Settings';
-            default: return route.name;
-          }
-        };
-        
-        // Get visible tab label
-        const getTabLabel = () => {
-          switch (route.name) {
-            case 'index': return 'Home';
-            case 'saved': return 'Saved';
-            case 'history': return 'History';
-            case 'settings': return 'Settings';
-            default: return '';
-          }
-        };
-        
-        return {
-          // Tab bar styling
-          tabBarActiveTintColor: colors.tabBarActiveTint,
-          tabBarInactiveTintColor: colors.tabBarInactiveTint,
-          headerShown: false,
-          tabBarLabel: getTabLabel(),
-          tabBarStyle: {
-            position: 'absolute',
-            backgroundColor: 'transparent',
-            borderTopWidth: 0,
-            elevation: 0,
-            shadowOpacity: 0,
-            height: TAB_BAR_HEIGHT,
-            paddingBottom: Platform.OS === 'ios' ? 24 : 8,
-            paddingTop: 12,
-          },
-          tabBarItemStyle: {
-            height: '100%',
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingTop: 8,
-            paddingBottom: Platform.OS === 'ios' ? 24 : 8,
-          },
-          tabBarBackground: () => (
-            <LinearGradient
-              colors={[colors.tabBarBackgroundGradientStart, colors.tabBarBackgroundGradientEnd]}
-              style={{ 
-                flex: 1,
-                borderTopLeftRadius: 20,
-                borderTopRightRadius: 20,
-                shadowColor: colors.shadow,
-                shadowOffset: { width: 0, height: -2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 8,
-                elevation: 8,
-              }}
-            />
-          ),
-          tabBarLabelStyle: {
-            ...typography.caption,
-            fontWeight: '500',
-            fontSize: 12,
-            marginTop: 4,
-          },
-        };
+      screenOptions={{
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textTertiary,
+        tabBarStyle: {
+          height: Platform.OS === 'ios' ? 90 : 70,
+          paddingTop: 5,
+          paddingBottom: Platform.OS === 'ios' ? 25 : 10,
+          backgroundColor: colors.white,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+        },
+        headerShown: false,
       }}
     >
-      {/* Home Tab */}
       <Tabs.Screen
         name="index"
         options={{
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <TabIcon 
-                icon={Home} 
-                focused={focused} 
-                color={color}
-                accessibilityLabel="Home tab"
-              />
-              <ActiveIndicator focused={focused} />
-            </View>
+          title: 'Home',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home-outline" size={size} color={color} />
           ),
         }}
       />
-      
-      {/* Saved Tab */}
       <Tabs.Screen
         name="saved"
         options={{
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <TabIcon 
-                icon={Bookmark} 
-                focused={focused} 
-                color={color}
-                accessibilityLabel="Saved recipes tab"
-              />
-              <ActiveIndicator focused={focused} />
-            </View>
+          title: 'Saved',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="bookmark-outline" size={size} color={color} />
           ),
         }}
       />
-      
-      {/* History Tab */}
       <Tabs.Screen
         name="history"
         options={{
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <TabIcon 
-                icon={History} 
-                focused={focused} 
-                color={color}
-                accessibilityLabel="Recipe history tab"
-              />
-              <ActiveIndicator focused={focused} />
-            </View>
+          title: 'History',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="time-outline" size={size} color={color} />
           ),
         }}
       />
-      
-      {/* Settings Tab */}
       <Tabs.Screen
         name="settings"
         options={{
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ alignItems: 'center' }}>
-              <TabIcon 
-                icon={Settings} 
-                focused={focused} 
-                color={color}
-                accessibilityLabel="Settings tab"
-              />
-              <ActiveIndicator focused={focused} />
-            </View>
+          title: 'Settings',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" size={size} color={color} />
           ),
         }}
       />

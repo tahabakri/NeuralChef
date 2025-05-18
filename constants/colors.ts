@@ -35,16 +35,17 @@ const colors = {
     // Neutrals
     white: "#FFFFFF",
     black: "#000000",
-    background: "#F8F9FA",
+    background: "#FFFFFF",
     backgroundAlt: "#F0F4F8",
     backgroundGradientStart: "#F7F7F7",
     backgroundGradientEnd: "#E8ECEF",
     card: "#FFFFFF",
     cardAlt: "#F5F5F5",
+    searchBackground: '#F5F5F5',
     
     // Text colors
-    text: "#212121",
-    textSecondary: "#757575",
+    text: "#333333",
+    textSecondary: "#666666",
     textTertiary: "#9E9E9E",
     textLight: "#FFFFFF",
     textDark: "#000000",

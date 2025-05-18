@@ -1,0 +1,5 @@
+<!-- Add these lines to your Info.plist file for voice input capabilities -->
+<key>NSMicrophoneUsageDescription</key>
+<string>We need access to your microphone to recognize spoken ingredients</string>
+<key>NSSpeechRecognitionUsageDescription</key>
+<string>We need access to speech recognition to convert your voice to text</string> 

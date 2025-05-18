@@ -3,12 +3,14 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, Platform } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import colors from "@/constants/colors";
 import OfflineBanner from "@/components/OfflineBanner";
 import ImageCacheProvider from '@/services/ImageCacheManager';
 import FeedbackProvider from "@/components/FeedbackSystem";
+import { Tabs } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
 // Import Toast with error handling
 let Toast: any;
@@ -35,30 +37,28 @@ export default function RootLayout() {
     "OpenSans-Medium": require("../assets/fonts/OpenSans-Medium.ttf"),
     "OpenSans-SemiBold": require("../assets/fonts/OpenSans-Semibold.ttf"),
     "OpenSans-Bold": require("../assets/fonts/OpenSans-Bold.ttf"),
+    "Poppins-Regular": require("../assets/fonts/Poppins-Regular.ttf"),
+    "Poppins-Medium": require("../assets/fonts/Poppins-Medium.ttf"),
+    "Poppins-Bold": require("../assets/fonts/Poppins-Bold.ttf"),
+    "Poppins-Light": require("../assets/fonts/Poppins-Light.ttf"),
     ...FontAwesome.font,
   });
 
   useEffect(() => {
     if (error) {
       console.error("Font loading error:", error);
-      // Optionally, throw the error if it's critical, 
-      // or handle it by falling back to system fonts.
-      // For now, we log it.
     }
   }, [error]);
 
   useEffect(() => {
-    if (loaded) {
+    if (loaded || error) { // Hide splash screen if fonts are loaded or if there's an error
       SplashScreen.hideAsync();
     }
-  }, [loaded]);
+  }, [loaded, error]);
 
-  if (!loaded && !error) { // Also check for error to avoid showing splash screen indefinitely on font error
-    return null; // Keep showing splash screen or a loading indicator
+  if (!loaded) {
+    return null;
   }
-  
-  // If fonts failed to load, you might want to render a fallback or throw an error.
-  // For simplicity here, we proceed, and it will use system fonts if custom ones failed.
 
   return (
     <ErrorBoundary>
@@ -97,6 +97,8 @@ function RootLayoutNav() {
           // headerTitleStyle: { fontFamily: 'OpenSans-Semibold' },
         }}
       >
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ 
           presentation: "modal",
@@ -121,3 +123,78 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
 });
+
+export function AppLayout() {
+  const [fontsLoaded] = useFonts({
+    'Inter-Regular': require('@/assets/fonts/Inter-Regular.ttf'),
+    'Inter-Medium': require('@/assets/fonts/Inter-Medium.ttf'),
+    'Inter-SemiBold': require('@/assets/fonts/Inter-SemiBold.ttf'),
+    'Inter-Bold': require('@/assets/fonts/Inter-Bold.ttf'),
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      // Hide splash screen once fonts are loaded
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
+  return (
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textTertiary,
+        tabBarStyle: {
+          height: Platform.OS === 'ios' ? 90 : 70,
+          paddingTop: 5,
+          paddingBottom: Platform.OS === 'ios' ? 25 : 10,
+          backgroundColor: colors.white,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+        },
+        headerShown: false,
+      }}
+    >
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Home',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="saved"
+        options={{
+          title: 'Saved',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="bookmark-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: 'History',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="time-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="settings-outline" size={size} color={color} />
+          ),
+        }}
+      />
+    </Tabs>
+  );
+}

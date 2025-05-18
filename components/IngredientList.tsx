@@ -150,7 +150,7 @@ export default function IngredientsList({ ingredients }: IngredientsListProps) {
   );
 
   return (
-    <Card style={styles.container} variant="elevated">
+    <View style={styles.container}>
       {/* Progress bar with percentage */}
       <View style={styles.progressBarContainer}>
         <Progress.Bar 
@@ -176,7 +176,7 @@ export default function IngredientsList({ ingredients }: IngredientsListProps) {
         showsVerticalScrollIndicator={false}
         scrollEnabled={ingredients.length > 5}
       />
-    </Card>
+    </View>
   );
 }
 

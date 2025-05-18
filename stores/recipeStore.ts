@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Recipe } from '@/services/recipeService';
+import { Recipe, generateRecipe as generateRecipeService } from '@/services/recipeService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useCallback } from 'react';
 import { useRecipeHistoryStore } from './recipeHistoryStore';
@@ -42,6 +42,7 @@ interface RecipeActions {
   retryLastOperation: () => void;
   setLastRequest: (request: { ingredients: string[] }) => void;
   markRecipeAsViewed: () => void;
+  generateRecipe: (ingredients: string[]) => Promise<Recipe | null>;
 }
 
 // Separate state and actions to help with type inference in selectors
@@ -94,11 +95,46 @@ export const useRecipeStore = create<RecipeState & RecipeActions>((set, get) => 
   setLastRequest: (request) => set({ lastRequest: request }),
   
   retryLastOperation: () => {
-    const { lastRequest } = get();
-    if (lastRequest) {
+    const { lastRequest, generateRecipe } = get();
+    if (lastRequest?.ingredients) {
       set({ isLoading: true, error: null });
-      // The actual retry logic should be implemented in the component that uses this method
-      // by observing changes to the lastRequest and isLoading states
+      // Call generateRecipe again with the last known ingredients
+      generateRecipe(lastRequest.ingredients);
+    }
+  },
+  
+  generateRecipe: async (ingredients: string[]) => {
+    set({ isLoading: true, error: null, lastRequest: { ingredients } });
+    try {
+      // In a real app, you might have more parameters for generateRecipeService
+      const newRecipe = await generateRecipeService(ingredients); 
+      if (newRecipe) {
+        set({ recipe: newRecipe, isLoading: false, hasNewRecipe: true });
+        useRecipeHistoryStore.getState().addToHistory(newRecipe);
+        return newRecipe;
+      } else {
+        throw new Error('Recipe generation returned null or undefined');
+      }
+    } catch (err: any) {
+      console.error('Error generating recipe in store:', err);
+      let errorType: RecipeErrorType = 'generation';
+      let errorMessage = 'Failed to generate recipe.';
+      if (err.type && typeof err.type === 'string' && ['network', 'timeout', 'validation', 'unknown'].includes(err.type)) {
+        errorType = err.type as RecipeErrorType;
+      }
+      if (err.message && typeof err.message === 'string') {
+        errorMessage = err.message;
+      }
+      set({ 
+        error: { 
+          type: errorType, 
+          message: errorMessage, 
+          details: err.details || (err instanceof Error ? err.stack : undefined), 
+          timestamp: Date.now() 
+        }, 
+        isLoading: false 
+      });
+      return null;
     }
   },
   
