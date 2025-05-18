@@ -19,8 +19,20 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
-import Checkbox from '@/components/Checkbox';
+import * as Speech from 'expo-speech';
+import RecipeHeader from '@/components/RecipeHeader';
+import CategoryTag from '@/components/CategoryTag';
+import IngredientList from '@/components/IngredientList';
+import StepList from '@/components/StepList';
+import StepCheckbox from '@/components/StepCheckbox';
+import TimerButton from '@/components/TimerButton';
 import Timer from '@/components/Timer';
+import RecipeCarousel from '@/components/RecipeCarousel';
+import StarRating from '@/components/StarRating';
+import SaveButton from '@/components/SaveButton';
+import ShareModal from '@/components/ShareModal';
+import EditIngredients from '@/components/EditIngredients';
+import { useFeedback } from '@/components/FeedbackSystem';
 import colors from '@/constants/colors';
 import { useRecipeStore } from '@/stores/recipeStore';
 import { useSavedRecipesStore } from '@/stores/savedRecipesStore';
@@ -35,51 +47,46 @@ export default function RecipeScreen() {
   const [loading, setLoading] = useState(false);
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [completedSteps, setCompletedSteps] = useState<boolean[]>([]);
-  const [userRating, setUserRating] = useState<number>(0);
+  const [currentRating, setCurrentRating] = useState<number>(0);
   const [isSaved, setIsSaved] = useState(false);
   const [activeTimer, setActiveTimer] = useState<number | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const { showFeedback } = useFeedback();
 
   // Get stores
-  const { currentRecipe, setRecipe: setStoreRecipe } = useRecipeStore();
-  const { savedRecipes, addSavedRecipe, removeSavedRecipe } = useSavedRecipesStore();
+  const { savedRecipes, saveRecipe, removeSavedRecipe } = useSavedRecipesStore();
 
   // If we have a recipeId in params, load that recipe
   useEffect(() => {
     setLoading(true);
-    
+    let recipeData: Recipe | null = null;
+
     if (params.recipeId) {
-      // In a real app you would fetch the recipe from an API or local storage
-      // For now, we'll just use the current recipe from the store
-      if (currentRecipe && currentRecipe.id === params.recipeId) {
-        setRecipe(currentRecipe);
-        initializeRecipe(currentRecipe);
+      const recipeIdParam = params.recipeId as string;
+      // Try to find the recipe in saved recipes
+      const saved = savedRecipes.find(r => r.id === recipeIdParam);
+      if (saved) {
+        recipeData = saved;
       } else {
-        // Try to find the recipe in saved recipes
-        const saved = savedRecipes.find(r => r.id === params.recipeId);
-        if (saved) {
-          setRecipe(saved);
-          initializeRecipe(saved);
-        } else {
-          // Fallback to the current recipe if we can't find the requested one
-          if (currentRecipe) {
-            setRecipe(currentRecipe);
-            initializeRecipe(currentRecipe);
-          } else {
-            // No recipe found - go back
-            Alert.alert('Recipe not found', 'The requested recipe could not be found.');
-            router.back();
-          }
-        }
+        // Potentially fetch from an API if not in saved recipes
+        // For now, if not in saved, consider it not found or handle as per app logic
+        console.warn(`Recipe with ID ${recipeIdParam} not found in saved recipes.`);
+        // If your app has a global "current recipe" that's not part of savedRecipes,
+        // you might try to load it here.
+        // For this fix, we'll assume it must be in savedRecipes or passed directly.
       }
-    } else if (currentRecipe) {
-      // Use the current recipe from the store if no ID is provided
-      setRecipe(currentRecipe);
-      initializeRecipe(currentRecipe);
+    }
+
+    if (recipeData) {
+      setRecipe(recipeData);
+      initializeRecipe(recipeData);
     } else {
-      // No recipe available - go back
-      Alert.alert('No recipe selected', 'Please select a recipe first.');
+      // No recipe found or ID provided - go back or show error
+      Alert.alert('Recipe not found', 'The requested recipe could not be found or no recipe was selected.');
       router.back();
     }
     
@@ -91,7 +98,7 @@ export default function RecipeScreen() {
     }).start();
     
     setLoading(false);
-  }, [params.recipeId, currentRecipe]);
+  }, [params.recipeId, savedRecipes]); // Use savedRecipes as a dependency if its change should trigger re-evaluation
 
   // Initialize the recipe state
   const initializeRecipe = (recipe: Recipe) => {
@@ -100,6 +107,11 @@ export default function RecipeScreen() {
     
     // Initialize completed steps
     setCompletedSteps(new Array(recipe.steps.length).fill(false));
+
+    // Get user rating if available
+    if (recipe.rating) {
+      setCurrentRating(recipe.rating);
+    }
   };
 
   // Toggle step completion
@@ -141,12 +153,37 @@ export default function RecipeScreen() {
   };
 
   // Set rating
-  const handleRating = (rating: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setUserRating(rating);
+  const handleRating = (ratingValue: number) => {
+    if (!recipe) return;
     
-    // In a real app, you would save this rating to your backend
-    Alert.alert('Thank You!', `You rated this recipe ${rating} stars.`);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setCurrentRating(ratingValue);
+    
+    // Update the recipe rating locally and in the store if applicable
+    const updatedRecipe = {
+      ...recipe,
+      rating: ratingValue
+    };
+    setRecipe(updatedRecipe); // Update local state
+
+    // If this recipe is in savedRecipes, update it there too.
+    // This assumes savedRecipesStore has an updateRecipe method.
+    // If not, this part needs adjustment based on store capabilities.
+    const existingSavedRecipe = savedRecipes.find(r => r.id === recipe.id);
+    if (existingSavedRecipe) {
+      // Ideally, useSavedRecipesStore would have an `updateRecipe` action
+      // For now, we'll update the local `recipe` state and assume persistence handles it,
+      // or the user re-saves if they want this rating persisted.
+      // A more robust solution would involve calling an update action on the store.
+      console.log("Rating updated locally. To persist, ensure the recipe is saved or an update mechanism exists in the store.");
+    }
+    
+    // Show feedback to the user
+    showFeedback({
+      title: 'Rating Saved',
+      description: `You rated this recipe ${ratingValue} stars.`,
+      type: 'success'
+    });
   };
 
   // Toggle saved state
@@ -156,14 +193,57 @@ export default function RecipeScreen() {
     if (!recipe) return;
     
     if (isSaved) {
-      removeSavedRecipe(recipe.title);
+      removeSavedRecipe(recipe.title); // Assumes removal by title
       setIsSaved(false);
+      
       // Show feedback toast
+      showFeedback({
+        title: 'Recipe Removed',
+        description: 'Recipe removed from your saved collection.',
+        type: 'info'
+      });
     } else {
-      addSavedRecipe(recipe);
+      saveRecipe(recipe); // Use saveRecipe from the store
       setIsSaved(true);
+      
       // Show feedback toast
+      showFeedback({
+        title: 'Recipe Saved',
+        description: 'Recipe added to your saved collection.',
+        type: 'success'
+      });
     }
+  };
+
+  // Open share modal
+  const openShareModal = () => {
+    if (!recipe) return;
+    setShowShareModal(true);
+  };
+
+  // Open edit ingredients modal
+  const openEditModal = () => {
+    if (!recipe) return;
+    setShowEditModal(true);
+  };
+
+  // Create a new recipe
+  const createNewRecipe = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push('/input');
+  };
+
+  // View a related recipe
+  const viewRelatedRecipe = (relatedRecipe: Recipe) => {
+    if (!relatedRecipe || !relatedRecipe.id) return;
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // Navigate with recipeId, the screen will load it
+    router.push({
+      pathname: '/recipe', // Assuming the route is just '/recipe'
+      params: { recipeId: relatedRecipe.id }
+    });
   };
 
   // Share recipe
@@ -188,63 +268,33 @@ export default function RecipeScreen() {
     }
   };
 
-  // Edit recipe - navigate to edit screen
-  const editRecipe = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
-    if (!recipe) return;
-    
-    // Set current recipe in store first
-    setStoreRecipe(recipe);
-    
-    // Navigate to edit screen
-    router.push({
-      pathname: '/edit-recipe',
-      params: { recipeId: recipe.id }
-    });
+  // Toggle voice navigation
+  const toggleVoiceNavigation = () => {
+    if (isListening) {
+      // Stop listening
+      setIsListening(false);
+      Speech.stop();
+    } else {
+      // Start listening
+      setIsListening(true);
+      Speech.speak('Voice navigation activated. Say "next step" to navigate.');
+      
+      // In a real app, you would implement voice recognition
+      // This is a placeholder for demo purposes
+    }
   };
 
-  // Create variation - generate a new similar recipe
-  const createVariation = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
+  // Regenerate image for a step
+  const regenerateStepImage = (index: number) => {
     if (!recipe) return;
     
-    Alert.alert(
-      'Create Variation',
-      'Do you want to create a variation of this recipe?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Create',
-          onPress: () => {
-            // Navigate to ingredient screen with current ingredients pre-filled
-            router.push({
-              pathname: '/input',
-              params: { ingredients: recipe.ingredients.join(',') }
-            });
-          },
-        },
-      ]
-    );
-  };
-
-  // Navigate to similar recipes
-  const viewSimilarRecipes = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // In a real app, this would call imageService.ts to generate a new image
+    Alert.alert('Generating New Image', 'Regenerating image for this step...');
     
-    if (!recipe) return;
-    
-    router.push({
-      pathname: '/similar-recipes',
-      params: { 
-        tags: recipe.tags?.join(','), 
-        category: recipe.category 
-      }
-    });
+    // Simulate image regeneration delay
+    setTimeout(() => {
+      Alert.alert('Image Generated', 'New image has been generated for this step.');
+    }, 1500);
   };
 
   if (loading || !recipe) {
@@ -261,45 +311,87 @@ export default function RecipeScreen() {
   const progressPercentage = completedSteps.filter(Boolean).length / 
     (completedSteps.length || 1) * 100;
 
+  // Mock related recipes
+  const relatedRecipes = [
+    {
+      id: 'related1',
+      title: 'Similar Dish with Variations',
+      description: 'A different take on this recipe with alternative ingredients',
+      imageUrl: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-4.0.3',
+      prepTime: '15 min',
+      cookTime: '25 min',
+      ingredients: ['Ingredient 1', 'Ingredient 2', 'Ingredient 3'],
+      steps: [{ instruction: 'Step 1' }, { instruction: 'Step 2' }],
+      servings: 4,
+      difficulty: 'Medium' as 'Medium' // Type assertion for difficulty
+    },
+    {
+      id: 'related2',
+      title: 'Another Related Recipe',
+      description: 'Uses similar cooking techniques',
+      imageUrl: 'https://images.unsplash.com/photo-1546549032-9571cd6b27df?ixlib=rb-4.0.3',
+      prepTime: '10 min',
+      cookTime: '20 min',
+      ingredients: ['Ingredient 1', 'Ingredient 2', 'Ingredient 3'],
+      steps: [{ instruction: 'Step 1' }, { instruction: 'Step 2' }],
+      servings: 2,
+      difficulty: 'Easy' as 'Easy' // Type assertion for difficulty
+    }
+  ];
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
       
-      {/* Header */}
-      <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-          accessibilityLabel="Go back"
-          accessibilityRole="button"
-        >
-          <Ionicons name="chevron-back" size={28} color="white" />
-        </TouchableOpacity>
-        
-        <View style={styles.headerActions}>
+      {/* Gray Gradient Header */}
+      <LinearGradient
+        colors={['#607D8B', '#CFD8DC']}
+        style={styles.headerGradient}
+      >
+        <View style={styles.headerContent}>
           <TouchableOpacity 
-            style={styles.headerButton}
-            onPress={toggleSaved}
-            accessibilityLabel={isSaved ? "Remove from saved recipes" : "Save recipe"}
-            accessibilityRole="button"
+            style={styles.backButton}
+            onPress={() => router.back()}
+            accessibilityLabel="Go back"
           >
-            <Ionicons 
-              name={isSaved ? "bookmark" : "bookmark-outline"} 
-              size={24} 
-              color="white" 
-            />
+            <Ionicons name="chevron-back" size={28} color="white" />
           </TouchableOpacity>
           
-          <TouchableOpacity 
-            style={styles.headerButton}
-            onPress={shareRecipe}
-            accessibilityLabel="Share recipe"
-            accessibilityRole="button"
-          >
-            <Ionicons name="share-outline" size={24} color="white" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={toggleSaved}
+              accessibilityLabel={isSaved ? "Remove from saved recipes" : "Save recipe"}
+            >
+              <Ionicons 
+                name={isSaved ? "bookmark" : "bookmark-outline"} 
+                size={24} 
+                color="white" 
+              />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={openShareModal}
+              accessibilityLabel="Share recipe"
+            >
+              <Ionicons name="share-outline" size={24} color="white" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={toggleVoiceNavigation}
+              accessibilityLabel={isListening ? "Turn off voice navigation" : "Turn on voice navigation"}
+            >
+              <Ionicons 
+                name={isListening ? "mic" : "mic-outline"} 
+                size={24} 
+                color="white" 
+              />
+            </TouchableOpacity>
+          </View>
         </View>
-      </Animated.View>
+      </LinearGradient>
       
       <ScrollView 
         ref={scrollViewRef}
@@ -322,7 +414,22 @@ export default function RecipeScreen() {
             style={styles.heroGradient}
           />
           <View style={styles.heroContent}>
+            {/* Recipe Title */}
             <Text style={styles.recipeTitle}>{recipe.title}</Text>
+            
+            {/* Category Tag with Fresh Green Gradient */}
+            {recipe.category && (
+              <View style={styles.categoryContainer}>
+                <LinearGradient
+                  colors={['#A5D6A7', '#81C784']} // Fresh Green gradient
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.categoryGradient}
+                >
+                  <Text style={styles.categoryText}>{recipe.category}</Text>
+                </LinearGradient>
+              </View>
+            )}
             
             <View style={styles.recipeMetaContainer}>
               {recipe.prepTime && (
@@ -382,178 +489,135 @@ export default function RecipeScreen() {
         {/* Ingredients Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ingredients</Text>
-          <View style={styles.ingredientsList}>
-            {recipe.ingredients.map((ingredient, index) => (
-              <View key={`ingredient-${index}`} style={styles.ingredientItem}>
-                <View style={styles.ingredientDot} />
-                <Text style={styles.ingredientText}>{ingredient}</Text>
-              </View>
-            ))}
-          </View>
+          <IngredientList 
+            ingredients={recipe.ingredients} 
+            editable={true}
+          />
         </View>
         
         {/* Steps Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Instructions</Text>
-          
-          {recipe.steps.map((step, index) => (
-            <View key={`step-${index}`} style={styles.stepContainer}>
-              <View style={styles.stepHeader}>
-                <View style={styles.stepNumberContainer}>
-                  <Text style={styles.stepNumber}>{index + 1}</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.stepCheckbox}
-                  onPress={() => toggleStepCompletion(index)}
-                  accessibilityLabel={`Mark step ${index + 1} as ${completedSteps[index] ? 'incomplete' : 'complete'}`}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: completedSteps[index] }}
-                >
-                  <Checkbox checked={completedSteps[index]} />
-                </TouchableOpacity>
-              </View>
-              
-              {step.imageUrl && (
-                <Image
-                  source={{ uri: step.imageUrl }}
-                  style={styles.stepImage}
-                  resizeMode="cover"
-                />
-              )}
-              
-              <Text style={[
-                styles.stepInstruction, 
-                completedSteps[index] && styles.completedStepInstruction
-              ]}>
-                {step.instruction}
-              </Text>
-              
-              {step.hasTimer && step.timerDuration && (
-                <TouchableOpacity
-                  style={styles.timerButton}
-                  onPress={() => startTimer(index, step.timerDuration || 0)}
-                  disabled={activeTimer !== null}
-                  accessibilityLabel={`Start ${step.timerDuration} minute timer for step ${index + 1}`}
-                  accessibilityRole="button"
-                >
-                  <Ionicons 
-                    name="timer-outline" 
-                    size={18} 
-                    color={activeTimer === index ? colors.secondary : colors.primary} 
-                  />
-                  <Text style={[
-                    styles.timerButtonText,
-                    activeTimer === index && styles.activeTimerButtonText
-                  ]}>
-                    {activeTimer === index ? 'Timer Running' : `Set ${step.timerDuration} min Timer`}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              
-              {activeTimer === index && step.timerDuration && (
-                <Timer
-                  duration={step.timerDuration * 60} // Convert minutes to seconds
-                  onComplete={() => handleTimerComplete(index)}
-                />
-              )}
-            </View>
-          ))}
+          <StepList 
+            steps={recipe.steps} 
+            onStepComplete={toggleStepCompletion}
+            autoScrollToNextStep={true}
+            onRegenerateImage={regenerateStepImage}
+          />
         </View>
         
-        {/* Nutrition Info */}
-        {recipe.nutritionInfo && (
+        {/* Post-Cooking Actions */}
+        {allStepsCompleted && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Nutrition Information</Text>
-            <View style={styles.nutritionContainer}>
-              {recipe.nutritionInfo.calories && (
-                <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionValue}>{recipe.nutritionInfo.calories}</Text>
-                  <Text style={styles.nutritionLabel}>Calories</Text>
-                </View>
-              )}
+            <Text style={styles.sectionTitle}>Nice Work!</Text>
+            <View style={styles.postCookingContainer}>
+              {/* Rate Recipe */}
+              <View style={styles.postCookingItem}>
+                <Text style={styles.postCookingLabel}>How did it turn out?</Text>
+                <StarRating 
+                  rating={currentRating}
+                  size={32}
+                  isEditable={true}
+                  onRatingChange={handleRating}
+                  style={styles.starRating}
+                />
+              </View>
               
-              {recipe.nutritionInfo.protein && (
-                <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionValue}>{recipe.nutritionInfo.protein}</Text>
-                  <Text style={styles.nutritionLabel}>Protein</Text>
-                </View>
-              )}
+              {/* Save Recipe */}
+              <View style={styles.postCookingItem}>
+                <Text style={styles.postCookingLabel}>Save for later</Text>
+                <SaveButton 
+                  recipe={recipe}
+                  size="large"
+                  variant={isSaved ? "primary" : "outline"}
+                  style={styles.saveButton}
+                  showText={true}
+                />
+              </View>
               
-              {recipe.nutritionInfo.carbs && (
-                <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionValue}>{recipe.nutritionInfo.carbs}</Text>
-                  <Text style={styles.nutritionLabel}>Carbs</Text>
-                </View>
-              )}
-              
-              {recipe.nutritionInfo.fat && (
-                <View style={styles.nutritionItem}>
-                  <Text style={styles.nutritionValue}>{recipe.nutritionInfo.fat}</Text>
-                  <Text style={styles.nutritionLabel}>Fat</Text>
-                </View>
-              )}
+              {/* Edit or Create Variation */}
+              <View style={styles.postCookingActions}>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={openEditModal}
+                  accessibilityLabel="Create variation"
+                  accessibilityRole="button"
+                >
+                  <LinearGradient
+                    colors={['#A5D6A7', '#81C784']} // Fresh Green gradient
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.actionButtonGradient}
+                  >
+                    <Ionicons name="git-branch-outline" size={20} color="white" />
+                    <Text style={styles.actionButtonText}>Create Variation</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={createNewRecipe}
+                  accessibilityLabel="Create new recipe"
+                  accessibilityRole="button"
+                >
+                  <LinearGradient
+                    colors={['#FF8C61', '#F96E43']} // Sunrise Orange gradient
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.actionButtonGradient}
+                  >
+                    <Ionicons name="add-outline" size={20} color="white" />
+                    <Text style={styles.actionButtonText}>New Recipe</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         )}
         
-        {/* Rate Recipe Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Rate This Recipe</Text>
-          <View style={styles.ratingContainer}>
-            {[1, 2, 3, 4, 5].map((star) => (
-              <TouchableOpacity
-                key={`star-${star}`}
-                onPress={() => handleRating(star)}
-                style={styles.starButton}
-                accessibilityLabel={`Rate ${star} star${star !== 1 ? 's' : ''}`}
-                accessibilityRole="button"
-              >
-                <Ionicons
-                  name={userRating >= star ? "star" : "star-outline"}
-                  size={32}
-                  color={userRating >= star ? colors.secondary : colors.textSecondary}
-                />
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-        
-        {/* Action Buttons */}
-        <View style={styles.actionButtonsContainer}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.editButton]}
-            onPress={editRecipe}
-            accessibilityLabel="Edit recipe"
-            accessibilityRole="button"
-          >
-            <Ionicons name="create-outline" size={20} color="white" />
-            <Text style={styles.actionButtonText}>Edit</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.actionButton, styles.variationButton]}
-            onPress={createVariation}
-            accessibilityLabel="Create variation"
-            accessibilityRole="button"
-          >
-            <Ionicons name="git-branch-outline" size={20} color="white" />
-            <Text style={styles.actionButtonText}>Variation</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.actionButton, styles.similarButton]}
-            onPress={viewSimilarRecipes}
-            accessibilityLabel="View similar recipes"
-            accessibilityRole="button"
-          >
-            <Ionicons name="albums-outline" size={20} color="white" />
-            <Text style={styles.actionButtonText}>Similar</Text>
-          </TouchableOpacity>
+        {/* Related Recipes - Soft Peach Theme */}
+        <View style={styles.relatedRecipesSection}>
+          <Text style={styles.sectionTitle}>You Might Also Like</Text>
+          <RecipeCarousel 
+            title=""
+            recipes={relatedRecipes}
+            onRecipePress={viewRelatedRecipe}
+            showViewAll={true}
+            viewAllRoute="/recipes/recommended"
+          />
         </View>
         
         {/* Bottom Spacing */}
         <View style={{ height: 40 }} />
       </ScrollView>
+      
+      {/* Share Modal */}
+      {recipe && (
+        <ShareModal
+          recipe={recipe}
+          visible={showShareModal}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
+      
+      {/* Edit Ingredients Modal */}
+      {recipe && (
+        <EditIngredients
+          recipe={recipe}
+          visible={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onUpdate={(updatedRecipeData) => {
+            setRecipe(updatedRecipeData); // Update local state
+            // Potentially update in savedRecipesStore if it's a saved recipe
+            const existingSaved = savedRecipes.find(r => r.id === updatedRecipeData.id);
+            if (existingSaved) {
+              // savedRecipesStore.updateRecipe(updatedRecipeData.id, updatedRecipeData); // If an update action exists
+              console.log("Recipe updated locally. Consider implementing an update action in savedRecipesStore.");
+            }
+            setShowEditModal(false);
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -574,22 +638,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
-  header: {
+  headerGradient: {
+    height: Platform.OS === 'ios' ? 100 : 90,
+    paddingTop: Platform.OS === 'ios' ? 50 : 40,
+    zIndex: 10,
+  },
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : 40,
-    left: 0,
-    right: 0,
-    zIndex: 10,
     paddingHorizontal: 16,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -600,7 +664,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(0,0,0,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
@@ -611,6 +675,7 @@ const styles = StyleSheet.create({
   heroContainer: {
     height: 300,
     width: '100%',
+    marginTop: -20, // Overlap with header
   },
   heroImage: {
     height: '100%',
@@ -639,6 +704,20 @@ const styles = StyleSheet.create({
     textShadowRadius: 3,
     marginBottom: 8,
   },
+  categoryContainer: {
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+  },
+  categoryGradient: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  categoryText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
+  },
   recipeMetaContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -660,6 +739,12 @@ const styles = StyleSheet.create({
   },
   section: {
     padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  relatedRecipesSection: {
+    paddingTop: 16,
+    paddingBottom: 0,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -714,6 +799,60 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
     flex: 1,
+  },
+  postCookingContainer: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  postCookingItem: {
+    marginBottom: 20,
+  },
+  postCookingLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  starRating: {
+    justifyContent: 'center',
+  },
+  saveButton: {
+    alignSelf: 'flex-start',
+  },
+  postCookingActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  actionButton: {
+    flex: 1,
+    marginHorizontal: 4,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  actionButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  actionButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    marginLeft: 8,
   },
   stepContainer: {
     marginBottom: 24,
@@ -786,76 +925,5 @@ const styles = StyleSheet.create({
   },
   activeTimerButtonText: {
     color: colors.secondary,
-  },
-  nutritionContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  nutritionItem: {
-    width: '48%',
-    backgroundColor: colors.white,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-    alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-      },
-      android: {
-        elevation: 1,
-      },
-    }),
-  },
-  nutritionValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.primary,
-    marginBottom: 4,
-  },
-  nutritionLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginVertical: 8,
-  },
-  starButton: {
-    padding: 8,
-  },
-  actionButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 16,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    flex: 1,
-    marginHorizontal: 4,
-  },
-  actionButtonText: {
-    color: 'white',
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  editButton: {
-    backgroundColor: colors.primary,
-  },
-  variationButton: {
-    backgroundColor: colors.secondary,
-  },
-  similarButton: {
-    backgroundColor: colors.tertiary,
-  },
-}); 
+  }
+});

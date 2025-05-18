@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -8,33 +8,69 @@ import {
   Platform,
   Dimensions,
   Alert,
-  Pressable,
   RefreshControl,
   SafeAreaView,
-  Image
+  Image,
+  Share,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as StatusBarAPI from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Trash2, Bookmark, Tag } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import Swipeable from 'react-native-gesture-handler/Swipeable';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import SearchBar from '@/components/SearchBar';
 import RecipeFilter, { RecipeFilterOptions } from '@/components/RecipeFilter';
-import CategoryTag from '@/components/CategoryTag';
+import DeleteAction from '@/components/DeleteAction';
+import RecipeCard from '@/components/RecipeCard';
 import colors from '@/constants/colors';
 import { useSavedRecipesStore } from '@/stores/savedRecipesStore';
 import { Recipe } from '@/services/recipeService';
 
 const { width } = Dimensions.get('window');
 
-const defaultFilterOptions: RecipeFilterOptions = {
+// Define specific types for filter options to match RecipeFilter.tsx
+type SortByType = 'newest' | 'oldest' | 'name' | 'rating';
+type DateFilterType = 'all' | 'today' | 'week' | 'month';
+
+interface SavedScreenFilterOptions extends Omit<RecipeFilterOptions, 'sortBy' | 'dateFilter'> {
+  sortBy: SortByType;
+  dateFilter: DateFilterType;
+}
+
+const defaultFilterOptions: SavedScreenFilterOptions = {
   sortBy: 'newest',
   dateFilter: 'all',
   tagsOnly: false,
   savedOnly: true, // On the saved tab, this is always true
   selectedTags: [],
+};
+
+// Adapter to convert service Recipe to RecipeCard Recipe
+const adaptRecipeForCard = (serviceRecipe: Recipe): import('@/components/RecipeCard').Recipe => {
+  let difficulty: 'Easy' | 'Medium' | 'Hard' = 'Medium'; // Default difficulty
+  if (serviceRecipe.difficulty) {
+    const lowerDifficulty = serviceRecipe.difficulty.toLowerCase();
+    if (lowerDifficulty === 'easy' || lowerDifficulty === 'medium' || lowerDifficulty === 'hard') {
+      difficulty = lowerDifficulty as 'Easy' | 'Medium' | 'Hard';
+    }
+  }
+
+  return {
+    id: serviceRecipe.id || `recipe-${serviceRecipe.title}-${Math.random()}`,
+    title: serviceRecipe.title,
+    image: serviceRecipe.heroImage || serviceRecipe.steps?.[0]?.imageUrl || 'https://images.unsplash.com/photo-1542010589005-d1eacc3918f2', // Ensure image is a string or ImageSourcePropType
+    cookTime: Number(serviceRecipe.cookTime?.replace(/[^0-9]/g, '') || '30'), // Ensure cookTime is number
+    difficulty: difficulty,
+    rating: serviceRecipe.rating || 4.5, // Ensure rating is number
+    saved: true, // This is the saved screen, so always true
+    tags: serviceRecipe.tags,
+    ingredients: serviceRecipe.ingredients,
+  };
 };
 
 export default function SavedScreen() {
@@ -46,25 +82,35 @@ export default function SavedScreen() {
     filteredRecipes, 
     searchRecipes, 
     getAllTags,
-    applyFilters,
+    applyFilters: applyStoreFilters, // Renamed to avoid conflict
     resetFilters,
     removeSavedRecipe 
   } = useSavedRecipesStore();
 
   // State for this screen
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterOptions, setFilterOptions] = useState<RecipeFilterOptions>(defaultFilterOptions);
+  const [filterOptions, setFilterOptions] = useState<SavedScreenFilterOptions>(defaultFilterOptions);
   const [refreshing, setRefreshing] = useState(false);
   const [allTags, setAllTags] = useState<string[]>([]);
+  
+  // Reference for open swipeable
+  const swipeableRef = useRef<Swipeable | null>(null);
+  const openedSwipeableIndex = useRef<number | null>(null);
   
   // Initialize the screen
   useEffect(() => {
     // Load all tags
     setAllTags(getAllTags());
     
-    // Init filter
-    resetFilters();
-  }, [getAllTags, resetFilters]);
+    // Init filter by applying default store filters
+    applyStoreFilters({
+      searchText: '',
+      sortBy: defaultFilterOptions.sortBy,
+      dateFilter: defaultFilterOptions.dateFilter,
+      tagsOnly: defaultFilterOptions.tagsOnly,
+      tags: defaultFilterOptions.selectedTags,
+    });
+  }, [getAllTags, applyStoreFilters]);
   
   // Update tags when saved recipes change
   useEffect(() => {
@@ -76,22 +122,32 @@ export default function SavedScreen() {
     setSearchQuery(text);
     
     // Update filters with search text
-    applyFilters({
-      ...filterOptions,
-      searchText: text
+    applyStoreFilters({
+      searchText: text,
+      sortBy: filterOptions.sortBy,
+      dateFilter: filterOptions.dateFilter,
+      tagsOnly: filterOptions.tagsOnly,
+      tags: filterOptions.selectedTags,
     });
-  }, [applyFilters, filterOptions]);
+  }, [applyStoreFilters, filterOptions]);
 
   // Handle filter changes
-  const handleFilterChange = useCallback((options: RecipeFilterOptions) => {
-    setFilterOptions(options);
+  const handleFilterChange = useCallback((options: RecipeFilterOptions) => { // Explicitly type options
+    const newFilterOptions: SavedScreenFilterOptions = {
+      ...options, // options is RecipeFilterOptions from RecipeFilter.tsx
+      savedOnly: true, // Ensure savedOnly remains true for this screen
+    };
+    setFilterOptions(newFilterOptions);
     
     // Apply all filters including current search
-    applyFilters({
-      ...options,
-      searchText: searchQuery
+    applyStoreFilters({
+      searchText: searchQuery,
+      sortBy: newFilterOptions.sortBy,
+      dateFilter: newFilterOptions.dateFilter,
+      tagsOnly: newFilterOptions.tagsOnly,
+      tags: newFilterOptions.selectedTags,
     });
-  }, [applyFilters, searchQuery]);
+  }, [applyStoreFilters, searchQuery]);
 
   // Pull to refresh handler
   const onRefresh = useCallback(() => {
@@ -101,16 +157,29 @@ export default function SavedScreen() {
     const newOptions = { ...defaultFilterOptions, selectedTags: [] };
     setFilterOptions(newOptions);
     setSearchQuery('');
-    resetFilters();
+    // applyStoreFilters should handle resetting store's internal filters if needed, or use resetFilters
+    applyStoreFilters({ 
+      searchText: '', 
+      sortBy: newOptions.sortBy,
+      dateFilter: newOptions.dateFilter,
+      tagsOnly: newOptions.tagsOnly,
+      tags: newOptions.selectedTags,
+    });
     
     setRefreshing(false);
-  }, [resetFilters]);
+  }, [applyStoreFilters]);
 
   // Handle recipe press - navigate to recipe screen
   const handleRecipePress = useCallback((recipe: Recipe) => {
+    // Close any open swipeable first
+    if (openedSwipeableIndex.current !== null && swipeableRef.current) {
+      swipeableRef.current.close();
+      openedSwipeableIndex.current = null;
+    }
+    
     router.push({
-      pathname: '/recipe',
-      params: { recipeId: recipe.id }
+      pathname: "/recipe/[id]", // Corrected path for dynamic route
+      params: { id: recipe.id || `recipe-${recipe.title}-${Date.now()}` }
     });
   }, [router]);
 
@@ -137,69 +206,97 @@ export default function SavedScreen() {
       ]
     );
   }, [removeSavedRecipe]);
+  
+  // Share recipe
+  const handleShareRecipe = useCallback(async (recipe: Recipe) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    
+    try {
+      const result = await Share.share({
+        title: recipe.title,
+        message: `Check out this recipe for ${recipe.title}! ${recipe.description || ''}`,
+      });
+      
+      if (result.action === Share.sharedAction) {
+        if (result.activityType) {
+          // shared with activity type of result.activityType
+        } else {
+          // shared
+        }
+      }
+    } catch (error: any) {
+      console.error(error);
+      Alert.alert('Error', error.message || 'Failed to share recipe');
+    }
+  }, []);
 
-  // Render a recipe card
-  const renderRecipeItem = useCallback(({ item }: { item: Recipe }) => (
-    <TouchableOpacity
-      style={styles.recipeCard}
-      onPress={() => handleRecipePress(item)}
-      activeOpacity={0.8}
-    >
-      <View style={styles.cardImageContainer}>
-        <Image
-          source={{ uri: item.heroImage || item.steps[0]?.imageUrl || 'https://images.unsplash.com/photo-1542010589005-d1eacc3918f2?q=80&w=2892&auto=format&fit=crop' }}
-          style={styles.cardImage}
-          resizeMode="cover"
+  // Render swipeable recipe card
+  const renderSwipeableRecipeItem = useCallback(({ item, index }: { item: Recipe; index: number }) => {
+    // Create the swipeable with delete action
+    const renderRightActions = (progress: Animated.AnimatedInterpolation<number>) => {
+      return (
+        <DeleteAction
+          dragX={progress}
+          onPress={() => handleDeleteRecipe(item)}
         />
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.7)']}
-          style={styles.cardGradient}
-        />
-      </View>
-      
-      <View style={styles.cardContent}>
-        <View style={styles.cardHeader}>
-          <View style={styles.cardTitleContainer}>
-            <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-            <Text style={styles.cardDescription} numberOfLines={1}>
-              {item.description}
-            </Text>
-          </View>
-        </View>
-        
-        <View style={styles.cardMetaContainer}>
-          {item.category && (
-            <CategoryTag 
-              label={item.category}
-              selected={true}
-            />
-          )}
-          
-          <View style={styles.cardTagsContainer}>
-            {item.tags && item.tags.length > 0 && (
-              <View style={styles.tagIcon}>
-                <Tag size={14} color={colors.textSecondary} />
-              </View>
-            )}
-            {item.tags && item.tags.length > 0 && (
-              <Text style={styles.cardTags} numberOfLines={1}>
-                {item.tags.join(', ')}
-              </Text>
-            )}
-          </View>
-        </View>
-      </View>
-      
-      <TouchableOpacity
-        style={styles.deleteButton}
-        onPress={() => handleDeleteRecipe(item)}
-        accessibilityLabel={`Delete ${item.title} recipe`}
-        accessibilityRole="button"
+      );
+    };
+    
+    // Set up the swipeable ref for the current item if it's opened
+    const onSwipeableOpen = () => {
+      openedSwipeableIndex.current = index;
+    };
+    
+    // Close any other open swipeables when a new one is opened
+    const onSwipeableWillOpen = () => {
+      if (openedSwipeableIndex.current !== null && 
+          openedSwipeableIndex.current !== index && 
+          swipeableRef.current) {
+        swipeableRef.current.close();
+      }
+    };
+    
+    const recipeCardData = adaptRecipeForCard(item);
+    
+    return (
+      <Swipeable
+        ref={ref => {
+          // Only assign the ref if this is the opened swipeable
+          if (openedSwipeableIndex.current === index) {
+            swipeableRef.current = ref;
+          }
+        }}
+        friction={2}
+        rightThreshold={40}
+        renderRightActions={renderRightActions}
+        onSwipeableOpen={onSwipeableOpen}
+        onSwipeableWillOpen={onSwipeableWillOpen}
       >
-        <Trash2 size={16} color={colors.error} />
-      </TouchableOpacity>
-    </TouchableOpacity>
-  ), [handleRecipePress, handleDeleteRecipe]);
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => handleRecipePress(item)}
+          onLongPress={() => handleShareRecipe(item)}
+          delayLongPress={500}
+        >
+          <RecipeCard 
+            recipe={recipeCardData} 
+            type="horizontal"
+            style={{ backgroundColor: 'transparent' }}
+            backgroundComponent={
+              <LinearGradient
+                colors={['#FFF3E0', '#FFE0B2']} // Soft Peach gradient
+                style={StyleSheet.absoluteFillObject}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              />
+            }
+          />
+        </TouchableOpacity>
+      </Swipeable>
+    );
+  }, [handleRecipePress, handleDeleteRecipe, handleShareRecipe]);
 
   // Handle empty state
   const renderEmptyState = useCallback(() => {
@@ -207,130 +304,100 @@ export default function SavedScreen() {
     const isFiltering = searchQuery.trim() !== '' || 
                         filterOptions.selectedTags.length > 0 || 
                         filterOptions.dateFilter !== 'all' ||
-                        filterOptions.tagsOnly;
-    
-    if (isFiltering && savedRecipes.length > 0) {
-      // We have recipes but the filter returned none
+                        filterOptions.tagsOnly; // tagsOnly itself is a filter condition
+
+    if (isFiltering) {
       return (
         <View style={styles.emptyContainer}>
-          <Image
-            source={{ uri: 'https://images.unsplash.com/photo-1465101162946-4377e57745c3?q=80&w=1818&auto=format&fit=crop' }}
-            style={styles.emptyImage}
-            resizeMode="cover"
-          />
-          <Text style={styles.emptyTitle}>No matching recipes</Text>
+          <Ionicons name="search-outline" size={48} color={colors.textSecondary} />
+          <Text style={styles.emptyTitle}>No Recipes Found</Text>
           <Text style={styles.emptyText}>
-            No recipes match your current filters. Try adjusting your search or filters.
+            Try adjusting your search or filter criteria.
           </Text>
           <TouchableOpacity 
-            style={styles.resetButton}
-            onPress={onRefresh}
+            style={styles.clearFilterButton}
+            onPress={() => handleFilterChange(defaultFilterOptions)}
           >
-            <Text style={styles.resetButtonText}>Reset Filters</Text>
+            <LinearGradient
+              colors={['#FFA726', '#FB8C00']} // Sunrise Orange gradient
+              style={[styles.clearFilterButton, { backgroundColor: 'transparent' }]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Text style={styles.clearFilterButtonText}>Clear Filters</Text>
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       );
     }
     
-    // No saved recipes at all
+    // If no recipes are saved at all
     return (
       <View style={styles.emptyContainer}>
-        <Image
-          source={{ uri: 'https://images.unsplash.com/photo-1605522561233-768ad7a8fabf?q=80&w=1587&auto=format&fit=crop' }}
-          style={styles.emptyImage}
-          resizeMode="cover"
-        />
-        <Text style={styles.emptyTitle}>No saved recipes yet</Text>
+        <Ionicons name="bookmark-outline" size={48} color={colors.textSecondary} />
+        <Text style={styles.emptyTitle}>No Saved Recipes</Text>
         <Text style={styles.emptyText}>
-          When you save recipes, they'll appear here for easy access.
+          You haven't saved any recipes yet. Start exploring and save your favorites!
         </Text>
-        <TouchableOpacity 
-          style={styles.createButton}
-          onPress={() => router.push('/')}
-        >
-          <Text style={styles.createButtonText}>Discover Recipes</Text>
+        <TouchableOpacity onPress={() => router.push('/')}>
+          <LinearGradient
+            colors={['#FFA726', '#FB8C00']} // Sunrise Orange gradient
+            style={styles.exploreButton}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <Text style={styles.exploreButtonText}>Explore Recipes</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </View>
     );
-  }, [
-    savedRecipes.length,
-    searchQuery,
-    filterOptions,
-    onRefresh,
-    router
-  ]);
-
-  if (savedRecipes.length === 0) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="dark" />
-        <View style={styles.header}>
-          <Text style={styles.title}>Saved Recipes</Text>
-        </View>
-        
-        <View style={styles.emptyContainer}>
-          <Ionicons name="bookmark" size={80} color={colors.border} />
-          <Text style={styles.emptyTitle}>No Saved Recipes</Text>
-          <Text style={styles.emptyText}>
-            Your saved recipes will appear here
-          </Text>
-          <TouchableOpacity 
-            style={styles.exploreButton}
-            onPress={() => router.push('/')}
-          >
-            <Text style={styles.exploreButtonText}>Explore Recipes</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  }, [searchQuery, filterOptions, router, handleFilterChange]);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
-      <View style={styles.header}>
-        <Text style={styles.title}>Saved Recipes</Text>
-      </View>
-      
-      <FlatList
-        data={filteredRecipes}
-        keyExtractor={(item) => item.id || item.title}
-        renderItem={({ item }) => (
-          <TouchableOpacity 
-            style={styles.recipeCard}
-            onPress={() => router.push({
-              pathname: '/recipe',
-              params: { recipeId: item.id }
-            })}
-          >
-            <Image 
-              source={{ uri: item.heroImage || item.steps?.[0]?.imageUrl || 'https://images.unsplash.com/photo-1542010589005-d1eacc3918f2' }}
-              style={styles.recipeImage}
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="light" />
+        
+        {/* Header with Title & Search */}
+        <LinearGradient
+          colors={['#5D4037', '#3E2723']} // Warm Cocoa gradient
+          style={styles.header}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+        >
+          <Text style={[styles.headerTitle, { color: colors.white }]}>Saved Recipes</Text>
+          <SearchBar 
+            onSearch={handleSearch} 
+            placeholder="Search saved recipes..."
+          />
+        </LinearGradient>
+        
+        {/* Filters */}
+        <RecipeFilter 
+          filterOptions={filterOptions}
+          onFilterChange={handleFilterChange}
+          allTags={allTags}
+        />
+        
+        {/* Recipe List */}
+        <FlatList
+          data={filteredRecipes}
+          renderItem={renderSwipeableRecipeItem}
+          keyExtractor={(item) => item.id || item.title} // Ensure key is always string
+          contentContainerStyle={styles.listContentContainer}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={renderEmptyState}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
             />
-            <View style={styles.recipeInfo}>
-              <Text style={styles.recipeTitle}>{item.title}</Text>
-              <View style={styles.recipeMetaContainer}>
-                <View style={styles.recipeMeta}>
-                  <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
-                  <Text style={styles.recipeMetaText}>{item.cookTime || '30 min'}</Text>
-                </View>
-                <View style={styles.recipeMeta}>
-                  <Ionicons name="star" size={14} color={colors.secondary} />
-                  <Text style={styles.recipeMetaText}>{item.rating || '4.5'}</Text>
-                </View>
-              </View>
-            </View>
-            <TouchableOpacity 
-              style={styles.deleteButton}
-              onPress={() => handleDeleteRecipe(item)}
-            >
-              <Ionicons name="trash-outline" size={20} color={colors.error} />
-            </TouchableOpacity>
-          </TouchableOpacity>
-        )}
-        contentContainerStyle={styles.listContent}
-      />
-    </SafeAreaView>
+          }
+          ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
+        />
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
 
@@ -340,187 +407,73 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'android' ? (StatusBarAPI as any).currentHeight || 24 + 16 : 16,
+    paddingBottom: 8,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  title: {
+  headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: colors.text,
+    marginBottom: 12,
+    fontFamily: 'Poppins-Bold',
+  },
+  listContentContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+    flexGrow: 1, // Important for ListEmptyComponent to work correctly
+  },
+  itemSeparator: {
+    height: 12, // Space between cards
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: 32,
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.text,
     marginTop: 16,
     marginBottom: 8,
+    fontFamily: 'Poppins-SemiBold',
   },
   emptyText: {
     fontSize: 16,
     color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
-  },
-  exploreButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  exploreButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  listContent: {
-    padding: 16,
-  },
-  recipeCard: {
-    flexDirection: 'row',
-    backgroundColor: 'white',
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 16,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  recipeImage: {
-    width: 100,
-    height: 100,
-  },
-  recipeInfo: {
-    flex: 1,
-    padding: 12,
-    justifyContent: 'center',
-  },
-  recipeTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  recipeMetaContainer: {
-    flexDirection: 'row',
-  },
-  recipeMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  recipeMetaText: {
-    marginLeft: 4,
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  deleteButton: {
-    padding: 12,
-    justifyContent: 'center',
-  },
-  cardImageContainer: {
-    height: 160,
-    width: '100%',
-    position: 'relative',
-  },
-  cardImage: {
-    width: '100%',
-    height: '100%',
-  },
-  cardGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 60,
-  },
-  cardContent: {
-    padding: 16,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  cardTitleContainer: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  cardDescription: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 8,
+    lineHeight: 22,
     fontFamily: 'Poppins-Regular',
   },
-  cardMetaContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  cardTagsContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  tagIcon: {
-    marginRight: 4,
-  },
-  cardTags: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontFamily: 'Poppins-Regular',
-  },
-  categoryTag: {
-    marginRight: 8,
-  },
-  resetButton: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 12,
+  clearFilterButton: {
+    marginTop: 20,
+    paddingVertical: 10,
     paddingHorizontal: 20,
-    borderRadius: 12,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  resetButtonText: {
-    color: colors.text,
+  clearFilterButtonText: {
+    color: colors.white,
     fontSize: 16,
     fontWeight: '500',
     fontFamily: 'Poppins-Medium',
   },
-  createButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 12,
+  exploreButton: {
+    marginTop: 20,
+    paddingVertical: 10,
     paddingHorizontal: 20,
-    borderRadius: 12,
-    flexDirection: 'row',
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  createButtonText: {
-    color: 'white',
+  exploreButtonText: {
+    color: colors.white,
     fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Poppins-SemiBold',
-  },
-  emptyImage: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    marginBottom: 24,
-  },
+    fontWeight: '500',
+    fontFamily: 'Poppins-Medium',
+  }
 }); 

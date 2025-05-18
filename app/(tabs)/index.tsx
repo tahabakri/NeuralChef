@@ -1,201 +1,249 @@
 "use client";
 
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Text, Image, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
-import { StatusBar } from 'expo-status-bar';
-import { SearchHeader } from '@/components/home';
-import { Recipe } from '@/services/recipeService';
-import { useRecipeStore } from '@/stores/recipeStore';
-import colors from '@/constants/colors';
-import { todayRecipes } from '@/constants/sampleRecipes';
-import RecommendedRecipes from '@/components/home/RecommendedRecipes';
-import TagSelector from '@/components/TagSelector';
-import Card from '@/components/Card';
-import PulseButton from '@/components/PulseButton';
-import { Ionicons } from '@expo/vector-icons';
+import { View, StyleSheet, ScrollView, StatusBar, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { popularCombinations } from '@/constants/ingredients';
+import { router } from 'expo-router';
+import GreetingHeader from '@/components/home/GreetingHeader';
+import SearchHeader from '@/components/home/SearchHeader';
+import RecommendedRecipes from '@/components/home/RecommendedRecipes';
+import colors from '@/constants/colors';
 
-// Categories for filtering
-const categories = ['All', 'Dinner', 'Breakfast', 'Lunch', 'Dessert', 'Snack'];
+// Using a local component instead of importing SurpriseButton to avoid module not found error
+import { 
+  TouchableOpacity, 
+  Text, 
+  View as ViewComponent,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import typography from '@/constants/typography';
 
-export default function HomeScreen() {
-  const router = useRouter();
-  const { setRecipe } = useRecipeStore();
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const insets = useSafeAreaInsets();
-
-  const handleRecipePress = (id: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const selectedRecipe = todayRecipes.find((recipe: Recipe) => recipe.id === id);
-    if (selectedRecipe) {
-      setRecipe(selectedRecipe);
-      router.push("/recipe" as any);
+// Local SurpriseButton component
+const SurpriseButton = ({ onPress }: { onPress?: () => void }) => {
+  const handlePress = () => {
+    if (onPress) {
+      onPress();
+    } else {
+      // Navigate to generate random recipe
+      router.push('/');
     }
   };
 
+  return (
+    <ViewComponent style={surpriseStyles.container}>
+      <TouchableOpacity 
+        style={surpriseStyles.button}
+        onPress={handlePress}
+        activeOpacity={0.8}
+      >
+        <LinearGradient
+          colors={['#FCE38A', '#F38181']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={surpriseStyles.gradient}
+        >
+          <Ionicons 
+            name="shuffle" 
+            size={20} 
+            color="#FFFFFF" 
+            style={surpriseStyles.icon} 
+          />
+          <Text style={surpriseStyles.text}>Surprise Me</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+    </ViewComponent>
+  );
+};
+
+const surpriseStyles = StyleSheet.create({
+  container: {
+    paddingHorizontal: 16,
+    marginVertical: 16,
+  },
+  button: {
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  gradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+  },
+  icon: {
+    marginRight: 12,
+  },
+  text: {
+    ...typography.button,
+    color: colors.white,
+    fontWeight: '600',
+  },
+});
+
+// Mock data for recipes (replacing previous recipe type with compatible one)
+export interface HomeRecipe {
+  id: string;
+  title: string;
+  description: string;
+  heroImage?: string; // Changed from imageUrl to heroImage and made optional
+  cookTime: string; // Changed from number to string
+  prepTime: string; // Added prepTime
+  servings: number;
+  ingredients: string[]; // Added ingredients
+  steps: { // Added steps
+    instruction: string;
+    imageUrl?: string;
+    hasTimer?: boolean;
+    timerDuration?: number;
+  }[];
+  tags?: string[]; // Made tags optional to align with Recipe
+  difficulty?: 'Easy' | 'Medium' | 'Hard' | 'EASY' | 'MEDIUM' | 'HARD'; // Added difficulty
+  rating?: number; // Added rating
+  author?: string; // Added author
+}
+
+const mockTodayRecipes: HomeRecipe[] = [
+  {
+    id: '1',
+    title: 'Vegetable Stir Fry',
+    description: 'Quick and healthy vegetable stir fry with soy sauce and ginger.',
+    heroImage: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-4.0.3',
+    cookTime: "20 min",
+    prepTime: "10 min",
+    servings: 2,
+    ingredients: ["Broccoli", "Carrots", "Bell Pepper", "Soy Sauce", "Ginger"],
+    steps: [{ instruction: "Chop vegetables." }, { instruction: "Stir-fry in a wok." }],
+    tags: ['vegetarian', 'quick', 'healthy'],
+    difficulty: "Easy",
+    rating: 4.5,
+    author: "Chef John"
+  },
+  {
+    id: '2',
+    title: 'Pasta Carbonara',
+    description: 'Classic Italian pasta dish with eggs, cheese, and pancetta.',
+    heroImage: 'https://images.unsplash.com/photo-1546549032-9571cd6b27df?ixlib=rb-4.0.3',
+    cookTime: "25 min",
+    prepTime: "10 min",
+    servings: 4,
+    ingredients: ["Spaghetti", "Eggs", "Pancetta", "Pecorino Cheese", "Black Pepper"],
+    steps: [{ instruction: "Cook spaghetti." }, { instruction: "Prepare carbonara sauce." }, { instruction: "Combine and serve." }],
+    tags: ['pasta', 'italian', 'dinner'],
+    difficulty: "Medium",
+    rating: 4.8,
+    author: "Chef Maria"
+  },
+  {
+    id: '3',
+    title: 'Berry Smoothie Bowl',
+    description: 'Refreshing smoothie bowl packed with antioxidants and topped with granola.',
+    heroImage: 'https://images.unsplash.com/photo-1611315764615-3e788573f31e?ixlib=rb-4.0.3',
+    cookTime: "5 min",
+    prepTime: "5 min",
+    servings: 1,
+    ingredients: ["Mixed Berries", "Banana", "Almond Milk", "Granola"],
+    steps: [{ instruction: "Blend berries, banana, and almond milk." }, { instruction: "Pour into a bowl and top with granola." }],
+    tags: ['breakfast', 'vegan', 'healthy'],
+    difficulty: "Easy",
+    rating: 4.2,
+    author: "Healthy Living"
+  }
+];
+
+const mockRecommendedRecipes: HomeRecipe[] = [
+  {
+    id: '4',
+    title: 'Avocado Toast',
+    description: 'Simple avocado toast with poached egg and chili flakes.',
+    heroImage: 'https://images.unsplash.com/photo-1588137378633-dea1336ce1e9?ixlib=rb-4.0.3',
+    cookTime: "10 min",
+    prepTime: "5 min",
+    servings: 1,
+    ingredients: ["Bread", "Avocado", "Egg", "Chili Flakes"],
+    steps: [{ instruction: "Toast bread." }, { instruction: "Mash avocado and spread on toast." }, { instruction: "Top with poached egg and chili flakes." }],
+    tags: ['breakfast', 'quick', 'vegetarian'],
+    difficulty: "Easy",
+    rating: 4.6,
+    author: "Quick Bites"
+  },
+  {
+    id: '5',
+    title: 'Greek Salad',
+    description: 'Fresh Mediterranean salad with feta cheese and olives.',
+    heroImage: 'https://images.unsplash.com/photo-1515543237350-b3eea1ec8082?ixlib=rb-4.0.3',
+    cookTime: "0 min",
+    prepTime: "15 min",
+    servings: 2,
+    ingredients: ["Cucumber", "Tomatoes", "Feta Cheese", "Olives", "Red Onion", "Olive Oil"],
+    steps: [{ instruction: "Chop vegetables." }, { instruction: "Combine all ingredients and drizzle with olive oil." }],
+    tags: ['salad', 'healthy', 'lunch'],
+    difficulty: "Easy",
+    rating: 4.3,
+    author: "Salad Bar"
+  },
+  {
+    id: '6',
+    title: 'Chocolate Brownies',
+    description: 'Rich and fudgy chocolate brownies with walnuts.',
+    heroImage: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?ixlib=rb-4.0.3',
+    cookTime: "30 min",
+    prepTime: "15 min",
+    servings: 8,
+    ingredients: ["Flour", "Sugar", "Cocoa Powder", "Butter", "Eggs", "Walnuts"],
+    steps: [{ instruction: "Mix dry ingredients." }, { instruction: "Mix wet ingredients." }, { instruction: "Combine and bake." }],
+    tags: ['dessert', 'baking', 'chocolate'],
+    difficulty: "Medium",
+    rating: 4.9,
+    author: "Sweet Treats"
+  }
+];
+
+export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
+  const [todayRecipes, setTodayRecipes] = useState(mockTodayRecipes);
+  const [recommendedRecipes, setRecommendedRecipes] = useState(mockRecommendedRecipes);
+
   const handleSearch = (query: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push("/search" as any);
-  };
-
-  const handleSeeAllPress = (section: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push(section === 'today' ? "/popular" : "/recommended" as any);
-  };
-
-  const handleCategorySelect = (category: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedCategory(category);
-  };
-
-  const handleCreateRecipe = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push("/create-recipe" as any);
-  };
-
-  // Featured recipe is the highest rated recipe
-  const featuredRecipe = [...todayRecipes].sort((a, b) => 
-    (b.rating || 0) - (a.rating || 0)
-  )[0];
-
-  const navigateToInputScreen = () => {
-    router.push('/input');
+    router.push({
+      pathname: '/',
+      params: { query }
+    });
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
-      <ScrollView 
-        style={styles.scrollView}
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBar barStyle="dark-content" />
+      
+      <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.greeting}>What would you like to cook today?</Text>
+        <View style={styles.headerContainer}>
+          <GreetingHeader onGetStartedPress={() => {}} />
+          <SearchHeader onSearch={handleSearch} />
         </View>
-
-        {/* Input Ingredients Section */}
-        <View style={styles.inputSection}>
-          <TouchableOpacity 
-            style={styles.inputButton}
-            onPress={navigateToInputScreen}
-            activeOpacity={0.8}
-          >
-            <View style={styles.inputButtonContent}>
-              <Ionicons name="search-outline" size={22} color={colors.primary} />
-              <Text style={styles.inputButtonText}>Enter ingredients</Text>
-            </View>
-            <View style={styles.inputOptions}>
-              <View style={styles.inputOption}>
-                <Ionicons name="mic-outline" size={18} color={colors.textSecondary} />
-              </View>
-              <View style={styles.inputOption}>
-                <Ionicons name="camera-outline" size={18} color={colors.textSecondary} />
-              </View>
-            </View>
-          </TouchableOpacity>
+        
+        <View style={styles.recipesContainer}>
+          <RecommendedRecipes
+            title="Today's Recipes"
+            recipes={todayRecipes}
+            large={true}
+            onSeeAllPress={() => router.push('/')}
+          />
+          
+          <SurpriseButton />
+          
+          <RecommendedRecipes
+            title="Recommended For You"
+            recipes={recommendedRecipes}
+            large={false}
+            onSeeAllPress={() => router.push('/')}
+          />
         </View>
-
-        {/* Today's Recipe Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Today's Recipe</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>See all</Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity 
-            style={styles.featuredRecipeCard}
-            activeOpacity={0.9}
-          >
-            <Image 
-              source={{ uri: 'https://images.unsplash.com/photo-1598103442097-8b74394b95c6?q=80&w=3024&auto=format&fit=crop' }}
-              style={styles.featuredRecipeImage}
-              resizeMode="cover"
-            />
-            <View style={styles.featuredRecipeOverlay}>
-              <View style={styles.featuredRecipeContent}>
-                <View style={styles.featuredRecipeTag}>
-                  <Text style={styles.featuredRecipeTagText}>Easy</Text>
-                </View>
-                <Text style={styles.featuredRecipeTitle}>Garlic Butter Chicken</Text>
-                <View style={styles.featuredRecipeMeta}>
-                  <View style={styles.featuredRecipeMetaItem}>
-                    <Ionicons name="time-outline" size={14} color="white" />
-                    <Text style={styles.featuredRecipeMetaText}>30 min</Text>
-                  </View>
-                  <View style={styles.featuredRecipeMetaItem}>
-                    <Ionicons name="star" size={14} color="white" />
-                    <Text style={styles.featuredRecipeMetaText}>4.8</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Popular Ingredient Combinations */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recommended</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>See all</Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.recommendedScrollContent}
-          >
-            {popularCombinations.map((item, index) => (
-              <TouchableOpacity 
-                key={item.id} 
-                style={styles.recommendedCard}
-                onPress={() => {
-                  router.push({
-                    pathname: '/recipe',
-                    params: { ingredients: item.ingredients.join(',') }
-                  });
-                }}
-                activeOpacity={0.9}
-              >
-                <Image 
-                  source={{ uri: item.image }} 
-                  style={styles.recommendedImage}
-                  resizeMode="cover"
-                />
-                <View style={styles.recommendedOverlay}>
-                  <Text style={styles.recommendedTitle}>{item.name}</Text>
-                  <Text style={styles.recommendedIngredients}>
-                    {item.ingredients.slice(0, 3).join(', ')}
-                    {item.ingredients.length > 3 ? '...' : ''}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Input Ingredients Button (Bottom) */}
-        <TouchableOpacity 
-          style={styles.createRecipeButton}
-          onPress={navigateToInputScreen}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add-circle" size={20} color="white" style={styles.createRecipeIcon} />
-          <Text style={styles.createRecipeText}>Create Custom Recipe</Text>
-        </TouchableOpacity>
-
-        {/* Bottom Spacer */}
-        <View style={{ height: 20 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -204,218 +252,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  scrollView: {
-    flex: 1,
-  },
   scrollContent: {
+    paddingBottom: Platform.OS === 'ios' ? 90 : 70, // Account for tab bar height
+  },
+  headerContainer: {
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'android' ? 16 : 0,
+    paddingTop: 16,
+    paddingBottom: 8,
   },
-  header: {
-    marginTop: 16,
-    marginBottom: 24,
-  },
-  greeting: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  inputSection: {
-    marginBottom: 24,
-  },
-  inputButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 14,
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  inputButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  inputButtonText: {
-    marginLeft: 12,
-    fontSize: 16,
-    color: colors.textSecondary,
-  },
-  inputOptions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  inputOption: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.backgroundAlt,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  seeAllText: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '500',
-  },
-  featuredRecipeCard: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    height: 200,
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.shadowDark,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
-  },
-  featuredRecipeImage: {
-    width: '100%',
-    height: '100%',
-  },
-  featuredRecipeOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'flex-end',
-  },
-  featuredRecipeContent: {
-    padding: 16,
-  },
-  featuredRecipeTag: {
-    backgroundColor: colors.primary,
-    alignSelf: 'flex-start',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-    marginBottom: 8,
-  },
-  featuredRecipeTagText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  featuredRecipeTitle: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    textShadowColor: 'rgba(0,0,0,0.7)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  featuredRecipeMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  featuredRecipeMetaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  featuredRecipeMetaText: {
-    color: 'white',
-    fontSize: 12,
-    marginLeft: 4,
-    fontWeight: '600',
-  },
-  recommendedScrollContent: {
-    paddingRight: 8,
-  },
-  recommendedCard: {
-    width: 180,
-    height: 160,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginRight: 12,
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.shadowDark,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
-  },
-  recommendedImage: {
-    width: '100%',
-    height: '100%',
-  },
-  recommendedOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-    padding: 12,
-  },
-  recommendedTitle: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  recommendedIngredients: {
-    color: 'white',
-    fontSize: 12,
-    opacity: 0.9,
-  },
-  createRecipeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 15,
-    marginTop: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  createRecipeIcon: {
-    marginRight: 8,
-  },
-  createRecipeText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+  recipesContainer: {
+    paddingVertical: 16,
   },
 });

@@ -6,10 +6,15 @@ import {
   TouchableOpacity,
   FlatList,
   Image,
-  Dimensions
+  Dimensions,
+  ScrollView
 } from 'react-native';
+import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import colors from '@/constants/colors';
 import { Recipe } from '@/services/recipeService';
+import RecipeCard from '@/components/RecipeCard';
+import typography from '@/constants/typography';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width / 2 - 30; // Two cards with proper spacing
@@ -19,39 +24,7 @@ interface RecipeCardProps {
   onPress: (id: string) => void;
 }
 
-const RecipeCard: React.FC<RecipeCardProps> = ({ recipe, onPress }) => {
-  return (
-    <TouchableOpacity 
-      style={styles.recipeCard}
-      onPress={() => onPress(recipe.id!)}
-    >
-      <Image 
-        source={recipe.heroImage ? { uri: recipe.heroImage } : require('../../assets/images/empty-plate.png')}
-        style={styles.recipeImage}
-        resizeMode="cover"
-      />
-      <View style={styles.infoOverlay}>
-        <View style={styles.timeContainer}>
-          <Text style={styles.timeText}>{recipe.prepTime}</Text>
-        </View>
-        <View style={styles.levelContainer}>
-          <Text style={styles.levelText}>{recipe.difficulty}</Text>
-        </View>
-      </View>
-      <View style={styles.bottomInfo}>
-        <Text style={styles.recipeTitle} numberOfLines={2}>{recipe.title}</Text>
-        <Text style={styles.ratingText}>{recipe.rating}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-};
-
-interface RecommendationCardProps {
-  recipe: Recipe;
-  onPress: (id: string) => void;
-}
-
-const RecommendationCard: React.FC<RecommendationCardProps> = ({ recipe, onPress }) => {
+const RecommendationCard: React.FC<RecipeCardProps> = ({ recipe, onPress }) => {
   return (
     <TouchableOpacity 
       style={styles.recommendationCard}
@@ -82,147 +55,110 @@ const RecommendationCard: React.FC<RecommendationCardProps> = ({ recipe, onPress
 };
 
 interface RecommendedRecipesProps {
-  recipes: Recipe[];
   title: string;
-  onSeeAll: () => void;
-  onRecipePress: (id: string) => void;
-  isRecommendation?: boolean;
+  recipes: Recipe[];
+  large?: boolean;
+  onSeeAllPress?: () => void;
 }
 
-export default function RecommendedRecipes({
-  recipes,
-  title,
-  onSeeAll,
-  onRecipePress,
-  isRecommendation = false
-}: RecommendedRecipesProps) {
+const RecommendedRecipes: React.FC<RecommendedRecipesProps> = ({ 
+  title, 
+  recipes, 
+  large = false,
+  onSeeAllPress 
+}) => {
+  if (!recipes || recipes.length === 0) {
+    return null;
+  }
+  
+  const handleSeeAllPress = () => {
+    if (onSeeAllPress) {
+      onSeeAllPress();
+    } else {
+      router.push('/recipes');
+    }
+  };
+  
+  const handleRecipePress = (recipeId: string) => {
+    router.push(`/recipe/${recipeId}`);
+  };
+  
   return (
     <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        <TouchableOpacity onPress={onSeeAll}>
+      <View style={styles.headerContainer}>
+        <Text style={styles.title}>{title}</Text>
+        <TouchableOpacity onPress={handleSeeAllPress}>
           <Text style={styles.seeAllText}>See All</Text>
         </TouchableOpacity>
       </View>
       
-      {isRecommendation ? (
-        <View style={styles.recommendationContainer}>
-          {recipes.map(recipe => (
-            <RecommendationCard 
-              key={recipe.id} 
-              recipe={recipe} 
-              onPress={onRecipePress} 
-            />
-          ))}
-        </View>
-      ) : (
-        <FlatList
-          data={recipes}
-          renderItem={({ item }) => <RecipeCard recipe={item} onPress={onRecipePress} />}
-          keyExtractor={(item) => item.id!}
+      {large ? (
+        <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.listContentContainer}
-        />
+          contentContainerStyle={styles.scrollContent}
+        >
+          {recipes.map(recipe => (
+            <RecipeCard
+              key={recipe.id}
+              recipe={recipe}
+              large={true}
+              style={styles.largeCard}
+              onPress={() => handleRecipePress(recipe.id)}
+            />
+          ))}
+        </ScrollView>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {recipes.map(recipe => (
+            <RecipeCard
+              key={recipe.id}
+              recipe={recipe}
+              large={false}
+              style={styles.smallCard}
+              onPress={() => handleRecipePress(recipe.id)}
+            />
+          ))}
+        </ScrollView>
       )}
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 30,
+    marginBottom: 24,
   },
-  headerRow: {
+  headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 15,
+    paddingHorizontal: 16,
+    marginBottom: 12,
   },
-  sectionTitle: {
-    fontFamily: 'Poppins-Bold',
-    fontSize: 18,
+  title: {
+    ...typography.heading2,
     color: colors.text,
   },
   seeAllText: {
-    fontFamily: 'Poppins-Medium',
-    fontSize: 14,
-    color: colors.textSecondary,
+    ...typography.button,
+    color: colors.primary,
   },
-  listContentContainer: {
-    paddingHorizontal: 20,
+  scrollContent: {
+    paddingLeft: 16,
+    paddingRight: 8,
   },
-  recipeCard: {
-    width: CARD_WIDTH,
-    marginRight: 15,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: colors.card,
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+  largeCard: {
+    width: width * 0.75,
+    marginRight: 16,
   },
-  recipeImage: {
-    width: '100%',
-    height: 160,
-  },
-  infoOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    padding: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  timeContainer: {
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  timeText: {
-    fontFamily: 'Poppins-Medium',
-    fontSize: 12,
-    color: colors.white,
-  },
-  levelContainer: {
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  levelText: {
-    fontFamily: 'Poppins-Medium',
-    fontSize: 12,
-    color: colors.white,
-  },
-  bottomInfo: {
-    backgroundColor: colors.white,
-    padding: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  recipeTitle: {
-    fontFamily: 'Poppins-Medium',
-    fontSize: 14,
-    color: colors.text,
-    flex: 1,
-    marginRight: 8,
-  },
-  ratingText: {
-    fontFamily: 'Poppins-Medium',
-    fontSize: 14,
-    color: colors.secondary,
-  },
-  
-  // Recommendation card styles
-  recommendationContainer: {
-    paddingHorizontal: 20,
+  smallCard: {
+    width: width * 0.6,
+    marginRight: 16,
   },
   recommendationCard: {
     flexDirection: 'row',
@@ -303,4 +239,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
   }
-}); 
+});
+
+export default RecommendedRecipes; 

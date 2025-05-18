@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Platform, TouchableOpacity, ScrollView } from '
 import colors from '@/constants/colors';
 import typography from '@/constants/typography';
 import { AlertTriangle } from 'lucide-react-native';
+import ErrorScreen from '@/components/ErrorScreen';
 
 interface Props {
   children: React.ReactNode;
@@ -93,6 +94,25 @@ export class ErrorBoundary extends React.Component<Props, State> {
     }
   }
 
+  // Determine error type based on error message
+  getErrorType(error: Error | null): 'generation' | 'network' | 'timeout' | 'validation' | 'unknown' {
+    if (!error) return 'unknown';
+    
+    if (error.message.includes('Network request failed')) {
+      return 'network';
+    } else if (error.message.includes('Timeout')) {
+      return 'timeout';
+    } else if (error.message.includes('Failed to generate recipe') || 
+               error.message.includes('AI generation failed')) {
+      return 'generation';
+    } else if (error.message.includes('validation') || 
+               error.message.includes('Invalid input')) {
+      return 'validation';
+    } else {
+      return 'unknown';
+    }
+  }
+
   getFriendlyErrorMessage(error: Error | null): string {
     if (!error) return "An unknown error occurred";
     
@@ -116,105 +136,21 @@ export class ErrorBoundary extends React.Component<Props, State> {
   render() {
     if (this.state.hasError) {
       const friendlyMessage = this.getFriendlyErrorMessage(this.state.error);
-
+      const errorType = this.getErrorType(this.state.error);
+      
       return (
-        <ScrollView 
-          style={styles.container}
-          contentContainerStyle={styles.contentContainer}
-          accessible={true}
-          accessibilityLabel="Error screen"
-        >
-          <View style={styles.content}>
-            <View style={styles.iconContainer}>
-              <AlertTriangle size={60} color={colors.error} />
-            </View>
-            
-            <Text style={styles.title} accessibilityRole="header">
-              Oops! Something went wrong
-            </Text>
-            
-            <Text style={styles.message}>
-              {friendlyMessage}
-            </Text>
-            
-            {Platform.OS !== 'web' && (
-              <Text style={styles.description}>
-                If this problem persists, please restart the app.
-              </Text>
-            )}
-            
-            <TouchableOpacity 
-              style={styles.retryButton}
-              onPress={this.handleRetry}
-              accessibilityLabel="Try again button"
-              accessibilityHint="Attempts to recover from the error"
-              accessibilityRole="button"
-            >
-              <Text style={styles.retryButtonText}>Try Again</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
+        <ErrorScreen
+          title="Oops! Something went wrong"
+          message={friendlyMessage}
+          buttonText="Try Again"
+          errorType={errorType}
+          onTryAgain={this.handleRetry}
+        />
       );
     }
 
     return this.props.children;
   }
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  contentContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
-  content: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  iconContainer: {
-    marginBottom: 24,
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: colors.errorLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    ...typography.title2,
-    color: colors.text,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  message: {
-    ...typography.bodyMedium,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  description: {
-    ...typography.bodySmall,
-    color: colors.textTertiary,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
-  retryButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    marginTop: 16,
-    minWidth: 150,
-    alignItems: 'center',
-  },
-  retryButtonText: {
-    ...typography.button,
-    color: colors.white,
-  },
-});
 
 export default ErrorBoundary;

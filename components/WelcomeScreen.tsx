@@ -8,8 +8,9 @@ import {
   Dimensions,
   SafeAreaView
 } from 'react-native';
-import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import colors from '@/constants/colors';
 
 const { width, height } = Dimensions.get('window');
@@ -19,8 +20,14 @@ interface WelcomeScreenProps {
 }
 
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGetStarted }) => {
+  const handleGetStarted = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onGetStarted();
+  };
+
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" />
       <LinearGradient
         colors={['#FFEFCC', '#FFA500']}
         style={StyleSheet.absoluteFillObject}
@@ -42,7 +49,9 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onGetStarted }) => {
         
         <TouchableOpacity 
           style={styles.getStartedButton}
-          onPress={onGetStarted}
+          onPress={handleGetStarted}
+          accessibilityLabel="Get Started with Reciptai"
+          accessibilityRole="button"
         >
           <Text style={styles.getStartedText}>Get Started</Text>
         </TouchableOpacity>

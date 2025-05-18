@@ -1,437 +1,390 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  Modal, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ActivityIndicator 
+import {
+  StyleSheet,
+  View,
+  Text,
+  Modal,
+  TouchableOpacity,
+  SafeAreaView,
+  Animated,
+  Platform,
 } from 'react-native';
-import { Mic, X, Check } from 'lucide-react-native';
-import * as Speech from 'expo-speech';
-import Voice, { SpeechResultsEvent, SpeechErrorEvent } from '@react-native-voice/voice';
+import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Platform } from 'react-native';
 import colors from '@/constants/colors';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withRepeat, 
-  withTiming, 
-  withSequence,
-  cancelAnimation
-} from 'react-native-reanimated';
-import { requestVoicePermissions, checkVoicePermissions } from '@/utils/permissions';
 
 interface VoiceInputModalProps {
-  visible: boolean;
+  onComplete: (recognizedText: string) => void;
   onClose: () => void;
-  onInputReceived: (text: string) => void;
 }
 
-export default function VoiceInputModal({ 
-  visible, 
-  onClose, 
-  onInputReceived 
-}: VoiceInputModalProps) {
+// Placeholder for actual voice recognition implementation
+// In a real app, this would use a library like react-native-voice
+const simulateVoiceRecognition = (): Promise<string> => {
+  return new Promise((resolve) => {
+    // Simulate processing delay
+    setTimeout(() => {
+      // Return simulated recognized text
+      resolve('chicken breasts, broccoli, olive oil, garlic, salt, pepper');
+    }, 3000);
+  });
+};
+
+export default function VoiceInputModal({ onComplete, onClose }: VoiceInputModalProps) {
   const [isListening, setIsListening] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const [error, setError] = useState('');
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [recognizedText, setRecognizedText] = useState('');
   
-  // Animated values for mic pulsing effect
-  const scale = useSharedValue(1);
-  const opacity = useSharedValue(1);
+  // Animation for recording indicator
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
   
-  // Configure voice recognition on mount
+  // Start animation when listening
   useEffect(() => {
-    // Initialize voice recognition
-    const setupVoice = async () => {
-      try {
-        await Voice.destroy();
-        Voice.onSpeechStart = onSpeechStart;
-        Voice.onSpeechEnd = onSpeechEnd;
-        Voice.onSpeechResults = onSpeechResults;
-        Voice.onSpeechError = onSpeechError;
-      } catch (e) {
-        console.error('Failed to initialize voice module', e);
-      }
-    };
-    
-    setupVoice();
-    
-    // Cleanup
-    return () => {
-      stopListening();
-      Voice.destroy().then(Voice.removeAllListeners);
-    };
-  }, []);
-  
-  // Check permissions when the modal becomes visible
-  useEffect(() => {
-    if (visible) {
-      checkPermissions();
-      setTranscript('');
-      setError('');
-      setIsListening(false);
+    if (isListening) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.2,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
     } else {
-      stopListening();
+      pulseAnim.setValue(1);
+      Animated.timing(pulseAnim, {
+        toValue: 1,
+        duration: 0,
+        useNativeDriver: true,
+      }).stop();
     }
-  }, [visible]);
-  
-  // Check if we have the required permissions
-  const checkPermissions = async () => {
-    const granted = await checkVoicePermissions();
-    setHasPermission(granted);
-    
-    // If permissions are denied, show an error
-    if (!granted) {
-      setError('Microphone permission is required for voice input. Please enable it in your device settings.');
-    }
-  };
-  
-  // Request permissions if needed
-  const requestPermissions = async () => {
-    const granted = await requestVoicePermissions();
-    setHasPermission(granted);
-    
-    if (granted) {
-      // If permissions were just granted, clear any error
-      setError('');
-      // Start listening immediately
-      startListening();
-    } else {
-      setError('Microphone permission denied. Voice input is not available.');
-    }
-  };
+  }, [isListening, pulseAnim]);
   
   // Start voice recognition
   const startListening = async () => {
-    // First ensure we have permissions
-    if (hasPermission === null) {
-      await requestPermissions();
-      return;
-    } else if (hasPermission === false) {
-      await requestPermissions();
-      return;
-    }
-    
-    setError('');
-    setTranscript('');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsListening(true);
+    setRecognizedText('');
     
     try {
-      await Voice.start('en-US');
-      setIsListening(true);
-      
-      // Start the pulsing animation
-      scale.value = withRepeat(
-        withSequence(
-          withTiming(1.2, { duration: 800 }),
-          withTiming(1, { duration: 800 })
-        ),
-        -1, // infinite repeats
-        true // reverse
-      );
-      
-      opacity.value = withRepeat(
-        withSequence(
-          withTiming(0.7, { duration: 800 }),
-          withTiming(1, { duration: 800 })
-        ),
-        -1,
-        true
-      );
-      
-      // Provide haptic feedback
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-    } catch (e) {
-      console.error('Error starting voice recognition', e);
-      setError('Failed to start listening. Please try again.');
+      // In a real app, this would initialize and start the voice recognition
+      const result = await simulateVoiceRecognition();
+      setRecognizedText(result);
+    } catch (error) {
+      console.error('Voice recognition error:', error);
+    } finally {
+      setIsListening(false);
     }
   };
   
   // Stop voice recognition
-  const stopListening = async () => {
-    try {
-      await Voice.stop();
-      setIsListening(false);
-      
-      // Stop animations
-      cancelAnimation(scale);
-      cancelAnimation(opacity);
-      scale.value = 1;
-      opacity.value = 1;
-      
-      // Provide haptic feedback
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      }
-    } catch (e) {
-      console.error('Error stopping voice recognition', e);
-    }
-  };
-  
-  // Handle speech recognition events
-  const onSpeechStart = () => {
-    console.log('Speech recognition started');
-  };
-  
-  const onSpeechEnd = () => {
-    console.log('Speech recognition ended');
+  const stopListening = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsListening(false);
-    
-    // Stop animations
-    cancelAnimation(scale);
-    cancelAnimation(opacity);
-    scale.value = 1;
-    opacity.value = 1;
+    // In a real app, this would stop the actual voice recognition
   };
   
-  const onSpeechResults = (e: SpeechResultsEvent) => {
-    if (e.value && e.value.length > 0) {
-      const recognizedText = e.value[0];
-      setTranscript(recognizedText);
+  // Handle completion
+  const handleComplete = () => {
+    if (recognizedText) {
+      onComplete(recognizedText);
+    } else {
+      onClose();
     }
   };
-  
-  const onSpeechError = (e: SpeechErrorEvent) => {
-    console.error('Speech recognition error', e);
-    setError('Failed to recognize speech. Please try again.');
-    setIsListening(false);
-    
-    // Stop animations
-    cancelAnimation(scale);
-    cancelAnimation(opacity);
-    scale.value = 1;
-    opacity.value = 1;
-  };
-  
-  // Submit the recognized text
-  const handleSubmit = () => {
-    if (transcript.trim()) {
-      onInputReceived(transcript.trim());
-      
-      // Provide success haptic feedback
-      if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }
-    }
-    onClose();
-  };
-  
-  // Create animated styles
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: scale.value }],
-      opacity: opacity.value
-    };
-  });
   
   return (
     <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
+      visible={true}
+      animationType="slide"
+      transparent={true}
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
+      <StatusBar style="dark" />
+      <SafeAreaView style={styles.container}>
         <View style={styles.modalContent}>
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <X size={24} color={colors.textSecondary} />
-          </TouchableOpacity>
-          
-          <Text style={styles.title}>Voice Input</Text>
-          <Text style={styles.subtitle}>Speak the ingredients you want to add</Text>
-          
-          {/* Main content area */}
-          <View style={styles.contentContainer}>
-            {/* Microphone button */}
-            <TouchableOpacity 
-              style={styles.micContainer}
-              onPress={isListening ? stopListening : startListening}
-              disabled={hasPermission === false}
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={onClose}
+              disabled={isListening}
             >
-              <Animated.View 
-                style={[
-                  styles.micRipple, 
-                  animatedStyle,
-                  hasPermission === false && styles.micDisabled
-                ]} 
-              />
-              <View style={[
-                styles.micButton, 
-                isListening && styles.micButtonActive,
-                hasPermission === false && styles.micButtonDisabled
-              ]}>
-                <Mic 
-                  size={32} 
-                  color={isListening ? colors.white : (hasPermission === false ? colors.textTertiary : colors.primary)} 
-                />
-              </View>
-              <Text style={styles.micText}>
-                {hasPermission === false 
-                  ? 'Permission required' 
-                  : (isListening ? 'Tap to stop' : 'Tap to speak')}
-              </Text>
+              <Ionicons name="close" size={24} color={isListening ? colors.textTertiary : colors.text} />
             </TouchableOpacity>
-            
-            {/* Transcript display */}
-            <View style={styles.transcriptContainer}>
-              {transcript ? (
-                <Text style={styles.transcriptText}>{transcript}</Text>
-              ) : (
-                <Text style={[
-                  styles.placeholderText,
-                  error && styles.errorText
-                ]}>
-                  {error || (isListening ? 'Listening...' : 'Tap the microphone and start speaking')}
-                </Text>
-              )}
-            </View>
+            <Text style={styles.headerTitle}>Voice Input</Text>
+            <View style={styles.headerRight} />
           </View>
           
-          {/* Add button */}
-          <TouchableOpacity 
-            style={[
-              styles.addButton,
-              (!transcript || hasPermission === false) && styles.addButtonDisabled
-            ]}
-            onPress={handleSubmit}
-            disabled={!transcript || hasPermission === false}
-          >
-            <Text style={styles.addButtonText}>Add</Text>
-            <Check size={20} color={colors.white} style={styles.addIcon} />
-          </TouchableOpacity>
+          {/* Main Content */}
+          <View style={styles.contentContainer}>
+            {isListening ? (
+              <>
+                <Text style={styles.listeningText}>Listening...</Text>
+                <Text style={styles.instructionText}>Speak clearly and list your ingredients</Text>
+                
+                {/* Animated Recording Indicator */}
+                <Animated.View
+                  style={[
+                    styles.recordingIndicator,
+                    { transform: [{ scale: pulseAnim }] }
+                  ]}
+                >
+                  <Ionicons name="mic" size={32} color="white" />
+                </Animated.View>
+                
+                <TouchableOpacity
+                  style={styles.stopButton}
+                  onPress={stopListening}
+                >
+                  <Text style={styles.stopButtonText}>Stop</Text>
+                </TouchableOpacity>
+              </>
+            ) : recognizedText ? (
+              <>
+                <Text style={styles.resultTitle}>Recognized Ingredients:</Text>
+                <View style={styles.recognizedTextContainer}>
+                  <Text style={styles.recognizedText}>{recognizedText}</Text>
+                </View>
+                
+                <View style={styles.actionButtonsContainer}>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.secondaryButton]}
+                    onPress={startListening}
+                  >
+                    <Text style={styles.secondaryButtonText}>Try Again</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.primaryButton]}
+                    onPress={handleComplete}
+                  >
+                    <Text style={styles.primaryButtonText}>Use These</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.instructionText}>
+                  Tap the microphone and start listing your ingredients.
+                  Speak clearly and pause between ingredients.
+                </Text>
+                
+                <TouchableOpacity
+                  style={styles.startButton}
+                  onPress={startListening}
+                >
+                  <Ionicons name="mic-outline" size={32} color="white" />
+                  <Text style={styles.startButtonText}>Tap to Start</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
         </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  container: {
     flex: 1,
+    justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   modalContent: {
-    width: '90%',
-    maxWidth: 400,
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 24,
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 36,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadowDark,
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    justifyContent: 'space-between',
+    marginBottom: 24,
   },
   closeButton: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
     padding: 4,
+    width: 32,
+    alignItems: 'center',
   },
-  title: {
-    fontSize: 22,
+  headerTitle: {
+    fontSize: 18,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 8,
+    fontFamily: 'Poppins-SemiBold',
   },
-  subtitle: {
+  headerRight: {
+    width: 32,
+  },
+  contentContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    minHeight: 300,
+  },
+  listeningText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.primary,
+    marginBottom: 8,
+    fontFamily: 'Poppins-Bold',
+  },
+  instructionText: {
     fontSize: 16,
     color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: 40,
+    lineHeight: 24,
+    fontFamily: 'Poppins-Regular',
   },
-  contentContainer: {
-    width: '100%',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  micContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  micRipple: {
-    position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: colors.primaryLight,
-    opacity: 0.5,
-  },
-  micButton: {
+  recordingIndicator: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: colors.tagBackground,
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.primary,
-    marginBottom: 12,
+    marginBottom: 24,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
   },
-  micButtonActive: {
-    backgroundColor: colors.primary,
-  },
-  micButtonDisabled: {
-    backgroundColor: colors.backgroundAlt,
-    borderColor: colors.border,
-  },
-  micText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  transcriptContainer: {
-    width: '100%',
-    minHeight: 80,
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 12,
-    padding: 16,
-    justifyContent: 'center',
-  },
-  transcriptText: {
-    fontSize: 16,
-    color: colors.text,
-    textAlign: 'center',
-  },
-  placeholderText: {
-    fontSize: 14,
-    color: colors.textTertiary,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  errorText: {
-    color: colors.error,
-  },
-  micDisabled: {
-    opacity: 0.2,
-  },
-  addButton: {
-    flexDirection: 'row',
-    backgroundColor: colors.primary,
-    borderRadius: 12,
+  stopButton: {
     paddingVertical: 12,
     paddingHorizontal: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
+    backgroundColor: colors.error,
+    borderRadius: 24,
   },
-  addButtonDisabled: {
-    backgroundColor: colors.primaryLight,
-    opacity: 0.8,
-  },
-  addButtonText: {
-    color: colors.white,
+  stopButtonText: {
+    color: 'white',
     fontSize: 16,
     fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
   },
-  addIcon: {
-    marginLeft: 8,
+  resultTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  recognizedTextContainer: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    padding: 16,
+    width: '100%',
+    marginBottom: 24,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  recognizedText: {
+    fontSize: 16,
+    color: colors.text,
+    lineHeight: 24,
+    fontFamily: 'Poppins-Regular',
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  actionButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '48%',
+  },
+  primaryButton: {
+    backgroundColor: colors.primary,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  primaryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  secondaryButton: {
+    backgroundColor: colors.backgroundAlt,
+  },
+  secondaryButtonText: {
+    color: colors.textSecondary,
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  startButton: {
+    backgroundColor: colors.primary,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+  startButtonText: {
+    color: 'white',
+    fontSize: 14,
+    marginTop: 8,
+    fontFamily: 'Poppins-Medium',
   },
 }); 

@@ -1,365 +1,286 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView, Platform } from 'react-native';
-import { router, Stack } from 'expo-router';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  Switch,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Haptics from 'expo-haptics';
-import { 
-  ArrowLeft, 
-  Moon, 
-  Bell, 
-  Eye, 
-  Lock, 
-  HelpCircle, 
-  ExternalLink, 
-  LifeBuoy,
-  LogOut
-} from 'lucide-react-native';
 import colors from '@/constants/colors';
-import typography from '@/constants/typography';
-import { useRecipeStore } from '@/stores/recipeStore';
-import TutorialModal from '@/components/TutorialModal';
-import { useFeedback } from '@/components/FeedbackSystem';
+import gradients from '@/constants/gradients';
+import GradientButton from '@/components/common/GradientButton';
 
-export default function Settings() {
+/**
+ * Settings Screen
+ * Allows users to configure app preferences
+ */
+export default function SettingsScreen() {
+  const router = useRouter();
+  
+  // Settings state
   const [darkMode, setDarkMode] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [saveHistory, setSaveHistory] = useState(true);
-  const [showTutorial, setShowTutorial] = useState(false);
-  const { clearAllRecipes } = useRecipeStore();
-  const feedback = useFeedback();
-
-  const handleDarkModeToggle = (value: boolean) => {
-    setDarkMode(value);
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    
-    feedback.showFeedback({
-      title: value ? 'Dark Mode Enabled' : 'Dark Mode Disabled',
-      type: 'info',
-      duration: 2000
-    });
+  const [showCalories, setShowCalories] = useState(true);
+  const [metricUnits, setMetricUnits] = useState(true);
+  const [voiceCommands, setVoiceCommands] = useState(false);
+  
+  // Clear data handler
+  const handleClearData = () => {
+    Alert.alert(
+      "Clear App Data",
+      "This will remove all your saved recipes and history. This action cannot be undone.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        { 
+          text: "Clear", 
+          style: "destructive",
+          onPress: () => console.log("Clear data confirmed")
+        }
+      ]
+    );
   };
-
-  const handleNotificationsToggle = (value: boolean) => {
-    setNotifications(value);
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    
-    feedback.showFeedback({
-      title: value ? 'Notifications Enabled' : 'Notifications Disabled',
-      type: 'info',
-      duration: 2000
-    });
-  };
-
-  const handleHistoryToggle = (value: boolean) => {
-    setSaveHistory(value);
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    
-    feedback.showFeedback({
-      title: value ? 'History Saving Enabled' : 'History Saving Disabled',
-      type: 'info',
-      duration: 2000
-    });
-  };
-
-  const handleClearData = async () => {
-    if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    }
-    
-    // In a real app you'd show a confirmation dialog here
-    clearAllRecipes();
-    
-    feedback.showFeedback({
-      title: 'All Data Cleared',
-      description: 'Your recipes and history have been removed',
-      type: 'warning',
-      duration: 3000
-    });
-  };
-
-  const handleShowTutorial = () => {
-    setShowTutorial(true);
-  };
-
-  const renderSettingItem = (
-    icon: React.ReactNode,
-    title: string,
-    description: string,
-    action: React.ReactNode,
-    accessibilityLabel: string
+  
+  // Render a setting item with toggle
+  const renderToggleSetting = (
+    icon: string, 
+    title: string, 
+    description: string, 
+    value: boolean, 
+    onValueChange: (newValue: boolean) => void
   ) => (
-    <TouchableOpacity 
-      style={styles.settingItem}
-      activeOpacity={0.7}
-      accessibilityLabel={accessibilityLabel}
-      accessibilityRole="button"
-    >
-      <View style={styles.settingIconContainer}>
-        {icon}
+    <View style={styles.settingItem}>
+      <View style={styles.settingIcon}>
+        <LinearGradient
+          colors={value ? gradients.freshGreen.colors : gradients.subtleGray.colors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.iconGradient}
+        >
+          <Ionicons name={icon} size={22} color="white" />
+        </LinearGradient>
       </View>
       <View style={styles.settingContent}>
         <Text style={styles.settingTitle}>{title}</Text>
         <Text style={styles.settingDescription}>{description}</Text>
       </View>
-      {action}
-    </TouchableOpacity>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        trackColor={{ false: colors.border, true: colors.primary }}
+        thumbColor="white"
+      />
+    </View>
   );
 
   return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={[colors.backgroundGradientStart, colors.backgroundGradientEnd]}
-        style={StyleSheet.absoluteFillObject}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="dark" />
       
-      <Stack.Screen
-        options={{
-          title: 'Settings',
-          headerLeft: () => (
-            <TouchableOpacity 
-              onPress={() => router.back()}
-              style={styles.backButton}
-              accessibilityLabel="Go back"
-              accessibilityRole="button"
-            >
-              <ArrowLeft size={24} color={colors.text} />
-            </TouchableOpacity>
-          ),
-          headerStyle: {
-            backgroundColor: 'transparent',
-          },
-          headerShadowVisible: false,
-        }}
-      />
+      <View style={styles.header}>
+        <Text style={styles.title}>Settings</Text>
+      </View>
       
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.scrollView}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Appearance</Text>
-          {renderSettingItem(
-            <Moon size={22} color={colors.primary} />,
-            'Dark Mode',
-            'Switch to dark theme for low-light environments',
-            <Switch
-              value={darkMode}
-              onValueChange={handleDarkModeToggle}
-              trackColor={{ false: colors.divider, true: colors.primaryAlt }}
-              thumbColor={darkMode ? colors.primary : colors.card}
-              ios_backgroundColor={colors.divider}
-              accessibilityLabel={darkMode ? 'Turn off dark mode' : 'Turn on dark mode'}
-              accessibilityHint="Toggles between light and dark theme"
-              accessibilityRole="switch"
-              accessibilityState={{ checked: darkMode }}
-            />,
-            'Dark mode toggle'
+          {renderToggleSetting(
+            "moon-outline",
+            "Dark Mode",
+            "Switch between light and dark theme",
+            darkMode,
+            setDarkMode
+          )}
+          {renderToggleSetting(
+            "speedometer-outline",
+            "Show Calories",
+            "Display calorie information for recipes",
+            showCalories,
+            setShowCalories
           )}
         </View>
         
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
-          {renderSettingItem(
-            <Bell size={22} color={colors.primary} />,
-            'Push Notifications',
-            'Get updates about new recipes and features',
-            <Switch
-              value={notifications}
-              onValueChange={handleNotificationsToggle}
-              trackColor={{ false: colors.divider, true: colors.primaryAlt }}
-              thumbColor={notifications ? colors.primary : colors.card}
-              ios_backgroundColor={colors.divider}
-              accessibilityLabel={notifications ? 'Turn off notifications' : 'Turn on notifications'}
-              accessibilityRole="switch"
-              accessibilityState={{ checked: notifications }}
-            />,
-            'Push notifications toggle'
+          <Text style={styles.sectionTitle}>Preferences</Text>
+          {renderToggleSetting(
+            "notifications-outline",
+            "Notifications",
+            "Receive updates and new recipe alerts",
+            notifications,
+            setNotifications
+          )}
+          {renderToggleSetting(
+            "compass-outline",
+            "Metric Units",
+            "Use metric system for measurements",
+            metricUnits,
+            setMetricUnits
+          )}
+          {renderToggleSetting(
+            "mic-outline",
+            "Voice Commands",
+            "Enable voice navigation and search",
+            voiceCommands,
+            setVoiceCommands
+          )}
+          {renderToggleSetting(
+            "time-outline",
+            "Save History",
+            "Keep track of your recently viewed recipes",
+            saveHistory,
+            setSaveHistory
           )}
         </View>
         
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Privacy</Text>
-          {renderSettingItem(
-            <Eye size={22} color={colors.primary} />,
-            'Save History',
-            'Keep a record of your recipe searches',
-            <Switch
-              value={saveHistory}
-              onValueChange={handleHistoryToggle}
-              trackColor={{ false: colors.divider, true: colors.primaryAlt }}
-              thumbColor={saveHistory ? colors.primary : colors.card}
-              ios_backgroundColor={colors.divider}
-              accessibilityLabel={saveHistory ? 'Turn off history saving' : 'Turn on history saving'}
-              accessibilityRole="switch"
-              accessibilityState={{ checked: saveHistory }}
-            />,
-            'Save history toggle'
-          )}
+          <Text style={styles.sectionTitle}>Account</Text>
+          <TouchableOpacity 
+            style={styles.button}
+            onPress={() => router.push('/profile')}
+          >
+            <Ionicons name="person-outline" size={20} color={colors.primary} />
+            <Text style={styles.buttonText}>Edit Profile</Text>
+          </TouchableOpacity>
           
-          {renderSettingItem(
-            <Lock size={22} color={colors.primary} />,
-            'Clear All Data',
-            'Delete all recipes and history data',
-            <TouchableOpacity 
-              style={styles.clearButton}
-              onPress={handleClearData}
-              accessibilityLabel="Clear all data"
-              accessibilityHint="Deletes all your recipes and history"
-            >
-              <Text style={styles.clearButtonText}>Clear</Text>
-            </TouchableOpacity>,
-            'Clear all data button'
-          )}
+          <TouchableOpacity 
+            style={styles.button}
+            onPress={() => router.push('/preferences')}
+          >
+            <Ionicons name="options-outline" size={20} color={colors.primary} />
+            <Text style={styles.buttonText}>Dietary Preferences</Text>
+          </TouchableOpacity>
         </View>
         
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Help & Support</Text>
-          {renderSettingItem(
-            <HelpCircle size={22} color={colors.primary} />,
-            'Tutorial',
-            'Learn how to use ReciptAI',
-            <TouchableOpacity 
-              style={styles.iconButton}
-              onPress={handleShowTutorial}
-              accessibilityLabel="Open tutorial"
-            >
-              <ExternalLink size={20} color={colors.textSecondary} />
-            </TouchableOpacity>,
-            'Open tutorial button'
-          )}
-          
-          {renderSettingItem(
-            <LifeBuoy size={22} color={colors.primary} />,
-            'Contact Support',
-            'Get help with any issues',
-            <TouchableOpacity 
-              style={styles.iconButton}
-              accessibilityLabel="Contact support"
-            >
-              <ExternalLink size={20} color={colors.textSecondary} />
-            </TouchableOpacity>,
-            'Contact support button'
-          )}
+          <Text style={styles.sectionTitle}>Data</Text>
+          <TouchableOpacity 
+            style={[styles.button, styles.dangerButton]}
+            onPress={handleClearData}
+          >
+            <Ionicons name="trash-outline" size={20} color={colors.error} />
+            <Text style={[styles.buttonText, styles.dangerText]}>Clear App Data</Text>
+          </TouchableOpacity>
         </View>
         
-        <TouchableOpacity 
-          style={styles.logoutButton}
-          accessibilityLabel="Log out"
-          accessibilityRole="button"
-        >
-          <LogOut size={18} color={colors.error} />
-          <Text style={styles.logoutText}>Log Out</Text>
-        </TouchableOpacity>
+        <View style={styles.footer}>
+          <Text style={styles.version}>Version 1.0.0</Text>
+          <GradientButton
+            title="Log Out"
+            gradient="subtleGray"
+            size="small"
+            onPress={() => console.log('Log out')}
+          />
+        </View>
       </ScrollView>
-      
-      <TutorialModal
-        visible={showTutorial}
-        onClose={() => setShowTutorial(false)}
-      />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#f9f9f9',
   },
-  backButton: {
-    padding: 10,
+  header: {
+    padding: 16,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.text,
   },
   scrollView: {
     flex: 1,
   },
-  contentContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-  },
   section: {
-    marginBottom: 24,
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    backgroundColor: 'white',
+    marginBottom: 16,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
   },
   sectionTitle: {
-    ...typography.subtitle,
-    color: colors.text,
-    marginVertical: 16,
-    marginHorizontal: 16,
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: colors.textSecondary,
+    marginLeft: 16,
+    marginTop: 8,
+    marginBottom: 8,
+    textTransform: 'uppercase',
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderTopColor: colors.divider,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  settingIconContainer: {
+  settingIcon: {
+    marginRight: 16,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.cardAlt,
+    overflow: 'hidden',
+  },
+  iconGradient: {
+    width: '100%',
+    height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
   },
   settingContent: {
     flex: 1,
   },
   settingTitle: {
-    ...typography.body,
-    color: colors.text,
+    fontSize: 16,
     fontWeight: '600',
-    marginBottom: 4,
+    color: colors.text,
+    marginBottom: 2,
   },
   settingDescription: {
-    ...typography.caption,
+    fontSize: 14,
     color: colors.textSecondary,
   },
-  clearButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: colors.errorBackground,
-  },
-  clearButtonText: {
-    ...typography.bodySmall,
-    color: colors.error,
-    fontWeight: '600',
-  },
-  iconButton: {
-    padding: 8,
-  },
-  logoutButton: {
+  button: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 12,
-    marginBottom: 24,
-    paddingVertical: 16,
-    backgroundColor: colors.cardAlt,
-    borderRadius: 12,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  logoutText: {
-    ...typography.body,
+  buttonText: {
+    fontSize: 16,
+    marginLeft: 16,
+    color: colors.text,
+  },
+  dangerButton: {
+    borderBottomWidth: 0,
+  },
+  dangerText: {
     color: colors.error,
-    fontWeight: '600',
-    marginLeft: 8,
+  },
+  footer: {
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  version: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 16,
   },
 }); 

@@ -3,9 +3,8 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
-  TouchableOpacity,
   ScrollView,
+  TouchableOpacity,
   ActivityIndicator,
   Keyboard,
   Animated,
@@ -15,44 +14,197 @@ import {
   SafeAreaView
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import * as ImagePicker from 'expo-image-picker';
-// Comment out Speech import for now
-// import * as Speech from 'expo-speech';
 import colors from '@/constants/colors';
-import { useRecipeStore } from '@/stores/recipeStore';
+import typography from '@/constants/typography';
+import { useIngredientsStore } from '@/stores/ingredientsStore';
+import { useRecipeStore, RecipeError } from '@/stores/recipeStore';
 import { popularIngredients } from '@/constants/ingredients';
+import OfflineBanner, { NetworkManager } from '@/components/OfflineBanner';
+import ErrorState from '@/components/ErrorState';
+import ErrorScreen from '@/components/ErrorScreen';
+import { generateRecipe } from '@/services/recipeService';
 
-export default function InputScreen() {
-  const router = useRouter();
-  const params = useLocalSearchParams();
-  const [ingredients, setIngredients] = useState<string[]>([]);
-  const [currentInput, setCurrentInput] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const [recognizedText, setRecognizedText] = useState('');
-  const { generateRecipe, setRecipe } = useRecipeStore();
+// Import components for input methods
+import IngredientInput from '@/components/IngredientInput';
+import IngredientList from '@/components/IngredientList';
+import VoiceInputModal from '@/components/VoiceInputModal';
+import CameraInput from '@/components/CameraInput';
+import TextArea from '@/components/TextArea';
+import Input from '@/components/Input';
+
+// Helper function for user-friendly error messages
+function getUserFriendlyErrorMessage(error: RecipeError | null): string {
+  if (!error) return '';
   
-  const inputRef = useRef<TextInput>(null);
+  switch (error.type) {
+    case 'network':
+      return 'Unable to connect to the server. Please check your internet connection and try again.';
+    case 'timeout':
+      return 'The operation is taking longer than expected. Please try again later.';
+    case 'generation':
+      return 'We couldn\'t create a recipe with these ingredients. Please try different ingredients or try again later.';
+    case 'validation':
+      return 'Please check your ingredients and try again.';
+    case 'unknown':
+    default:
+      return error.message || 'Something unexpected happened. Please try again.';
+  }
+}
+
+// Create a custom ingredient list adapter component
+const IngredientListAdapter = ({ 
+  ingredients, 
+  onRemove, 
+  onClearAll, 
+  scrollViewRef 
+}: { 
+  ingredients: any[], 
+  onRemove: (id: string) => void, 
+  onClearAll: () => void, 
+  scrollViewRef: React.RefObject<ScrollView> 
+}) => {
+  // Convert Ingredient objects to strings for the IngredientList component
+  const ingredientStrings = ingredients.map(ing => ing.name);
+  
+  // Handle remove by passing the ID to the parent callback
+  const handleRemove = (index: number) => {
+    if (ingredients[index] && ingredients[index].id) {
+      onRemove(ingredients[index].id);
+    }
+  };
+  
+  if (ingredients.length === 0) {
+    return (
+      <View style={adapterStyles.emptyContainer}>
+        <Text style={adapterStyles.emptyText}>
+          Add ingredients to generate a recipe
+        </Text>
+      </View>
+    );
+  }
+  
+  return (
+    <View style={adapterStyles.container}>
+      <ScrollView
+        ref={scrollViewRef}
+        style={adapterStyles.scrollView}
+        contentContainerStyle={adapterStyles.scrollContent}
+      >
+        {ingredients.map((ingredient, index) => (
+          <View key={`${ingredient.id || index}`} style={adapterStyles.ingredientItem}>
+            <Text style={adapterStyles.ingredientText}>{ingredient.name}</Text>
+            <TouchableOpacity
+              style={adapterStyles.removeButton}
+              onPress={() => handleRemove(index)}
+            >
+              <Ionicons name="close-circle" size={22} color={colors.error} />
+            </TouchableOpacity>
+          </View>
+        ))}
+      </ScrollView>
+      
+      {ingredients.length > 0 && (
+        <TouchableOpacity
+          style={adapterStyles.clearButton}
+          onPress={onClearAll}
+        >
+          <Text style={adapterStyles.clearButtonText}>Clear All</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
+
+const adapterStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingVertical: 8,
+  },
+  ingredientItem: {
+    flexDirection: 'row',
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  ingredientText: {
+    flex: 1,
+    ...typography.body1,
+    color: colors.text,
+  },
+  removeButton: {
+    padding: 4,
+  },
+  clearButton: {
+    alignSelf: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginVertical: 8,
+  },
+  clearButtonText: {
+    color: colors.error,
+    ...typography.button,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: colors.textSecondary,
+    ...typography.body1,
+    padding: 16,
+  },
+});
+
+// Input Screen Component
+function InputScreen() {
+  const router = useRouter();
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showVoiceModal, setShowVoiceModal] = useState(false);
+  const [showCameraInput, setShowCameraInput] = useState(false);
+  const [inputMethod, setInputMethod] = useState<'text' | 'camera' | 'voice'>('text');
+  const [currentInput, setCurrentInput] = useState('');
+  const [showNoIngredientsError, setShowNoIngredientsError] = useState(false);
+  const [isOffline, setIsOffline] = useState(NetworkManager.isOffline);
+  const [error, setError] = useState<RecipeError | null>(null);
+  
+  // Use the setHasNewRecipe method from the store
+  const { setHasNewRecipe } = useRecipeStore();
+  
+  // Use the ingredients store correctly
+  const { 
+    ingredients, 
+    addIngredient, 
+    removeIngredient, 
+    clearIngredients
+  } = useIngredientsStore();
+  
   const scrollViewRef = useRef<ScrollView>(null);
   const animatedButtonScale = useRef(new Animated.Value(1)).current;
   
-  // Pre-fill ingredients if passed via params
+  // Subscribe to network status changes
   useEffect(() => {
-    if (params.ingredients) {
-      const paramIngredients = String(params.ingredients)
-        .split(',')
-        .map(i => i.trim())
-        .filter(Boolean);
-      
-      setIngredients(paramIngredients);
-    }
-  }, [params.ingredients]);
+    const unsubscribe = NetworkManager.addListener(setIsOffline);
+    return () => {
+      unsubscribe();
+    };
+  }, []);
   
   // Add ingredient to the list
-  const addIngredient = (text: string) => {
+  const handleAddIngredient = (text: string) => {
     // Skip if empty
     if (!text.trim()) return;
     
@@ -64,8 +216,13 @@ export default function InputScreen() {
       .map(i => i.trim())
       .filter(Boolean);
     
-    setIngredients(prev => [...prev, ...newIngredients]);
+    newIngredients.forEach(ingredient => addIngredient(ingredient));
     setCurrentInput('');
+    
+    // Hide no ingredients error if it was showing
+    if (showNoIngredientsError) {
+      setShowNoIngredientsError(false);
+    }
     
     // Scroll to the bottom of the list
     setTimeout(() => {
@@ -74,18 +231,13 @@ export default function InputScreen() {
   };
   
   // Remove ingredient from the list
-  const removeIngredient = (index: number) => {
+  const handleRemoveIngredient = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    setIngredients(prev => {
-      const updated = [...prev];
-      updated.splice(index, 1);
-      return updated;
-    });
+    removeIngredient(id);
   };
   
   // Clear all ingredients
-  const clearIngredients = () => {
+  const handleClearIngredients = () => {
     if (ingredients.length === 0) return;
     
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -101,10 +253,28 @@ export default function InputScreen() {
         {
           text: "Clear",
           style: "destructive",
-          onPress: () => setIngredients([])
+          onPress: () => clearIngredients()
         }
       ]
     );
+  };
+  
+  // Handle voice input results
+  const handleVoiceInput = (recognizedText: string) => {
+    setShowVoiceModal(false);
+    
+    if (recognizedText) {
+      handleAddIngredient(recognizedText);
+    }
+  };
+  
+  // Handle camera input results
+  const handleCameraInput = (detectedIngredients: string[]) => {
+    if (detectedIngredients && detectedIngredients.length > 0) {
+      detectedIngredients.forEach(ingredient => {
+        addIngredient(ingredient);
+      });
+    }
   };
   
   // Generate a recipe
@@ -113,6 +283,15 @@ export default function InputScreen() {
       Alert.alert(
         "No Ingredients",
         "Please add at least one ingredient to generate a recipe."
+      );
+      return;
+    }
+    
+    // Prevent recipe generation when offline
+    if (isOffline) {
+      Alert.alert(
+        "Offline Mode",
+        "Recipe generation is disabled while offline. Please connect to the internet and try again."
       );
       return;
     }
@@ -136,347 +315,256 @@ export default function InputScreen() {
         }),
       ]).start();
       
-      // In a real app, this would call your API to generate a recipe
-      const generatedRecipe = await generateRecipe(ingredients);
+      // Get the ingredient names from the ingredients array
+      const ingredientNames = ingredients.map(ing => ing.name);
+      
+      // Use the recipe generation service
+      const generatedRecipe = await generateRecipe(ingredientNames);
       
       // Only proceed if we got a recipe
       if (generatedRecipe) {
-        // Store the generated recipe
-        setRecipe(generatedRecipe);
+        // Mark as having a new recipe
+        setHasNewRecipe(true);
         
         // Navigate to the recipe screen
-        router.push('/recipe');
+        router.push(`/recipe/${generatedRecipe.id || ''}`);
       }
-    } catch (error) {
-      console.error('Error generating recipe:', error);
-      Alert.alert(
-        "Recipe Generation Failed",
-        "There was an error generating your recipe. Please try again."
-      );
+    } catch (err) {
+      console.error('Error generating recipe:', err);
+      // Set error state
+      setError({
+        type: 'generation',
+        message: 'Failed to generate recipe',
+        details: err instanceof Error ? err.message : 'Unknown error',
+        timestamp: Date.now()
+      });
     } finally {
       setIsGenerating(false);
     }
   };
   
-  // Open camera to scan ingredients
-  const openCamera = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    
-    if (status !== 'granted') {
-      Alert.alert(
-        "Camera Permission Required",
-        "We need camera permission to scan ingredients. Please enable it in your device settings."
-      );
-      return;
-    }
-    
-    try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.8,
-      });
-      
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        // In a real app, this would send the image to an API for processing/recognition
-        // For now, we'll just simulate recognizing a few ingredients
-        
-        // Simulate processing delay
-        setIsGenerating(true);
-        
-        setTimeout(() => {
-          // Sample recognized ingredients (would be from API in real app)
-          const recognized = ['onion', 'tomato', 'chicken breast'];
-          
-          setIngredients(prev => {
-            // Filter out duplicates
-            const newIngredients = recognized.filter(
-              ingredient => !prev.includes(ingredient)
-            );
-            return [...prev, ...newIngredients];
-          });
-          
-          setIsGenerating(false);
-          
-          // Show feedback
-          Alert.alert(
-            "Ingredients Recognized",
-            `Found ${recognized.length} ingredients in your image.`
-          );
-        }, 2000);
-      }
-    } catch (error) {
-      console.error('Error using camera:', error);
-      setIsGenerating(false);
-    }
+  // Retry ingredient detection after failure
+  const handleRetryIngredientDetection = () => {
+    setShowNoIngredientsError(false);
+    setShowCameraInput(true);
   };
   
-  // Start voice recording
-  const startVoiceRecording = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
-    // In a real app, this would use a speech recognition API
-    // For now, we'll simulate voice recognition
-    
-    setIsRecording(true);
-    
-    // Start visual feedback
-    // Comment out Speech usage
-    /*
-    Speech.speak("I'm listening. What ingredients do you have?", {
-      language: 'en',
-      pitch: 1.0,
-      rate: 0.9,
-    });
-    */
-    
-    // Simulate recording for 3 seconds
-    setTimeout(() => {
-      setIsRecording(false);
-      
-      // Simulate recognized text
-      const recognizedIngredients = [
-        'chicken',
-        'rice',
-        'bell pepper',
-        'onion'
-      ];
-      
-      // Add recognized ingredients
-      setIngredients(prev => {
-        // Filter out duplicates
-        const newIngredients = recognizedIngredients.filter(
-          ingredient => !prev.includes(ingredient)
-        );
-        return [...prev, ...newIngredients];
-      });
-      
-      // Show feedback
-      setRecognizedText(`Recognized: ${recognizedIngredients.join(', ')}`);
-      
-      setTimeout(() => {
-        setRecognizedText('');
-      }, 3000);
-    }, 3000);
+  // Retry recipe generation after failure
+  const handleRetryGeneration = () => {
+    router.replace('/input');
   };
   
-  // Add a suggestion ingredient
-  const addSuggestion = (suggestion: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    if (!ingredients.includes(suggestion)) {
-      setIngredients(prev => [...prev, suggestion]);
-      
-      // Scroll to bottom
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    }
+  // If there's a recipe generation error, show the error screen
+  if (error && !isGenerating) {
+    return (
+      <ErrorScreen 
+        title="Recipe Generation Failed"
+        message={getUserFriendlyErrorMessage(error)}
+        onTryAgain={handleRetryGeneration}
+        errorType={error.type}
+      />
+    );
+  }
+  
+  // Show loading indicator while generating
+  if (isGenerating) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>
+          {ingredients.length > 0 
+            ? "Generating your recipe..." 
+            : "Detecting ingredients..."}
+        </Text>
+      </View>
+    );
+  }
+  
+  const renderTextInput = () => (
+    <View style={styles.textInputContainer}>
+      <Input
+        placeholder="Type an ingredient (e.g. chicken)"
+        value={currentInput}
+        onChangeText={setCurrentInput}
+        onSubmitEditing={() => handleAddIngredient(currentInput)}
+        returnKeyType="done"
+        autoCapitalize="none"
+        autoCorrect={false}
+        containerStyle={styles.textInputField}
+      />
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => handleAddIngredient(currentInput)}
+        disabled={!currentInput.trim()}
+      >
+        <Ionicons 
+          name="add" 
+          size={24} 
+          color={!currentInput.trim() ? colors.textLight : 'white'} 
+        />
+      </TouchableOpacity>
+    </View>
+  );
+  
+  const animatedButtonStyle = {
+    transform: [{ scale: animatedButtonScale }]
   };
   
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
       
-      <KeyboardAvoidingView
-        style={styles.container}
+      {/* Offline Banner */}
+      <OfflineBanner />
+      
+      <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        style={styles.keyboardAvoidView}
       >
-        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-            accessibilityLabel="Go back"
-            accessibilityRole="button"
+          <Text style={styles.title}>Input Ingredients</Text>
+          <Text style={styles.subtitle}>
+            Add ingredients to generate a custom recipe
+          </Text>
+        </View>
+        
+        {/* Input Methods Tabs */}
+        <View style={styles.inputMethodTabs}>
+          <TouchableOpacity 
+            style={[
+              styles.inputMethodTab, 
+              inputMethod === 'text' && styles.activeInputMethodTab
+            ]}
+            onPress={() => setInputMethod('text')}
           >
-            <Ionicons name="chevron-back" size={24} color={colors.text} />
-          </TouchableOpacity>
-          
-          <Text style={styles.headerTitle}>Enter Ingredients</Text>
-          
-          <TouchableOpacity
-            style={styles.clearButton}
-            onPress={clearIngredients}
-            accessibilityLabel="Clear all ingredients"
-            accessibilityRole="button"
-            disabled={ingredients.length === 0}
-          >
+            <Ionicons 
+              name="create-outline" 
+              size={22} 
+              color={inputMethod === 'text' ? colors.primary : colors.textSecondary} 
+            />
             <Text 
               style={[
-                styles.clearButtonText,
-                ingredients.length === 0 && styles.disabledButtonText
+                styles.inputMethodText, 
+                inputMethod === 'text' && styles.activeInputMethodText
               ]}
             >
-              Clear
+              Type
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[
+              styles.inputMethodTab, 
+              inputMethod === 'voice' && styles.activeInputMethodTab
+            ]}
+            onPress={() => {
+              setInputMethod('voice');
+              setShowVoiceModal(true);
+            }}
+          >
+            <Ionicons 
+              name="mic-outline" 
+              size={22} 
+              color={inputMethod === 'voice' ? colors.primary : colors.textSecondary} 
+            />
+            <Text 
+              style={[
+                styles.inputMethodText, 
+                inputMethod === 'voice' && styles.activeInputMethodText
+              ]}
+            >
+              Voice
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[
+              styles.inputMethodTab, 
+              inputMethod === 'camera' && styles.activeInputMethodTab
+            ]}
+            onPress={() => {
+              setInputMethod('camera');
+              setShowCameraInput(true);
+            }}
+          >
+            <Ionicons 
+              name="camera-outline" 
+              size={22} 
+              color={inputMethod === 'camera' ? colors.primary : colors.textSecondary} 
+            />
+            <Text 
+              style={[
+                styles.inputMethodText, 
+                inputMethod === 'camera' && styles.activeInputMethodText
+              ]}
+            >
+              Camera
             </Text>
           </TouchableOpacity>
         </View>
         
-        {/* Main Content */}
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Instructions */}
-          <Text style={styles.instructionText}>
-            What ingredients do you have? Add them one by one or separated by commas.
-          </Text>
-          
-          {/* Ingredients List */}
-          <View style={styles.ingredientsList}>
-            {ingredients.map((ingredient, index) => (
-              <View key={`${ingredient}-${index}`} style={styles.ingredientChip}>
-                <Text style={styles.ingredientText}>{ingredient}</Text>
-                <TouchableOpacity
-                  style={styles.removeButton}
-                  onPress={() => removeIngredient(index)}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  accessibilityLabel={`Remove ${ingredient}`}
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="close" size={16} color={colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-            ))}
-          </View>
-          
-          {/* Voice Recognition Feedback */}
-          {recognizedText && (
-            <Text style={styles.recognizedText}>{recognizedText}</Text>
-          )}
-          
-          {/* Popular Ingredients Suggestions */}
-          <View style={styles.suggestionsContainer}>
-            <Text style={styles.suggestionsTitle}>Common Ingredients</Text>
-            <View style={styles.suggestionsList}>
-              {popularIngredients.slice(0, 15).map((suggestion) => (
-                <TouchableOpacity
-                  key={suggestion}
-                  style={[
-                    styles.suggestionChip,
-                    ingredients.includes(suggestion) && styles.selectedSuggestion
-                  ]}
-                  onPress={() => addSuggestion(suggestion)}
-                  disabled={ingredients.includes(suggestion)}
-                  accessibilityLabel={`Add ${suggestion}`}
-                  accessibilityRole="button"
-                >
-                  <Text 
-                    style={[
-                      styles.suggestionText,
-                      ingredients.includes(suggestion) && styles.selectedSuggestionText
-                    ]}
-                  >
-                    {suggestion}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-          
-          {/* Spacing for keyboard and bottom buttons */}
-          <View style={{ height: 120 }} />
-        </ScrollView>
+        {/* Text Input Section */}
+        {inputMethod === 'text' && renderTextInput()}
         
-        {/* Input and Action Buttons */}
-        <View style={styles.inputContainer}>
-          <View style={styles.textInputContainer}>
-            <TextInput
-              ref={inputRef}
-              style={styles.textInput}
-              value={currentInput}
-              onChangeText={setCurrentInput}
-              placeholder="Type an ingredient..."
-              placeholderTextColor={colors.textTertiary}
-              onSubmitEditing={() => addIngredient(currentInput)}
-              returnKeyType="done"
-              autoCorrect={false}
-              autoCapitalize="none"
+        {/* Ingredient List */}
+        <View style={styles.ingredientListContainer}>
+          {showNoIngredientsError ? (
+            <ErrorState
+              onRetry={handleRetryIngredientDetection}
             />
-            
-            <TouchableOpacity
-              style={[
-                styles.addButton,
-                !currentInput.trim() && styles.disabledAddButton
-              ]}
-              onPress={() => addIngredient(currentInput)}
-              disabled={!currentInput.trim()}
-              accessibilityLabel="Add ingredient"
-              accessibilityRole="button"
-            >
-              <Ionicons 
-                name="add" 
-                size={24} 
-                color={currentInput.trim() ? colors.white : colors.textSecondary} 
-              />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.actionButtonsRow}>
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={openCamera}
-              disabled={isGenerating || isRecording}
-              accessibilityLabel="Scan ingredients with camera"
-              accessibilityRole="button"
-            >
-              <Ionicons name="camera-outline" size={22} color={colors.textSecondary} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[
-                styles.actionButton,
-                isRecording && styles.recordingButton
-              ]}
-              onPress={startVoiceRecording}
-              disabled={isGenerating || isRecording}
-              accessibilityLabel="Add ingredients by voice"
-              accessibilityRole="button"
-            >
-              <Ionicons 
-                name={isRecording ? "mic" : "mic-outline"} 
-                size={22} 
-                color={isRecording ? colors.white : colors.textSecondary} 
-              />
-            </TouchableOpacity>
-          </View>
+          ) : (
+            <IngredientListAdapter
+              ingredients={ingredients}
+              onRemove={handleRemoveIngredient}
+              onClearAll={handleClearIngredients}
+              scrollViewRef={scrollViewRef}
+            />
+          )}
         </View>
         
         {/* Generate Recipe Button */}
-        <Animated.View 
-          style={[
-            styles.generateButtonContainer,
-            { transform: [{ scale: animatedButtonScale }] }
-          ]}
-        >
+        <Animated.View style={animatedButtonStyle}>
           <TouchableOpacity
-            style={styles.generateButton}
+            style={[
+              styles.generateButton,
+              (ingredients.length === 0 || isOffline) && styles.generateButtonDisabled
+            ]}
             onPress={handleGenerateRecipe}
-            disabled={isGenerating || ingredients.length === 0}
-            accessibilityLabel="Generate recipe"
-            accessibilityRole="button"
+            disabled={ingredients.length === 0 || isOffline}
           >
-            {isGenerating ? (
-              <ActivityIndicator color="white" size="small" />
-            ) : (
-              <>
-                <Ionicons name="restaurant-outline" size={20} color="white" style={styles.generateButtonIcon} />
-                <Text style={styles.generateButtonText}>Generate Recipe</Text>
-              </>
-            )}
+            <LinearGradient
+              colors={['#FF8C61', '#F96E43']} // "Sunrise Orange" gradient
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.generateButtonGradient}
+            >
+              <Text style={styles.generateButtonText}>
+                {isOffline ? "Generation Disabled (Offline)" : "Generate Recipe"}
+              </Text>
+            </LinearGradient>
           </TouchableOpacity>
         </Animated.View>
+        
+        {/* Voice Input Modal */}
+        {showVoiceModal && (
+          <VoiceInputModal
+            onComplete={handleVoiceInput}
+            onClose={() => setShowVoiceModal(false)}
+          />
+        )}
+        
+        {/* Camera Input */}
+        {showCameraInput && (
+          <CameraInput
+            onIngredientsDetected={handleCameraInput}
+          />
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
+
+export default InputScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -484,179 +572,102 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
+    padding: 16,
+    marginBottom: 8,
+  },
+  title: {
+    ...typography.heading1,
+    color: colors.text,
+    marginBottom: 8,
+  },
+  subtitle: {
+    ...typography.body1,
+    color: colors.textSecondary,
+  },
+  keyboardAvoidView: {
+    flex: 1,
+  },
+  inputMethodTabs: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 12,
+    padding: 4,
+  },
+  inputMethodTab: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    justifyContent: 'center',
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderRadius: 8,
   },
-  backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  clearButton: {
-    padding: 4,
-  },
-  clearButtonText: {
-    color: colors.error,
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  disabledButtonText: {
-    color: colors.textTertiary,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 16,
-  },
-  instructionText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginBottom: 24,
-  },
-  ingredientsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 16,
-  },
-  ingredientChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    margin: 4,
-  },
-  ingredientText: {
-    fontSize: 14,
-    color: colors.text,
-    marginRight: 4,
-  },
-  removeButton: {
-    marginLeft: 2,
-  },
-  recognizedText: {
-    fontSize: 14,
-    color: colors.success,
-    fontStyle: 'italic',
-    marginBottom: 16,
-  },
-  suggestionsContainer: {
-    marginTop: 16,
-  },
-  suggestionsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  suggestionsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  suggestionChip: {
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: 16,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    margin: 4,
-  },
-  selectedSuggestion: {
-    backgroundColor: `${colors.primary}20`, // 20% opacity
-    borderColor: colors.primary,
-    borderWidth: 1,
-  },
-  suggestionText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  selectedSuggestionText: {
-    color: colors.primary,
-  },
-  inputContainer: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    padding: 16,
-    backgroundColor: colors.background,
-  },
-  textInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  textInput: {
-    flex: 1,
+  activeInputMethodTab: {
     backgroundColor: colors.white,
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: colors.text,
     ...Platform.select({
       ios: {
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowRadius: 2,
       },
       android: {
         elevation: 2,
       },
     }),
   },
+  inputMethodText: {
+    ...typography.body2,
+    color: colors.textSecondary,
+    marginLeft: 4,
+  },
+  activeInputMethodText: {
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  textInputContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  textInputField: {
+    flex: 1,
+  },
   addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
     backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 8,
-  },
-  disabledAddButton: {
-    backgroundColor: colors.border,
-  },
-  actionButtonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 16,
-  },
-  actionButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.backgroundAlt,
+    marginLeft: 8,
+  },
+  ingredientListContainer: {
+    flex: 1,
+    marginHorizontal: 16,
+  },
+  loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: 8,
-  },
-  recordingButton: {
-    backgroundColor: colors.error,
-  },
-  generateButtonContainer: {
-    padding: 16,
-    paddingTop: 0,
     backgroundColor: colors.background,
   },
+  loadingText: {
+    ...typography.body1,
+    color: colors.text,
+    marginTop: 16,
+  },
   generateButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 24,
-    paddingVertical: 14,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderRadius: 12,
+    overflow: 'hidden',
+    margin: 16,
+    marginTop: 8,
     ...Platform.select({
       ios: {
-        shadowColor: colors.shadowDark,
-        shadowOffset: { width: 0, height: 3 },
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 6,
       },
@@ -665,12 +676,16 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  generateButtonIcon: {
-    marginRight: 8,
+  generateButtonDisabled: {
+    opacity: 0.6,
+  },
+  generateButtonGradient: {
+    paddingVertical: 16,
+    alignItems: 'center',
   },
   generateButtonText: {
-    color: 'white',
-    fontSize: 16,
+    ...typography.button,
+    color: colors.white,
     fontWeight: '600',
   },
 });

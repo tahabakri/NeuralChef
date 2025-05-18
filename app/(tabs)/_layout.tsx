@@ -1,7 +1,7 @@
 import React from "react";
 import { Tabs } from "expo-router";
 import { View, Platform, Dimensions, StyleSheet } from "react-native";
-import { Home, Bookmark, History, Settings } from 'lucide-react-native';
+import { Home, Bookmark, History, Settings, Flame } from 'lucide-react-native';
 import Animated, { 
   useAnimatedStyle, 
   withTiming, 
@@ -12,10 +12,9 @@ import Animated, {
 import colors from "@/constants/colors";
 import typography from "@/constants/typography";
 import { useRecipeStore } from "@/stores/recipeStore";
-import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
-const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 84 : 64;
 const TAB_ICON_SIZE = 24;
 
 // Badge component for notifications
@@ -57,6 +56,7 @@ function NotificationBadge() {
         borderColor: 'white',
         zIndex: 10,
       }, animatedStyle]}
+      accessibilityLabel="New recipe notification"
     />
   );
 }
@@ -146,33 +146,69 @@ function ActiveIndicator({ focused }: { focused: boolean }) {
         },
         indicatorStyle
       ]}
+      accessibilityLabel={focused ? "Active tab indicator" : ""}
     />
   );
 }
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+  const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 49 + insets.bottom : 56;
+  
+  const hasNewRecipe = useRecipeStore(state => state.hasNewRecipe);
+  
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textTertiary,
         tabBarStyle: {
-          height: Platform.OS === 'ios' ? 90 : 70,
-          paddingTop: 5,
-          paddingBottom: Platform.OS === 'ios' ? 25 : 10,
+          height: TAB_BAR_HEIGHT,
+          paddingTop: 8,
+          paddingBottom: Platform.OS === 'ios' ? insets.bottom : 8,
           backgroundColor: colors.white,
           borderTopWidth: 1,
           borderTopColor: colors.border,
+          elevation: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 3,
         },
         headerShown: false,
+        tabBarShowLabel: true,
+        tabBarLabelStyle: {
+          fontFamily: 'OpenSans-Medium',
+          fontSize: 12,
+          marginTop: 2,
+        },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon 
+              icon={Home} 
+              focused={focused} 
+              color={color} 
+              accessibilityLabel="Home tab"
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="popular"
+        options={{
+          title: 'Popular',
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon 
+              icon={Flame} 
+              focused={focused} 
+              color={color} 
+              accessibilityLabel="Popular recipes tab"
+            />
           ),
         }}
       />
@@ -180,8 +216,14 @@ export default function TabsLayout() {
         name="saved"
         options={{
           title: 'Saved',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bookmark-outline" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon 
+              icon={Bookmark} 
+              focused={focused} 
+              color={color}
+              showBadge={hasNewRecipe}
+              accessibilityLabel="Saved recipes tab"
+            />
           ),
         }}
       />
@@ -189,8 +231,13 @@ export default function TabsLayout() {
         name="history"
         options={{
           title: 'History',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="time-outline" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon 
+              icon={History} 
+              focused={focused} 
+              color={color} 
+              accessibilityLabel="History tab"
+            />
           ),
         }}
       />
@@ -198,8 +245,13 @@ export default function TabsLayout() {
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon 
+              icon={Settings} 
+              focused={focused} 
+              color={color} 
+              accessibilityLabel="Settings tab"
+            />
           ),
         }}
       />

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import colors from '@/constants/colors';
-import Card from './Card';
+import CardContainer from './CardContainer';
 
 interface RecipeHeaderProps {
   title: string;
@@ -19,7 +19,7 @@ export default function RecipeHeader({
   cookTime
 }: RecipeHeaderProps) {
   return (
-    <Card style={styles.container} variant="elevated">
+    <CardContainer style={styles.container} variant="elevated">
       <Text style={styles.title}>{title}</Text>
       
       {description && (
@@ -48,7 +48,7 @@ export default function RecipeHeader({
           </View>
         )}
       </View>
-    </Card>
+    </CardContainer>
   );
 }
 

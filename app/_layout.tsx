@@ -1,16 +1,45 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import colors from "@/constants/colors";
+import gradients from "@/constants/gradients";
 import OfflineBanner from "@/components/OfflineBanner";
 import ImageCacheProvider from '@/services/ImageCacheManager';
 import FeedbackProvider from "@/components/FeedbackSystem";
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useOnboardingStore } from "@/stores/onboardingStore";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StatusBar } from 'expo-status-bar';
+import { ActivityIndicator } from 'react-native';
+import * as Linking from 'expo-linking';
+import { validateDeepLink, AppRoutes } from './routes';
+
+// Import utilities for handling missing native modules
+import { mockNetInfo, mockCamera, mockMediaLibrary, mockSpeech } from "@/utils/moduleResolvers";
+
+// Set up mocks for native modules
+try {
+  if (typeof global !== 'undefined') {
+    // @ts-ignore
+    global.nativeModules = global.nativeModules || {};
+    // @ts-ignore
+    global.nativeModules.RNCNetInfo = global.nativeModules.RNCNetInfo || mockNetInfo();
+    // @ts-ignore
+    global.ExpoCamera = global.ExpoCamera || mockCamera();
+    // @ts-ignore
+    global.ExpoMediaLibrary = global.ExpoMediaLibrary || mockMediaLibrary();
+    // @ts-ignore
+    global.ExpoSpeech = global.ExpoSpeech || mockSpeech();
+  }
+  console.log('Successfully set up mock modules');
+} catch (e) {
+  console.error('Error setting up mock modules:', e);
+}
 
 // Import Toast with error handling
 let Toast: any;
@@ -23,6 +52,39 @@ try {
 
 import { ErrorBoundary } from "./error-boundary";
 
+// At the top, add a type declaration for global.nativeModules
+declare global {
+  interface Window {
+    nativeModules?: {
+      RNCNetInfo?: any;
+      ExpoCamera?: any;
+      ExpoMediaLibrary?: any;
+      ExpoSpeech?: any;
+      [key: string]: any;
+    };
+  }
+}
+
+// Configure deep linking
+const prefix = Linking.createURL('/');
+const config = {
+  screens: {
+    // Root screens
+    '(tabs)': {
+      screens: {
+        'recipe': {
+          path: 'recipe/:id',
+          parse: {
+            id: (id: string) => id,
+          },
+        },
+      }
+    },
+    // Standalone recipe screen (for deep links)
+    'recipe/:id': 'recipe/:id',
+  },
+};
+
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
   initialRouteName: "(tabs)",
@@ -32,42 +94,137 @@ export const unstable_settings = {
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    "OpenSans-Regular": require("../assets/fonts/OpenSans-Regular.ttf"),
-    "OpenSans-Medium": require("../assets/fonts/OpenSans-Medium.ttf"),
-    "OpenSans-SemiBold": require("../assets/fonts/OpenSans-Semibold.ttf"),
-    "OpenSans-Bold": require("../assets/fonts/OpenSans-Bold.ttf"),
-    "Poppins-Regular": require("../assets/fonts/Poppins-Regular.ttf"),
-    "Poppins-Medium": require("../assets/fonts/Poppins-Medium.ttf"),
-    "Poppins-Bold": require("../assets/fonts/Poppins-Bold.ttf"),
-    "Poppins-Light": require("../assets/fonts/Poppins-Light.ttf"),
-    ...FontAwesome.font,
+  const [appReady, setAppReady] = useState(false);
+  const { onboardingComplete, setOnboardingComplete } = useOnboardingStore();
+  const router = useRouter();
+  const initialURLRef = useRef<string | null>(null);
+
+  // Load any resources or data needed
+  const [fontsLoaded] = useFonts({
+    'Poppins-Regular': require('@/assets/fonts/Poppins-Regular.ttf'),
+    'Poppins-Medium': require('@/assets/fonts/Poppins-Medium.ttf'),
+    'Poppins-SemiBold': require('@/assets/fonts/Poppins-SemiBold.ttf'),
+    'Poppins-Bold': require('@/assets/fonts/Poppins-Bold.ttf'),
   });
 
+  // Setup deep linking handler
   useEffect(() => {
-    if (error) {
-      console.error("Font loading error:", error);
+    // Handler for deep links
+    const handleDeepLink = (event: { url: string }) => {
+      if (!appReady) {
+        // Store the URL to handle after app is ready
+        initialURLRef.current = event.url;
+        return;
+      }
+      
+      // Handle deep links
+      handleURL(event.url);
+    };
+    
+    // Get the initial URL
+    const getInitialURL = async () => {
+      const url = await Linking.getInitialURL();
+      if (url) {
+        initialURLRef.current = url;
+      }
+    };
+    
+    // Setup listeners
+    getInitialURL();
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+    
+    return () => {
+      subscription.remove();
+    };
+  }, [appReady]);
+  
+  // Function to handle URLs with type safety
+  const handleURL = (url: string) => {
+    if (!url) return;
+    
+    // Parse the URL with Expo's URL handling
+    const { path } = Linking.parse(url);
+    
+    if (path) {
+      try {
+        // Use our route validation function
+        const validatedRoute = validateDeepLink(path);
+        
+        if (validatedRoute) {
+          // Type-safe navigation
+          router.push({
+            pathname: validatedRoute.route,
+            params: validatedRoute.params
+          });
+        } else {
+          console.warn('Unknown path from deep link:', path);
+        }
+      } catch (e) {
+        console.warn('Failed to navigate to path:', path, e);
+      }
     }
-  }, [error]);
+  };
 
   useEffect(() => {
-    if (loaded || error) { // Hide splash screen if fonts are loaded or if there's an error
-      SplashScreen.hideAsync();
+    async function prepare() {
+      try {
+        // Check if user has completed onboarding
+        const onboardingStatus = await AsyncStorage.getItem('onboardingComplete');
+        
+        // If onboarding was completed in a previous session
+        if (onboardingStatus === 'true' && !onboardingComplete) {
+          setOnboardingComplete(true);
+        }
+        
+        // Artificial timeout for demonstration purposes, can be removed
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (e) {
+        console.warn('Error loading app data:', e);
+      } finally {
+        // Regardless of errors, mark app as ready and hide splash screen
+        setAppReady(true);
+        SplashScreen.hideAsync();
+      }
     }
-  }, [loaded, error]);
 
-  if (!loaded) {
-    return null;
+    prepare();
+  }, [onboardingComplete, setOnboardingComplete]);
+
+  useEffect(() => {
+    if (appReady) {
+      // Process any stored deep link first
+      if (initialURLRef.current) {
+        handleURL(initialURLRef.current);
+        initialURLRef.current = null;
+        return;
+      }
+      
+      // Navigate based on onboarding status
+      if (!onboardingComplete) {
+        router.replace('/onboarding');
+      } else {
+        router.replace('/(tabs)');
+      }
+    }
+  }, [appReady, onboardingComplete, router]);
+
+  if (!fontsLoaded || !appReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#FFA726" />
+      </View>
+    );
   }
 
   return (
-    <ErrorBoundary>
-      <ImageCacheProvider>
+    <ImageCacheProvider>
+      <StatusBar style="dark" />
+      <ErrorBoundary>
         <FeedbackProvider>
           <RootLayoutNav />
         </FeedbackProvider>
-      </ImageCacheProvider>
-    </ErrorBoundary>
+      </ErrorBoundary>
+    </ImageCacheProvider>
   );
 }
 
@@ -75,10 +232,10 @@ function RootLayoutNav() {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={[colors.backgroundGradientStart, colors.backgroundGradientEnd]}
+        colors={["#FFF3E0", "#FFE0B2"]}
+        start={gradients.softPeach.direction.start}
+        end={gradients.softPeach.direction.end}
         style={styles.background}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
       />
       <OfflineBanner />
       <Stack
@@ -93,13 +250,17 @@ function RootLayoutNav() {
           contentStyle: {
             backgroundColor: 'transparent',
           },
-          // Apply default header title font here if needed globally
-          // headerTitleStyle: { fontFamily: 'OpenSans-Semibold' },
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+        <Stack.Screen name="legacy-onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="recipe/[id]" options={{ 
+          headerShown: true,
+          title: 'Recipe Details',
+          headerTransparent: true,
+        }} />
         <Stack.Screen name="modal" options={{ 
           presentation: "modal",
           headerTransparent: true

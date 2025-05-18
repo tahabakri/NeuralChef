@@ -14,6 +14,7 @@ import {
 import { Filter, ChevronDown, Check, X, Calendar, Tag } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import colors from '@/constants/colors';
 
 // Define filter types
@@ -211,7 +212,14 @@ export default function RecipeFilter({
                 <ScrollView style={styles.filterContent}>
                   {/* Sort By Section */}
                   <View style={styles.filterSection}>
-                    <Text style={styles.sectionTitle}>Sort By</Text>
+                    <LinearGradient
+                      colors={['#FCE38A', '#F38181']} // Citrus Pop gradient
+                      style={styles.sectionTitleBackground}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                    >
+                      <Text style={styles.sectionTitle}>Sort By</Text>
+                    </LinearGradient>
                     <View style={styles.optionList}>
                       {[
                         { value: 'newest', label: 'Newest First' },
@@ -238,7 +246,14 @@ export default function RecipeFilter({
 
                   {/* Date Filter Section */}
                   <View style={styles.filterSection}>
-                    <Text style={styles.sectionTitle}>Date Added</Text>
+                    <LinearGradient
+                      colors={['#FCE38A', '#F38181']} // Citrus Pop gradient
+                      style={styles.sectionTitleBackground}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                    >
+                      <Text style={styles.sectionTitle}>Date Added</Text>
+                    </LinearGradient>
                     <View style={styles.optionList}>
                       {[
                         { value: 'all', label: 'All Time' },
@@ -265,7 +280,14 @@ export default function RecipeFilter({
 
                   {/* Toggle Options */}
                   <View style={styles.filterSection}>
-                    <Text style={styles.sectionTitle}>Options</Text>
+                    <LinearGradient
+                      colors={['#FCE38A', '#F38181']} // Citrus Pop gradient
+                      style={styles.sectionTitleBackground}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                    >
+                      <Text style={styles.sectionTitle}>Options</Text>
+                    </LinearGradient>
                     <View style={styles.toggleContainer}>
                       <Text style={styles.toggleText}>Only tagged recipes</Text>
                       <Switch
@@ -291,7 +313,14 @@ export default function RecipeFilter({
                   {/* Tags Selection */}
                   {allTags.length > 0 && (
                     <View style={styles.filterSection}>
-                      <Text style={styles.sectionTitle}>Tags</Text>
+                      <LinearGradient
+                        colors={['#FCE38A', '#F38181']} // Citrus Pop gradient
+                        style={styles.sectionTitleBackground}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 0 }}
+                      >
+                        <Text style={styles.sectionTitle}>Tags</Text>
+                      </LinearGradient>
                       <View style={styles.tagsContainer}>
                         {allTags.map(tag => (
                           <TouchableOpacity
@@ -433,6 +462,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 12,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  sectionTitleBackground: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
   },
   optionList: {
     marginBottom: 8,

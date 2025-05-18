@@ -1,75 +1,120 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, AppState, AppStateStatus } from 'react-native';
-import { WiFiOff, XCircle } from 'lucide-react-native';
+import { WifiOff, XCircle } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSequence, Easing, withRepeat } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSequence, Easing, withRepeat, runOnJS } from 'react-native-reanimated';
 import colors from '@/constants/colors';
+import NetInfo, { NetInfoState, NetInfoSubscription } from '@react-native-community/netinfo';
 
 interface OfflineBannerProps {
   onClose?: () => void;
   showCloseButton?: boolean;
+  onOfflineChange?: (isOffline: boolean) => void;
 }
+
+// Create a singleton for network status
+export const NetworkManager = {
+  isOffline: false,
+  listeners: new Set<(isOffline: boolean) => void>(),
+  
+  addListener(callback: (isOffline: boolean) => void) {
+    this.listeners.add(callback);
+    // Return current state immediately
+    callback(this.isOffline);
+    return () => this.listeners.delete(callback);
+  },
+  
+  updateOfflineStatus(offline: boolean) {
+    if (this.isOffline !== offline) {
+      this.isOffline = offline;
+      this.listeners.forEach(listener => listener(offline));
+    }
+  },
+  
+  // Helper method to check if recipe generation should be disabled
+  isGenerationDisabled() {
+    return this.isOffline;
+  }
+};
+
+// Initialize NetInfo listener outside of component to persist between renders
+let netInfoUnsubscribe: NetInfoSubscription | null = null;
+const setupNetInfoListener = () => {
+  if (netInfoUnsubscribe === null) {
+    netInfoUnsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
+      const isConnected = state.isConnected === true && state.isInternetReachable !== false;
+      NetworkManager.updateOfflineStatus(!isConnected);
+    });
+    
+    // Initial network check
+    NetInfo.fetch().then((state: NetInfoState) => {
+      const isConnected = state.isConnected === true && state.isInternetReachable !== false;
+      NetworkManager.updateOfflineStatus(!isConnected);
+    });
+  }
+};
+
+// Call setup when module is loaded
+setupNetInfoListener();
 
 export default function OfflineBanner({ 
   onClose, 
-  showCloseButton = true 
+  showCloseButton = true,
+  onOfflineChange 
 }: OfflineBannerProps) {
   const [isVisible, setIsVisible] = useState(true);
-  const [isOffline, setIsOffline] = useState(false);
+  const [isOffline, setIsOffline] = useState(NetworkManager.isOffline);
   const translateY = useSharedValue(-60);
   const opacity = useSharedValue(0);
   
-  // Check network status when app state changes
+  // Subscribe to network changes
   useEffect(() => {
-    const checkNetwork = async () => {
-      // In a real app, use NetInfo to check connectivity
-      // https://github.com/react-native-netinfo/react-native-netinfo
-      const isConnected = navigator?.onLine ?? true;
-      setIsOffline(!isConnected);
+    const unsubscribe = NetworkManager.addListener((offline) => {
+      runOnJS(setIsOffline)(offline);
       
-      if (!isConnected && isVisible) {
+      if (onOfflineChange) {
+        runOnJS(onOfflineChange)?.(offline);
+      }
+      
+      if (offline && isVisible) {
         // Show the banner with animation
         translateY.value = withTiming(0, { 
           duration: 400, 
           easing: Easing.bezier(0.25, 0.1, 0.25, 1) 
         });
         opacity.value = withTiming(1, { duration: 300 });
-      } else if (isConnected) {
+      } else if (!offline) {
         // Hide the banner with animation
         translateY.value = withTiming(-60, { 
           duration: 300, 
           easing: Easing.bezier(0.25, 0.1, 0.25, 1) 
         });
-        opacity.value = withTiming(0, { duration: 200 });
+        opacity.value = withTiming(0, { duration: 200 }, () => {
+          runOnJS(setIsVisible)(false);
+          if (onClose) {
+            runOnJS(onClose)();
+          }
+        });
       }
-    };
+    });
     
-    // Initial check
-    checkNetwork();
-    
-    // Setup app state change listener
+    // Setup app state change listener to recheck network when app comes to foreground
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active') {
-        checkNetwork();
+        NetInfo.fetch().then((state: NetInfoState) => {
+          const isConnected = state.isConnected === true && state.isInternetReachable !== false;
+          NetworkManager.updateOfflineStatus(!isConnected);
+        });
       }
     };
     
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-    
-    // For web, add online/offline event listeners
-    if (Platform.OS === 'web') {
-      window.addEventListener('online', checkNetwork);
-      window.addEventListener('offline', checkNetwork);
-    }
+    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
     
     return () => {
-      subscription.remove();
-      if (Platform.OS === 'web') {
-        window.removeEventListener('online', checkNetwork);
-        window.removeEventListener('offline', checkNetwork);
-      }
+      unsubscribe();
+      appStateSubscription.remove();
     };
-  }, [isVisible]);
+  }, [isVisible, onOfflineChange]);
   
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -89,8 +134,10 @@ export default function OfflineBanner({
       easing: Easing.bezier(0.25, 0.1, 0.25, 1) 
     });
     opacity.value = withTiming(0, { duration: 200 }, () => {
-      setIsVisible(false);
-      if (onClose) onClose();
+      runOnJS(setIsVisible)(false);
+      if (onClose) {
+        runOnJS(onClose)();
+      }
     });
   };
   
@@ -99,9 +146,9 @@ export default function OfflineBanner({
   
   return (
     <Animated.View style={[styles.container, animatedStyle]}>
-      <WiFiOff size={18} color="white" />
+      <WifiOff size={18} color="white" />
       <Text style={styles.message}>
-        Offline mode: Using cached recipes
+        Offline mode: Recipe generation disabled
       </Text>
       {showCloseButton && (
         <TouchableOpacity
@@ -123,7 +170,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    backgroundColor: colors.warning,
+    backgroundColor: colors.error,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,

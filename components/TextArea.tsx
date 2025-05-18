@@ -10,6 +10,8 @@ import {
   Platform,
   ViewStyle,
   AccessibilityProps,
+  NativeSyntheticEvent,
+  TextInputSubmitEditingEventData,
 } from 'react-native';
 import { Mic } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
@@ -56,6 +58,7 @@ interface TextAreaProps {
   maxHeight?: number;
   minHeight?: number;
   validateTag?: (tag: string) => boolean | string;
+  onSubmit?: () => void;
 }
 
 const TextArea: React.FC<TextAreaProps> = ({
@@ -70,6 +73,7 @@ const TextArea: React.FC<TextAreaProps> = ({
   maxHeight = 120,
   minHeight = 50,
   validateTag,
+  onSubmit,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [height, setHeight] = useState(minHeight);
@@ -403,6 +407,13 @@ const TextArea: React.FC<TextAreaProps> = ({
     );
   });
 
+  // Handle submit event
+  const handleSubmitEditing = (e: NativeSyntheticEvent<TextInputSubmitEditingEventData>) => {
+    if (onSubmit) {
+      onSubmit();
+    }
+  };
+
   return (
     <View style={[styles.container, style]}>
       {/* Tags */}
@@ -446,6 +457,10 @@ const TextArea: React.FC<TextAreaProps> = ({
           onKeyPress={handleKeyPress}
           accessibilityLabel="Ingredient input"
           accessibilityHint="Type ingredients separated by commas to add them as tags"
+          onSubmitEditing={handleSubmitEditing}
+          returnKeyType="done"
+          blurOnSubmit={true}
+          keyboardAppearance="light"
         />
         
         {/* Voice Input Button */}

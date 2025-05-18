@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import { Recipe, generateRecipe as generateRecipeService } from '@/services/recipeService';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Recipe, generateRecipe as generateRecipeService } from '@/services/recipeService';
 import { useEffect, useCallback } from 'react';
 import { useRecipeHistoryStore } from './recipeHistoryStore';
 import { shallow } from 'zustand/shallow';
@@ -20,13 +21,48 @@ export interface RecipeError {
   timestamp: number;
 }
 
-interface RecipeState {
-  recipe: Recipe | null;
-  isLoading: boolean;
-  error: RecipeError | null;
-  favorites: Recipe[];
+export interface Ingredient {
+  name: string;
+  amount?: string;
+  unit?: string;
+}
+
+export interface RecipeStep {
+  step: number;
+  description: string;
+}
+
+export interface Recipe {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  ingredients: Ingredient[];
+  steps: RecipeStep[];
+  cookTime: number; // in minutes
+  servings: number;
+  calories?: number;
+  tags: string[];
+  createdAt: number;
+  updatedAt: number;
+  isFavorite: boolean;
+}
+
+export interface RecipeState {
+  savedRecipes: Recipe[];
+  recentRecipes: Recipe[];
   hasNewRecipe: boolean;
   lastRequest: { ingredients: string[] } | null;
+  todayRecipes: Recipe[];
+  recommendedRecipes: Recipe[];
+  
+  // Actions
+  saveRecipe: (recipe: Recipe) => void;
+  removeRecipe: (recipeId: string) => void;
+  toggleFavorite: (recipeId: string) => void;
+  addToRecent: (recipe: Recipe) => void;
+  clearRecent: () => void;
+  setHasNewRecipe: (hasNew: boolean) => void;
 }
 
 interface RecipeActions {
@@ -43,165 +79,31 @@ interface RecipeActions {
   setLastRequest: (request: { ingredients: string[] }) => void;
   markRecipeAsViewed: () => void;
   generateRecipe: (ingredients: string[]) => Promise<Recipe | null>;
+  fetchTodayRecipes: () => Promise<Recipe[]>;
+  fetchRecommendedRecipes: () => Promise<Recipe[]>;
 }
 
-// Separate state and actions to help with type inference in selectors
-export const useRecipeStore = create<RecipeState & RecipeActions>((set, get) => ({
-  recipe: null,
-  isLoading: false,
-  error: null,
-  favorites: [],
-  lastRequest: null,
-  hasNewRecipe: false,
-  
-  setRecipe: (recipe) => {
-    // Only update if recipe actually changed
-    if (recipe?.title !== get().recipe?.title) {
-      set({ recipe, isLoading: false, error: null, hasNewRecipe: true });
-      useRecipeHistoryStore.getState().addToHistory(recipe);
-    }
-  },
-  
-  markRecipeAsViewed: () => set(state => {
-    if (!state.hasNewRecipe) return state;
-    return { hasNewRecipe: false };
-  }),
-  
-  setLoading: (isLoading) => set(state => {
-    if (state.isLoading === isLoading) return state;
-    return { isLoading };
-  }),
-  
-  setError: (type, message, details) => set({ 
-    error: { 
-      type, 
-      message, 
-      details, 
-      timestamp: Date.now() 
-    }, 
-    isLoading: false 
-  }),
-  
-  clearError: () => set(state => {
-    if (!state.error) return state;
-    return { error: null };
-  }),
-  
-  clearRecipe: () => set(state => {
-    if (!state.recipe && !state.error) return state;
-    return { recipe: null, error: null };
-  }),
-  
-  setLastRequest: (request) => set({ lastRequest: request }),
-  
-  retryLastOperation: () => {
-    const { lastRequest, generateRecipe } = get();
-    if (lastRequest?.ingredients) {
-      set({ isLoading: true, error: null });
-      // Call generateRecipe again with the last known ingredients
-      generateRecipe(lastRequest.ingredients);
-    }
-  },
-  
-  generateRecipe: async (ingredients: string[]) => {
-    set({ isLoading: true, error: null, lastRequest: { ingredients } });
-    try {
-      // In a real app, you might have more parameters for generateRecipeService
-      const newRecipe = await generateRecipeService(ingredients); 
-      if (newRecipe) {
-        set({ recipe: newRecipe, isLoading: false, hasNewRecipe: true });
-        useRecipeHistoryStore.getState().addToHistory(newRecipe);
-        return newRecipe;
-      } else {
-        throw new Error('Recipe generation returned null or undefined');
-      }
-    } catch (err: any) {
-      console.error('Error generating recipe in store:', err);
-      let errorType: RecipeErrorType = 'generation';
-      let errorMessage = 'Failed to generate recipe.';
-      if (err.type && typeof err.type === 'string' && ['network', 'timeout', 'validation', 'unknown'].includes(err.type)) {
-        errorType = err.type as RecipeErrorType;
-      }
-      if (err.message && typeof err.message === 'string') {
-        errorMessage = err.message;
-      }
-      set({ 
-        error: { 
-          type: errorType, 
-          message: errorMessage, 
-          details: err.details || (err instanceof Error ? err.stack : undefined), 
-          timestamp: Date.now() 
-        }, 
-        isLoading: false 
-      });
-      return null;
-    }
-  },
-  
-  // Add a recipe to favorites
-  addToFavorites: async (recipe) => {
-    try {
-      const currentFavorites = get().favorites;
+export interface RecipeStore {
+  hasNewRecipe: boolean;
+  setHasNewRecipe: (hasNew: boolean) => void;
+}
+
+// Create the recipe store with persistence
+export const useRecipeStore = create<RecipeStore>()(
+  persist(
+    (set) => ({
+      // Initial state
+      hasNewRecipe: false,
       
-      // Prevent duplicates
-      if (!currentFavorites.some(fav => fav.title === recipe.title)) {
-        const updatedFavorites = [...currentFavorites, recipe];
-        await AsyncStorage.setItem('favorites', JSON.stringify(updatedFavorites));
-        set({ favorites: updatedFavorites });
-      }
-    } catch (error) {
-      console.error('Failed to save favorite recipe:', error);
-      set({ error: { 
-        type: 'unknown', 
-        message: 'Failed to save favorite recipe', 
-        timestamp: Date.now() 
-      } });
+      // Actions
+      setHasNewRecipe: (hasNew) => set({ hasNewRecipe: hasNew }),
+    }),
+    {
+      name: 'reciptai-recipe-storage',
+      storage: createJSONStorage(() => AsyncStorage),
     }
-  },
-  
-  // Remove a recipe from favorites
-  removeFromFavorites: async (recipeTitle) => {
-    try {
-      const currentFavorites = get().favorites;
-      const updatedFavorites = currentFavorites.filter(recipe => recipe.title !== recipeTitle);
-      
-      // Only update if there was actually a change
-      if (updatedFavorites.length !== currentFavorites.length) {
-        await AsyncStorage.setItem('favorites', JSON.stringify(updatedFavorites));
-        set({ favorites: updatedFavorites });
-      }
-    } catch (error) {
-      console.error('Failed to remove favorite recipe:', error);
-      set({ error: { 
-        type: 'unknown', 
-        message: 'Failed to remove favorite recipe', 
-        timestamp: Date.now() 
-      } });
-    }
-  },
-  
-  // Check if a recipe is in favorites
-  isFavorite: (recipeTitle) => {
-    return get().favorites.some(recipe => recipe.title === recipeTitle);
-  },
-  
-  // Load favorites from persistent storage
-  loadFavorites: async () => {
-    try {
-      const storedFavorites = await AsyncStorage.getItem('favorites');
-      if (storedFavorites) {
-        set({ favorites: JSON.parse(storedFavorites) });
-      }
-    } catch (error) {
-      console.error('Failed to load favorite recipes:', error);
-      set({ error: { 
-        type: 'unknown', 
-        message: 'Failed to load favorite recipes', 
-        timestamp: Date.now() 
-      } });
-    }
-  },
-}));
+  )
+);
 
 // Optimized selectors to prevent unnecessary re-renders
 export const useRecipe = () => useRecipeStore(state => state.recipe);
@@ -214,13 +116,13 @@ export const useLastRequest = () => useRecipeStore(state => state.lastRequest);
 export const useIsFavorite = (recipeTitle?: string) => {
   return useRecipeStore(
     useCallback(state => 
-      recipeTitle ? state.favorites.some(recipe => recipe.title === recipeTitle) : false,
+      recipeTitle ? state.savedRecipes.some(recipe => recipe.title === recipeTitle) : false,
     [recipeTitle])
   );
 };
 
 // Optimized hook to get all favorites
-export const useFavorites = () => useRecipeStore(state => state.favorites, shallow);
+export const useFavorites = () => useRecipeStore(state => state.savedRecipes, shallow);
 
 // Helper hook to load favorites on app start
 export const useFavoriteRecipes = () => {

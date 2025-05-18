@@ -12,13 +12,16 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import colors from '@/constants/colors';
+import { recipeNotifications } from '@/services/notifications';
 
 interface TimerProps {
   duration: number; // in seconds
   onComplete: () => void;
+  stepIndex?: number; // 1-based step index
+  stepTitle?: string; // Description of the step
 }
 
-export default function Timer({ duration, onComplete }: TimerProps) {
+export default function Timer({ duration, onComplete, stepIndex = 1, stepTitle = 'cooking step' }: TimerProps) {
   const [timeLeft, setTimeLeft] = useState<number>(duration);
   const [isActive, setIsActive] = useState<boolean>(true);
   const [isPaused, setIsPaused] = useState<boolean>(false);
@@ -27,9 +30,34 @@ export default function Timer({ duration, onComplete }: TimerProps) {
   const startTimeRef = useRef<number>(Date.now());
   const pausedTimeRef = useRef<number>(0);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  const notificationIdRef = useRef<string | null>(null);
   
   // Animation for progress bar
   const animatedWidth = useRef(new Animated.Value(0)).current;
+  
+  // Schedule notification when timer starts
+  useEffect(() => {
+    const scheduleNotification = async () => {
+      // Only schedule if we have more than 10 seconds
+      if (duration >= 10) {
+        const durationMinutes = Math.ceil(duration / 60);
+        notificationIdRef.current = await recipeNotifications.scheduleTimerNotification(
+          stepIndex,
+          stepTitle,
+          durationMinutes
+        );
+      }
+    };
+    
+    scheduleNotification();
+    
+    // Clean up notification when component unmounts
+    return () => {
+      if (notificationIdRef.current) {
+        recipeNotifications.cancelTimerNotification(notificationIdRef.current);
+      }
+    };
+  }, [duration, stepIndex, stepTitle]);
   
   useEffect(() => {
     // Start the animation
@@ -85,6 +113,13 @@ export default function Timer({ duration, onComplete }: TimerProps) {
   const handleTimerComplete = () => {
     setIsActive(false);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    
+    // Cancel the notification since we're showing the UI notification
+    if (notificationIdRef.current) {
+      recipeNotifications.cancelTimerNotification(notificationIdRef.current);
+      notificationIdRef.current = null;
+    }
+    
     onComplete();
   };
   
@@ -104,6 +139,20 @@ export default function Timer({ duration, onComplete }: TimerProps) {
         easing: Easing.linear,
         useNativeDriver: false,
       }).start();
+      
+      // Reschedule notification if needed
+      if (!notificationIdRef.current && timeLeft > 10) {
+        const scheduleRemainingNotification = async () => {
+          const durationMinutes = Math.ceil(timeLeft / 60);
+          notificationIdRef.current = await recipeNotifications.scheduleTimerNotification(
+            stepIndex,
+            stepTitle,
+            durationMinutes
+          );
+        };
+        
+        scheduleRemainingNotification();
+      }
     } else {
       // Pausing the timer
       pausedTimeRef.current = Date.now();
@@ -111,6 +160,12 @@ export default function Timer({ duration, onComplete }: TimerProps) {
       
       // Pause animation
       animatedWidth.stopAnimation();
+      
+      // Cancel notification if paused
+      if (notificationIdRef.current) {
+        recipeNotifications.cancelTimerNotification(notificationIdRef.current);
+        notificationIdRef.current = null;
+      }
     }
   };
   

@@ -1,49 +1,74 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Image } from 'expo-image';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import colors from '@/constants/colors';
+import typography from '@/constants/typography';
+import { useUserStore } from '@/stores/userStore';
 
-interface GreetingHeaderProps {
-  onGetStartedPress: () => void;
+export interface GreetingHeaderProps {
+  onGetStartedPress?: () => void;
 }
 
-export default function GreetingHeader({ onGetStartedPress }: GreetingHeaderProps) {
+const GreetingHeader: React.FC<GreetingHeaderProps> = ({ onGetStartedPress }) => {
+  const [greeting, setGreeting] = useState('Good morning');
+  const { user } = useUserStore();
+  const userName = user?.name ? user.name.split(' ')[0] : '';
+
+  useEffect(() => {
+    // Set greeting based on time of day
+    const hours = new Date().getHours();
+    if (hours < 12) {
+      setGreeting('Good morning');
+    } else if (hours < 18) {
+      setGreeting('Good afternoon');
+    } else {
+      setGreeting('Good evening');
+    }
+  }, []);
+
+  const currentDate = new Date();
+  const formattedDate = currentDate.toLocaleDateString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZoneName: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+
   return (
     <View style={styles.container}>
-      <Text style={styles.greetingText}>It's Cooking Time!</Text>
-      <Image source={require('../../assets/images/chef.png')} style={styles.chefImage} />
-      <TouchableOpacity style={styles.button} onPress={onGetStartedPress}>
-        <Text style={styles.buttonText}>Get Started</Text>
-      </TouchableOpacity>
+      <Text style={styles.greeting}>
+        {greeting}{userName ? `, ${userName}` : ''}!
+      </Text>
+      <Text style={styles.subtitle}>
+        What would you like to cook today?
+      </Text>
+      <Text style={styles.dateText}>
+        {formattedDate}
+      </Text>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
-    padding: 20,
+    marginBottom: 16,
   },
-  greetingText: {
-    fontSize: 28,
-    fontWeight: 'bold',
+  greeting: {
+    ...typography.heading1,
     color: colors.text,
-    marginBottom: 10,
+    marginBottom: 8,
   },
-  chefImage: {
-    width: 100,
-    height: 100,
-    marginBottom: 10,
+  subtitle: {
+    ...typography.body1,
+    color: colors.textSecondary,
+    marginBottom: 4,
   },
-  button: {
-    backgroundColor: colors.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+  dateText: {
+    ...typography.caption,
+    color: colors.textTertiary,
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-}); 
+});
+
+export default GreetingHeader; 
