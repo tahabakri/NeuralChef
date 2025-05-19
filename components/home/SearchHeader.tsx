@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Platform, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import colors from '@/constants/colors';
 import typography from '@/constants/typography';
+import * as Haptics from 'expo-haptics';
 
 export interface SearchHeaderProps {
   onSearch: (query: string) => void;
@@ -11,9 +12,12 @@ export interface SearchHeaderProps {
 
 const SearchHeader: React.FC<SearchHeaderProps> = ({ onSearch }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
+  const animatedBorderColor = useRef(new Animated.Value(0)).current;
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       onSearch(searchQuery.trim());
     }
   };
@@ -27,15 +31,47 @@ const SearchHeader: React.FC<SearchHeaderProps> = ({ onSearch }) => {
     }
   };
 
+  const handleFocus = () => {
+    setIsFocused(true);
+    Animated.timing(animatedBorderColor, {
+      toValue: 1,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    Animated.timing(animatedBorderColor, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const borderColor = animatedBorderColor.interpolate({
+    inputRange: [0, 1],
+    outputRange: [colors.border, colors.primary]
+  });
+
   return (
     <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <Ionicons 
-          name="search" 
-          size={20} 
-          color={colors.textTertiary} 
-          style={styles.searchIcon} 
-        />
+      <Animated.View 
+        style={[
+          styles.searchContainer, 
+          isFocused && styles.searchContainerFocused,
+          { borderColor }
+        ]}
+      >
+        <View style={styles.iconContainer}>
+          <Ionicons 
+            name="search" 
+            size={20} 
+            color={isFocused ? colors.primary : colors.textSecondary} 
+            style={styles.searchIcon} 
+          />
+        </View>
+        
         <TextInput
           style={styles.searchInput}
           placeholder="Search ingredients or recipes"
@@ -43,17 +79,21 @@ const SearchHeader: React.FC<SearchHeaderProps> = ({ onSearch }) => {
           value={searchQuery}
           onChangeText={setSearchQuery}
           onSubmitEditing={handleSearch}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           returnKeyType="search"
         />
+        
         {searchQuery.length > 0 && (
           <TouchableOpacity 
             onPress={() => setSearchQuery('')}
             style={styles.clearButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
           </TouchableOpacity>
         )}
-      </View>
+      </Animated.View>
       
       <TouchableOpacity 
         style={styles.searchButton} 
@@ -76,24 +116,45 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.backgroundAlt,
+    backgroundColor: colors.searchBackground,
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 48,
+    borderWidth: 1.5,
+    borderColor: colors.border,
     ...Platform.select({
       ios: {
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowColor: colors.shadowDark,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.2,
+        shadowRadius: 5,
       },
       android: {
-        elevation: 2,
+        elevation: 4,
       },
     }),
   },
+  searchContainerFocused: {
+    backgroundColor: colors.white,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.primary,
+        shadowOpacity: 0.3,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+  iconContainer: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 4,
   },
   searchInput: {
     flex: 1,
@@ -114,13 +175,13 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     ...Platform.select({
       ios: {
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
+        shadowColor: colors.shadowDark,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.25,
+        shadowRadius: 5,
       },
       android: {
-        elevation: 3,
+        elevation: 5,
       },
     }),
   },

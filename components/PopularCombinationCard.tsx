@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, TouchableOpacity, Text, View } from 'react-native';
-import { Image } from 'expo-image';
+// import { Image } from 'expo-image'; // Replaced with CachedImage
+import CachedImage from './CachedImage'; // Added CachedImage
 import colors from '@/constants/colors';
 
 export interface PopularCombinationCardProps {
@@ -16,7 +17,7 @@ export interface PopularCombinationCardProps {
 export default function PopularCombinationCard({ combination, onPress }: PopularCombinationCardProps) {
   return (
     <TouchableOpacity style={styles.container} onPress={onPress}>
-      <Image source={{ uri: combination.image }} style={styles.image} contentFit="cover" />
+      <CachedImage source={combination.image} style={styles.image} contentFit="cover" />
       <View style={styles.overlay}>
         <Text style={styles.title}>{combination.name}</Text>
         <Text style={styles.ingredients}>{combination.ingredients.join(', ')}</Text>
@@ -61,4 +62,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.8)',
   },
-}); 
+});

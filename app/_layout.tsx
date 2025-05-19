@@ -1,6 +1,6 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFonts } from "expo-font";
-import { Stack, useRouter, useSegments, usePathname } from "expo-router";
+import { Stack, useRouter, useSegments, usePathname, Slot } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState, useRef } from "react";
 import { View, StyleSheet, Platform } from "react-native";
@@ -72,12 +72,11 @@ const config = {
     // Root screens
     '(tabs)': {
       screens: {
-        'recipe': {
-          path: 'recipe/:id',
-          parse: {
-            id: (id: string) => id,
-          },
-        },
+        'index': 'home',
+        'popular': 'popular',
+        'saved': 'saved',
+        'history': 'history',
+        'settings': 'settings',
       }
     },
     // Standalone recipe screen (for deep links)
@@ -238,34 +237,10 @@ function RootLayoutNav() {
         style={styles.background}
       />
       <OfflineBanner />
-      <Stack
-        screenOptions={{
-          headerBackTitle: "Back",
-          headerStyle: {
-            backgroundColor: 'transparent',
-          },
-          headerTransparent: true,
-          headerTintColor: colors.text,
-          headerBlurEffect: 'light',
-          contentStyle: {
-            backgroundColor: 'transparent',
-          },
-        }}
-      >
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-        <Stack.Screen name="legacy-onboarding" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="recipe/[id]" options={{ 
-          headerShown: true,
-          title: 'Recipe Details',
-          headerTransparent: true,
-        }} />
-        <Stack.Screen name="modal" options={{ 
-          presentation: "modal",
-          headerTransparent: true
-        }} />
-      </Stack>
+      
+      {/* This is the critical part - we need to render a Slot as the main content */}
+      <Slot />
+      
       {/* Add Toast component only if available */}
       {Toast && <Toast />}
     </View>

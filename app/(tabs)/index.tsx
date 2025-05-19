@@ -1,266 +1,693 @@
 "use client";
 
-import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, StatusBar, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
-import GreetingHeader from '@/components/home/GreetingHeader';
-import SearchHeader from '@/components/home/SearchHeader';
-import RecommendedRecipes from '@/components/home/RecommendedRecipes';
-import colors from '@/constants/colors';
-
-// Using a local component instead of importing SurpriseButton to avoid module not found error
+import React, { useEffect, useRef, useState } from 'react';
 import { 
-  TouchableOpacity, 
+  View, 
+  StyleSheet, 
+  ScrollView, 
+  StatusBar, 
   Text, 
-  View as ViewComponent,
+  TouchableOpacity, 
+  Image,
+  SafeAreaView,
+  Platform,
+  RefreshControl,
+  ActivityIndicator
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
+import { NetworkManager } from '@/components/OfflineBanner';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withTiming,
+  Easing
+} from 'react-native-reanimated';
+
+// Components
+import GreetingHeader from '@/components/home/GreetingHeader';
+import CameraInput from '@/components/CameraInput';
+import VoiceInputModal from '@/components/VoiceInputModal';
+import SurpriseButton from '@/components/home/SurpriseButton';
+import RecommendedRecipes from '@/components/home/RecommendedRecipes';
+import PopularCombinationCard from '@/components/PopularCombinationCard';
+import RecipeCard, { prepareRecipeForCard } from '@/components/RecipeCard';
+import Card from '@/components/Card';
+
+// Stores
+import { useUserStore } from '@/stores/userStore';
+import { useSavedRecipesStore } from '@/stores/savedRecipesStore';
+
+// Constants & Utils
+import colors from '@/constants/colors';
 import typography from '@/constants/typography';
-
-// Local SurpriseButton component
-const SurpriseButton = ({ onPress }: { onPress?: () => void }) => {
-  const handlePress = () => {
-    if (onPress) {
-      onPress();
-    } else {
-      // Navigate to generate random recipe
-      router.push('/');
-    }
-  };
-
-  return (
-    <ViewComponent style={surpriseStyles.container}>
-      <TouchableOpacity 
-        style={surpriseStyles.button}
-        onPress={handlePress}
-        activeOpacity={0.8}
-      >
-        <LinearGradient
-          colors={['#FCE38A', '#F38181']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={surpriseStyles.gradient}
-        >
-          <Ionicons 
-            name="shuffle" 
-            size={20} 
-            color="#FFFFFF" 
-            style={surpriseStyles.icon} 
-          />
-          <Text style={surpriseStyles.text}>Surprise Me</Text>
-        </LinearGradient>
-      </TouchableOpacity>
-    </ViewComponent>
-  );
-};
-
-const surpriseStyles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 16,
-    marginVertical: 16,
-  },
-  button: {
-    borderRadius: 20,
-    overflow: 'hidden',
-  },
-  gradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-  },
-  icon: {
-    marginRight: 12,
-  },
-  text: {
-    ...typography.button,
-    color: colors.white,
-    fontWeight: '600',
-  },
-});
-
-// Mock data for recipes (replacing previous recipe type with compatible one)
-export interface HomeRecipe {
-  id: string;
-  title: string;
-  description: string;
-  heroImage?: string; // Changed from imageUrl to heroImage and made optional
-  cookTime: string; // Changed from number to string
-  prepTime: string; // Added prepTime
-  servings: number;
-  ingredients: string[]; // Added ingredients
-  steps: { // Added steps
-    instruction: string;
-    imageUrl?: string;
-    hasTimer?: boolean;
-    timerDuration?: number;
-  }[];
-  tags?: string[]; // Made tags optional to align with Recipe
-  difficulty?: 'Easy' | 'Medium' | 'Hard' | 'EASY' | 'MEDIUM' | 'HARD'; // Added difficulty
-  rating?: number; // Added rating
-  author?: string; // Added author
-}
-
-const mockTodayRecipes: HomeRecipe[] = [
-  {
-    id: '1',
-    title: 'Vegetable Stir Fry',
-    description: 'Quick and healthy vegetable stir fry with soy sauce and ginger.',
-    heroImage: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-4.0.3',
-    cookTime: "20 min",
-    prepTime: "10 min",
-    servings: 2,
-    ingredients: ["Broccoli", "Carrots", "Bell Pepper", "Soy Sauce", "Ginger"],
-    steps: [{ instruction: "Chop vegetables." }, { instruction: "Stir-fry in a wok." }],
-    tags: ['vegetarian', 'quick', 'healthy'],
-    difficulty: "Easy",
-    rating: 4.5,
-    author: "Chef John"
-  },
-  {
-    id: '2',
-    title: 'Pasta Carbonara',
-    description: 'Classic Italian pasta dish with eggs, cheese, and pancetta.',
-    heroImage: 'https://images.unsplash.com/photo-1546549032-9571cd6b27df?ixlib=rb-4.0.3',
-    cookTime: "25 min",
-    prepTime: "10 min",
-    servings: 4,
-    ingredients: ["Spaghetti", "Eggs", "Pancetta", "Pecorino Cheese", "Black Pepper"],
-    steps: [{ instruction: "Cook spaghetti." }, { instruction: "Prepare carbonara sauce." }, { instruction: "Combine and serve." }],
-    tags: ['pasta', 'italian', 'dinner'],
-    difficulty: "Medium",
-    rating: 4.8,
-    author: "Chef Maria"
-  },
-  {
-    id: '3',
-    title: 'Berry Smoothie Bowl',
-    description: 'Refreshing smoothie bowl packed with antioxidants and topped with granola.',
-    heroImage: 'https://images.unsplash.com/photo-1611315764615-3e788573f31e?ixlib=rb-4.0.3',
-    cookTime: "5 min",
-    prepTime: "5 min",
-    servings: 1,
-    ingredients: ["Mixed Berries", "Banana", "Almond Milk", "Granola"],
-    steps: [{ instruction: "Blend berries, banana, and almond milk." }, { instruction: "Pour into a bowl and top with granola." }],
-    tags: ['breakfast', 'vegan', 'healthy'],
-    difficulty: "Easy",
-    rating: 4.2,
-    author: "Healthy Living"
-  }
-];
-
-const mockRecommendedRecipes: HomeRecipe[] = [
-  {
-    id: '4',
-    title: 'Avocado Toast',
-    description: 'Simple avocado toast with poached egg and chili flakes.',
-    heroImage: 'https://images.unsplash.com/photo-1588137378633-dea1336ce1e9?ixlib=rb-4.0.3',
-    cookTime: "10 min",
-    prepTime: "5 min",
-    servings: 1,
-    ingredients: ["Bread", "Avocado", "Egg", "Chili Flakes"],
-    steps: [{ instruction: "Toast bread." }, { instruction: "Mash avocado and spread on toast." }, { instruction: "Top with poached egg and chili flakes." }],
-    tags: ['breakfast', 'quick', 'vegetarian'],
-    difficulty: "Easy",
-    rating: 4.6,
-    author: "Quick Bites"
-  },
-  {
-    id: '5',
-    title: 'Greek Salad',
-    description: 'Fresh Mediterranean salad with feta cheese and olives.',
-    heroImage: 'https://images.unsplash.com/photo-1515543237350-b3eea1ec8082?ixlib=rb-4.0.3',
-    cookTime: "0 min",
-    prepTime: "15 min",
-    servings: 2,
-    ingredients: ["Cucumber", "Tomatoes", "Feta Cheese", "Olives", "Red Onion", "Olive Oil"],
-    steps: [{ instruction: "Chop vegetables." }, { instruction: "Combine all ingredients and drizzle with olive oil." }],
-    tags: ['salad', 'healthy', 'lunch'],
-    difficulty: "Easy",
-    rating: 4.3,
-    author: "Salad Bar"
-  },
-  {
-    id: '6',
-    title: 'Chocolate Brownies',
-    description: 'Rich and fudgy chocolate brownies with walnuts.',
-    heroImage: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?ixlib=rb-4.0.3',
-    cookTime: "30 min",
-    prepTime: "15 min",
-    servings: 8,
-    ingredients: ["Flour", "Sugar", "Cocoa Powder", "Butter", "Eggs", "Walnuts"],
-    steps: [{ instruction: "Mix dry ingredients." }, { instruction: "Mix wet ingredients." }, { instruction: "Combine and bake." }],
-    tags: ['dessert', 'baking', 'chocolate'],
-    difficulty: "Medium",
-    rating: 4.9,
-    author: "Sweet Treats"
-  }
-];
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const [todayRecipes, setTodayRecipes] = useState(mockTodayRecipes);
-  const [recommendedRecipes, setRecommendedRecipes] = useState(mockRecommendedRecipes);
-
-  const handleSearch = (query: string) => {
-    router.push({
-      pathname: '/',
-      params: { query }
-    });
+  const { user } = useUserStore();
+  const savedRecipes = useSavedRecipesStore(state => state.savedRecipes);
+  const [voiceModalVisible, setVoiceModalVisible] = useState(false);
+  const [greeting, setGreeting] = useState('Good morning');
+  const [currentTime, setCurrentTime] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(NetworkManager.isOffline);
+  
+  // Animation values for input buttons
+  const scaleVoice = useSharedValue(1);
+  const scaleType = useSharedValue(1);
+  const scaleCamera = useSharedValue(1);
+  
+  // Animate input button on press
+  const animateButton = (scale: Animated.SharedValue<number>) => {
+    scale.value = withTiming(0.95, { duration: 100, easing: Easing.inOut(Easing.quad) });
+    setTimeout(() => {
+      scale.value = withTiming(1, { duration: 150, easing: Easing.inOut(Easing.quad) });
+    }, 100);
   };
+  
+  // Animated styles for buttons
+  const voiceButtonStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scaleVoice.value }]
+    };
+  });
+  
+  const typeButtonStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scaleType.value }]
+    };
+  });
+  
+  const cameraButtonStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scaleCamera.value }]
+    };
+  });
+  
+  // Set greeting based on time of day
+  useEffect(() => {
+    updateGreetingAndTime();
+    
+    // Update time every minute
+    const interval = setInterval(updateGreetingAndTime, 60000);
+    
+    // Simulate loading recipes
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
 
+    // Subscribe to network changes
+    const unsubscribeNetManager = NetworkManager.addListener(setIsOffline);
+    
+    return () => {
+      clearInterval(interval);
+      unsubscribeNetManager();
+    };
+  }, []);
+  
+  const updateGreetingAndTime = () => {
+    const now = new Date();
+    const hours = now.getHours();
+    
+    // Set greeting based on time of day
+    if (hours < 12) {
+      setGreeting('Good morning');
+    } else if (hours < 18) {
+      setGreeting('Good afternoon');
+    } else {
+      setGreeting('Good evening');
+    }
+    
+    // Format date and time
+    const options: Intl.DateTimeFormatOptions = { 
+      weekday: 'long', 
+      month: 'long', 
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    };
+    setCurrentTime(now.toLocaleString('en-US', options));
+  };
+  
+  // Simulate refresh
+  const onRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => {
+      updateGreetingAndTime();
+      setRefreshing(false);
+    }, 1500);
+  };
+  
+  // Sample data for Today's Picks
+  const todaysPicks = [
+    {
+      id: '1',
+      title: 'Chicken Caesar Salad',
+      description: 'Fresh romaine lettuce with grilled chicken, croutons, and caesar dressing',
+      image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c',
+      cookTime: 20,
+      difficulty: 'Easy' as 'Easy' | 'Medium' | 'Hard',
+      rating: 4.7,
+      servings: 2,
+      tags: ['lunch', 'salad', 'protein']
+    },
+    {
+      id: '2',
+      title: 'Vegetable Stir Fry',
+      description: 'Quick and healthy vegetable stir fry with your favorite veggies',
+      image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19',
+      cookTime: 15,
+      difficulty: 'Easy' as 'Easy' | 'Medium' | 'Hard',
+      rating: 4.5,
+      servings: 2,
+      tags: ['lunch', 'quick', 'vegetarian']
+    },
+    {
+      id: '3',
+      title: 'Margherita Pizza',
+      description: 'Classic pizza with tomato, mozzarella, and fresh basil',
+      image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591',
+      cookTime: 30,
+      difficulty: 'Medium' as 'Easy' | 'Medium' | 'Hard',
+      rating: 4.8,
+      servings: 4,
+      tags: ['lunch', 'dinner', 'italian']
+    }
+  ];
+  
+  // Sample data for Popular Combinations
+  const popularCombinations = [
+    {
+      id: '1',
+      name: 'Rice + Chicken',
+      image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19',
+      ingredients: ['Rice', 'Chicken', 'Vegetables']
+    },
+    {
+      id: '2',
+      name: 'Pasta + Tomato',
+      image: 'https://images.unsplash.com/photo-1563379926898-05f4575a45d8',
+      ingredients: ['Pasta', 'Tomato', 'Basil', 'Garlic']
+    }
+  ];
+  
+  // Handler functions
+  const handleVoiceInput = (recognizedText: string) => {
+    setVoiceModalVisible(false);
+    if (recognizedText.trim()) {
+      try {
+        // Process ingredients and navigate to generate
+        const ingredients = recognizedText.split(/[,.]/).map(i => i.trim()).filter(Boolean);
+        router.push({
+          pathname: '/generate',
+          params: { ingredients: JSON.stringify(ingredients) }
+        });
+      } catch (error) {
+        console.error('Error processing voice input:', error);
+      }
+    }
+  };
+  
+  const handleCameraInput = (ingredients: string[]) => {
+    if (ingredients.length > 0) {
+      try {
+        router.push({
+          pathname: '/generate',
+          params: { ingredients: JSON.stringify(ingredients) }
+        });
+      } catch (error) {
+        console.error('Error processing camera input:', error);
+      }
+    }
+  };
+  
+  const handleTypeInput = () => {
+    animateButton(scaleType);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/input');
+  };
+  
+  const handleCombinationPress = (combination: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      router.push({
+        pathname: '/generate',
+        params: { ingredients: JSON.stringify(combination.ingredients) }
+      });
+    } catch (error) {
+      console.error('Error navigating with combination:', error);
+    }
+  };
+  
+  const handleRecipePress = (recipeId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push(`/recipe/${recipeId}`);
+  };
+  
+  const handleSavedPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/saved');
+  };
+  
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" />
-      
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        <View style={styles.headerContainer}>
-          <GreetingHeader onGetStartedPress={() => {}} />
-          <SearchHeader onSearch={handleSearch} />
-        </View>
+    <LinearGradient
+      colors={[colors.softPeachStart, colors.softPeachEnd]}
+      style={styles.gradientContainer}
+    >
+      <SafeAreaView style={[styles.container, { paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : insets.top }]}>
+        <StatusBar barStyle="dark-content" backgroundColor={colors.softPeachStart} />
         
-        <View style={styles.recipesContainer}>
-          <RecommendedRecipes
-            title="Today's Recipes"
-            recipes={todayRecipes}
-            large={true}
-            onSeeAllPress={() => router.push('/')}
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
+        >
+          {/* Greeting Section */}
+          <View style={styles.greetingContainer}>
+            <View style={styles.greetingTextContainer}>
+              <Text style={styles.greetingText}>
+                {greeting}!
+              </Text>
+              <Image 
+                source={require('@/assets/images/sun-icon.png')} 
+                style={styles.sunIcon} 
+                resizeMode="contain" 
+                accessibilityLabel="Sun icon"
+              />
+            </View>
+            <Text style={styles.subText}>
+              What would you like to cook?
+            </Text>
+            <Text style={styles.timeText}>
+              {currentTime}
+            </Text>
+          </View>
+          
+          {/* Quick Start Section */}
+          <View style={styles.quickStartSection}>
+            {/* Voice Input Button */}
+            <Animated.View style={voiceButtonStyle}>
+              <TouchableOpacity 
+                style={[styles.inputButton, isOffline && styles.disabledInputButton]}
+                onPress={() => {
+                  if (isOffline) return;
+                  animateButton(scaleVoice);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setVoiceModalVisible(true);
+                }}
+                accessibilityLabel="Speak your ingredients"
+                accessibilityHint="Double tap to start voice input for ingredients"
+                disabled={isOffline}
+              >
+                <View style={[styles.inputIconContainer, isOffline && styles.disabledIconContainer]}>
+                  <Ionicons name="mic-outline" size={24} color={colors.textSecondary} />
+                </View>
+                <Text style={styles.inputButtonText}>Speak Your Ingredients</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+              </TouchableOpacity>
+            </Animated.View>
+            
+            {/* Type Input Button */}
+            <Animated.View style={typeButtonStyle}>
+              <TouchableOpacity 
+                style={styles.inputButton}
+                onPress={handleTypeInput}
+                accessibilityLabel="Type your ingredients"
+                accessibilityHint="Double tap to type your ingredients"
+              >
+                <View style={styles.inputIconContainer}>
+                  <Ionicons name="list-outline" size={24} color={colors.textSecondary} />
+                </View>
+                <Text style={styles.inputButtonText}>Type Your Ingredients</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+              </TouchableOpacity>
+            </Animated.View>
+            
+            {/* Camera Input Button */}
+            <Animated.View style={cameraButtonStyle}>
+              <TouchableOpacity 
+                style={[styles.inputButton, isOffline && styles.disabledInputButton]}
+                onPress={() => {
+                  if (isOffline) return;
+                  animateButton(scaleCamera);
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  // Navigate directly to input screen with camera mode
+                  router.push('/input?mode=camera');
+                }}
+                accessibilityLabel="Take a photo of ingredients"
+                accessibilityHint="Double tap to use camera to capture your ingredients"
+                disabled={isOffline}
+              >
+                <View style={[styles.inputIconContainer, isOffline && styles.disabledIconContainer]}>
+                  <Ionicons name="camera-outline" size={24} color={isOffline ? colors.textDisabled : colors.textSecondary} />
+                </View>
+                <Text style={[styles.inputButtonText, isOffline && styles.disabledButtonText]}>Take a Photo of Ingredients</Text>
+                <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+              </TouchableOpacity>
+            </Animated.View>
+            
+            {/* Hidden CameraInput component with ref */}
+            <View style={styles.hiddenCamera}>
+              <CameraInput 
+                onIngredientsDetected={handleCameraInput} 
+              />
+            </View>
+          </View>
+          
+          {/* Surprise Me Button */}
+          <SurpriseButton 
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              router.push('/generate?random=true&mealType=lunch');
+            }}
           />
           
-          <SurpriseButton />
+          {/* Today's Picks Section - Offline aware */}
+          {!isOffline && (
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Today's Picks for You</Text>
+              {isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={styles.loadingText}>Finding delicious recipes...</Text>
+                </View>
+              ) : (
+                <ScrollView 
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.horizontalScrollContent}
+                >
+                  {todaysPicks.map(pick => {
+                    return (
+                      <RecipeCard
+                        key={pick.id}
+                        recipe={prepareRecipeForCard({
+                          ...pick,
+                          image: pick.image,
+                        })}
+                        style={styles.recipeCard}
+                        onPress={() => handleRecipePress(pick.id)}
+                      />
+                    );
+                  })}
+                </ScrollView>
+              )}
+            </View>
+          )}
           
-          <RecommendedRecipes
-            title="Recommended For You"
-            recipes={recommendedRecipes}
-            large={false}
-            onSeeAllPress={() => router.push('/')}
-          />
-        </View>
-      </ScrollView>
-    </View>
+          {/* Popular Combinations Section - Offline aware */}
+          {!isOffline && (
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Popular Lunch Combos</Text>
+              <View style={styles.popularCombosContainer}>
+                {popularCombinations.map((combo, index) => (
+                  <TouchableOpacity
+                    key={combo.id}
+                    style={[
+                      styles.comboItem,
+                      index === popularCombinations.length - 1 && styles.lastComboItem
+                    ]}
+                    onPress={() => handleCombinationPress(combo)}
+                    accessibilityLabel={`${combo.name} combination`}
+                    accessibilityHint={`Double tap to use ${combo.ingredients.join(', ')} as ingredients`}
+                  >
+                    <Image 
+                      source={{ uri: combo.image }}
+                      style={styles.comboItemImage}
+                    />
+                    <View style={styles.comboItemContent}>
+                      <Text style={styles.comboItemTitle}>{combo.name}</Text>
+                      <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Offline Saved Recipes Section */}
+          {isOffline && savedRecipes && savedRecipes.length > 0 && (
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Your Saved Recipes</Text>
+              <ScrollView 
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalScrollContent}
+              >
+                {savedRecipes.slice(0, 5).map(serviceRecipe => (
+                  <RecipeCard
+                    key={serviceRecipe.id || serviceRecipe.title}
+                    recipe={prepareRecipeForCard({
+                      ...serviceRecipe,
+                      id: serviceRecipe.id || serviceRecipe.title,
+                      image: serviceRecipe.heroImage || 'assets/images/placeholder.png',
+                      saved: true
+                    })}
+                    style={styles.recipeCard}
+                    onPress={() => handleRecipePress(serviceRecipe.id || serviceRecipe.title)}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          )}
+          
+          {isOffline && (!savedRecipes || savedRecipes.length === 0) && (
+            <View style={styles.offlineMessageContainer}>
+              <Ionicons name="cloud-offline-outline" size={48} color={colors.textSecondary} />
+              <Text style={styles.offlineMessageText}>
+                You're offline. No saved recipes to show.
+              </Text>
+              <Text style={styles.offlineSubMessageText}>
+                Connect to the internet to discover new recipes.
+              </Text>
+            </View>
+          )}
+          
+          {/* Saved Recipes Shortcut - Always visible but more prominent if offline */}
+          <TouchableOpacity 
+            style={styles.savedRecipesButton}
+            onPress={handleSavedPress}
+            accessibilityLabel="View my favorites"
+            accessibilityHint="Double tap to see your saved recipes"
+          >
+            <Ionicons name="bookmark" size={20} color={colors.primary} />
+            <Text style={styles.savedRecipesText}>View My Favorites</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+      
+      {/* Voice Input Modal */}
+      {voiceModalVisible && (
+        <VoiceInputModal
+          visible={voiceModalVisible}
+          onComplete={handleVoiceInput}
+          onClose={() => setVoiceModalVisible(false)}
+        />
+      )}
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradientContainer: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+  },
+  scrollView: {
+    flex: 1,
   },
   scrollContent: {
-    paddingBottom: Platform.OS === 'ios' ? 90 : 70, // Account for tab bar height
+    paddingBottom: 30,
   },
-  headerContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+  greetingContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 15,
   },
-  recipesContainer: {
-    paddingVertical: 16,
+  greetingTextContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  greetingText: {
+    ...typography.title1,
+    color: colors.text,
+    marginRight: 10,
+  },
+  sunIcon: {
+    width: 30,
+    height: 30,
+  },
+  subText: {
+    ...typography.title3,
+    color: colors.text,
+    marginTop: 5,
+  },
+  timeText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginTop: 8,
+  },
+  quickStartSection: {
+    paddingHorizontal: 20,
+    marginTop: 10,
+  },
+  inputButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    marginBottom: 10,
+    padding: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  inputIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.cardAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  inputButtonText: {
+    ...typography.bodyLarge,
+    color: colors.text,
+    flex: 1,
+  },
+  disabledInputButton: {
+    backgroundColor: colors.backgroundDisabled,
+    opacity: 0.7,
+  },
+  disabledIconContainer: {
+    backgroundColor: colors.iconDisabledBackground,
+  },
+  disabledButtonText: {
+    color: colors.textDisabled,
+  },
+  hiddenCamera: {
+    height: 0,
+    width: 0,
+    overflow: 'hidden',
+  },
+  sectionContainer: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
+    ...typography.heading2,
+    color: colors.text,
+    marginBottom: 15,
+  },
+  horizontalScrollContent: {
+    paddingRight: 20,
+  },
+  recipeCard: {
+    width: 250,
+    marginRight: 15,
+  },
+  popularCombosContainer: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  comboItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+    padding: 12,
+  },
+  lastComboItem: {
+    borderBottomWidth: 0,
+  },
+  comboItemImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 12,
+  },
+  comboItemContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  comboItemTitle: {
+    ...typography.bodyLarge,
+    color: colors.text,
+  },
+  savedRecipesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    margin: 20,
+    padding: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  savedRecipesText: {
+    ...typography.bodyLarge,
+    color: colors.primary,
+    flex: 1,
+    marginLeft: 10,
+  },
+  loadingContainer: {
+    height: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
+    marginTop: 10,
+  },
+  offlineMessageContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    marginTop: 20,
+    marginHorizontal: 20,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+  },
+  offlineMessageText: {
+    ...typography.bodyLarge,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  offlineSubMessageText: {
+    ...typography.bodySmall,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    marginTop: 5,
   },
 });

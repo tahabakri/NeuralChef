@@ -7,7 +7,8 @@ import {
   FlatList,
   Image,
   Dimensions,
-  ScrollView
+  ScrollView,
+  ActivityIndicator
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,8 @@ import colors from '@/constants/colors';
 import { Recipe } from '@/services/recipeService';
 import RecipeCard from '@/components/RecipeCard';
 import typography from '@/constants/typography';
+import CategoryTag from '@/components/CategoryTag';
+import LottieIllustration from '@/components/LottieIllustration';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width / 2 - 30; // Two cards with proper spacing
@@ -57,20 +60,26 @@ const RecommendationCard: React.FC<RecipeCardProps> = ({ recipe, onPress }) => {
 interface RecommendedRecipesProps {
   title: string;
   recipes: Recipe[];
+  isLoading?: boolean;
   large?: boolean;
   onSeeAllPress?: () => void;
+  showCategories?: boolean;
+  categories?: string[];
+  selectedCategory?: string;
+  onCategorySelect?: (category: string) => void;
 }
 
 const RecommendedRecipes: React.FC<RecommendedRecipesProps> = ({ 
   title, 
   recipes, 
+  isLoading = false,
   large = false,
-  onSeeAllPress 
+  onSeeAllPress,
+  showCategories = false,
+  categories = [],
+  selectedCategory = '',
+  onCategorySelect
 }) => {
-  if (!recipes || recipes.length === 0) {
-    return null;
-  }
-  
   const handleSeeAllPress = () => {
     if (onSeeAllPress) {
       onSeeAllPress();
@@ -92,7 +101,39 @@ const RecommendedRecipes: React.FC<RecommendedRecipesProps> = ({
         </TouchableOpacity>
       </View>
       
-      {large ? (
+      {showCategories && categories.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoriesContainer}
+        >
+          {categories.map((category) => (
+            <CategoryTag
+              key={category}
+              label={category}
+              selected={category === selectedCategory}
+              onPress={() => onCategorySelect && onCategorySelect(category)}
+            />
+          ))}
+        </ScrollView>
+      )}
+      
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <LottieIllustration 
+            type="cooking" 
+            size={150} 
+            autoPlay={true} 
+            loop={true} 
+          />
+          <Text style={styles.loadingText}>Finding perfect recipes for you...</Text>
+        </View>
+      ) : !recipes || recipes.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <LottieIllustration type="empty-state" size={120} />
+          <Text style={styles.emptyText}>No recipes found</Text>
+        </View>
+      ) : large ? (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -148,6 +189,10 @@ const styles = StyleSheet.create({
     ...typography.button,
     color: colors.primary,
   },
+  categoriesContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
   scrollContent: {
     paddingLeft: 16,
     paddingRight: 8,
@@ -159,6 +204,29 @@ const styles = StyleSheet.create({
   smallCard: {
     width: width * 0.6,
     marginRight: 16,
+  },
+  loadingContainer: {
+    height: 220,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  loadingText: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  emptyContainer: {
+    height: 180,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  emptyText: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
+    marginTop: 12,
   },
   recommendationCard: {
     flexDirection: 'row',

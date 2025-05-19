@@ -1,32 +1,20 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect } from 'react';
 
-export type DietaryPreference = 
-  | 'all'
-  | 'vegetarian'
-  | 'vegan'
-  | 'gluten-free'
-  | 'dairy-free'
-  | 'keto'
-  | 'paleo'
-  | 'low-carb';
+export type DietaryPreference = 'No Restrictions' | 'Vegetarian' | 'Vegan' | 'Gluten-Free' | 'Dairy-Free' | 'Keto' | 'Paleo' | 'Low-Carb';
 
-export type SpiceLevel = 'none' | 'mild' | 'medium' | 'spicy' | 'extra-spicy';
+export type SpiceLevel = 'Mild' | 'Medium' | 'Spicy' | 'Extra Spicy';
 
-export type PortionSize = 'single' | 'couple' | 'family' | 'large-group';
+export type PortionSize = 'Small' | 'Medium' | 'Large' | 'Extra Large';
 
-export type MicroPreference = 
-  | 'low-sodium' 
-  | 'high-protein' 
-  | 'low-sugar' 
-  | 'high-fiber' 
-  | 'low-fat' 
-  | 'heart-healthy' 
-  | 'diabetic-friendly';
+export type MicroPreference = 'High Protein' | 'Low Fat' | 'Low Sodium' | 'Low Sugar' | 'High Fiber';
+
+export type CookingGoal = 'Meal Prep' | 'Quick Meals' | 'Weight Loss' | 'Building Muscle' | 'Energy Boost';
 
 export interface PreferencesState {
-  dietaryPreference: DietaryPreference;
+  dietaryPreferences: DietaryPreference[]; // Changed from singular to plural
   allergies: string[];
   dislikedIngredients: string[];
   spiceLevel: SpiceLevel;
@@ -35,194 +23,110 @@ export interface PreferencesState {
   maxCalories: number; // per serving, 0 means no limit
   portionSize: PortionSize;
   microPreferences: MicroPreference[];
+  cookingGoals: CookingGoal[];
+  mealTimePreference: string;
 
-  setDietaryPreference: (preference: DietaryPreference) => Promise<void>;
-  setAllergies: (allergies: string[]) => Promise<void>;
-  setDislikedIngredients: (ingredients: string[]) => Promise<void>;
-  setSpiceLevel: (level: SpiceLevel) => Promise<void>;
-  setCuisineTypes: (cuisines: string[]) => Promise<void>;
-  setCookingTimeLimit: (minutes: number) => Promise<void>;
-  setMaxCalories: (calories: number) => Promise<void>;
-  setPortionSize: (size: PortionSize) => Promise<void>;
-  setMicroPreferences: (preferences: MicroPreference[]) => Promise<void>;
-  resetPreferences: () => Promise<void>;
+  setDietaryPreferences: (preferences: DietaryPreference[]) => void; // Changed from singular to plural
+  setAllergies: (allergies: string[]) => void;
+  setDislikedIngredients: (ingredients: string[]) => void;
+  setSpiceLevel: (level: SpiceLevel) => void;
+  setCuisineTypes: (cuisines: string[]) => void;
+  setCookingTimeLimit: (limit: number) => void;
+  setMaxCalories: (calories: number) => void;
+  setPortionSize: (size: PortionSize) => void;
+  setMicroPreferences: (preferences: MicroPreference[]) => void;
+  setCookingGoals: (goals: CookingGoal[]) => void;
+  setMealTimePreference: (preference: string) => void;
+  resetPreferences: () => void;
   loadPreferences: () => Promise<void>;
 }
 
-export const usePreferencesStore = create<PreferencesState>((set) => ({
-  dietaryPreference: 'all',
+const defaultPreferences = {
+  dietaryPreferences: ['No Restrictions'] as DietaryPreference[], // Changed to array
   allergies: [],
   dislikedIngredients: [],
-  spiceLevel: 'medium',
+  spiceLevel: 'Medium' as SpiceLevel,
   cuisineTypes: [],
-  cookingTimeLimit: 0,
-  maxCalories: 0,
-  portionSize: 'couple',
+  cookingTimeLimit: 30, // 30 minutes by default
+  maxCalories: 0, // No limit by default
+  portionSize: 'Medium' as PortionSize,
   microPreferences: [],
-  
-  setDietaryPreference: async (preference) => {
-    try {
-      await AsyncStorage.setItem('dietaryPreference', preference);
-      set({ dietaryPreference: preference });
-    } catch (error) {
-      console.error('Failed to save dietary preference:', error);
-    }
-  },
-  
-  setAllergies: async (allergies) => {
-    try {
-      // Filter out any empty strings
-      const validAllergies = allergies.filter(item => item.trim() !== '');
-      await AsyncStorage.setItem('allergies', JSON.stringify(validAllergies));
-      set({ allergies: validAllergies });
-    } catch (error) {
-      console.error('Failed to save allergies:', error);
-    }
-  },
-  
-  setDislikedIngredients: async (ingredients) => {
-    try {
-      // Filter out any empty strings
-      const validIngredients = ingredients.filter(item => item.trim() !== '');
-      await AsyncStorage.setItem('dislikedIngredients', JSON.stringify(validIngredients));
-      set({ dislikedIngredients: validIngredients });
-    } catch (error) {
-      console.error('Failed to save disliked ingredients:', error);
-    }
-  },
-  
-  setSpiceLevel: async (level) => {
-    try {
-      await AsyncStorage.setItem('spiceLevel', level);
-      set({ spiceLevel: level });
-    } catch (error) {
-      console.error('Failed to save spice level:', error);
-    }
-  },
-  
-  setCuisineTypes: async (cuisines) => {
-    try {
-      // Filter out any empty strings
-      const validCuisines = cuisines.filter(item => item.trim() !== '');
-      await AsyncStorage.setItem('cuisineTypes', JSON.stringify(validCuisines));
-      set({ cuisineTypes: validCuisines });
-    } catch (error) {
-      console.error('Failed to save cuisine types:', error);
-    }
-  },
-  
-  setCookingTimeLimit: async (minutes) => {
-    try {
-      // Ensure minutes is a valid number
-      const validMinutes = Math.max(0, parseInt(String(minutes), 10) || 0);
-      await AsyncStorage.setItem('cookingTimeLimit', String(validMinutes));
-      set({ cookingTimeLimit: validMinutes });
-    } catch (error) {
-      console.error('Failed to save cooking time limit:', error);
-    }
-  },
-  
-  setMaxCalories: async (calories) => {
-    try {
-      // Ensure calories is a valid number
-      const validCalories = Math.max(0, parseInt(String(calories), 10) || 0);
-      await AsyncStorage.setItem('maxCalories', String(validCalories));
-      set({ maxCalories: validCalories });
-    } catch (error) {
-      console.error('Failed to save max calories:', error);
-    }
-  },
-  
-  setPortionSize: async (size) => {
-    try {
-      await AsyncStorage.setItem('portionSize', size);
-      set({ portionSize: size });
-    } catch (error) {
-      console.error('Failed to save portion size:', error);
-    }
-  },
-  
-  setMicroPreferences: async (preferences) => {
-    try {
-      await AsyncStorage.setItem('microPreferences', JSON.stringify(preferences));
-      set({ microPreferences: preferences });
-    } catch (error) {
-      console.error('Failed to save micro preferences:', error);
-    }
-  },
-  
-  resetPreferences: async () => {
-    try {
-      await AsyncStorage.multiRemove([
-        'dietaryPreference',
-        'allergies',
-        'dislikedIngredients',
-        'spiceLevel',
-        'cuisineTypes',
-        'cookingTimeLimit',
-        'maxCalories',
-        'portionSize',
-        'microPreferences'
-      ]);
-      set({
-        dietaryPreference: 'all',
-        allergies: [],
-        dislikedIngredients: [],
-        spiceLevel: 'medium',
-        cuisineTypes: [],
-        cookingTimeLimit: 0,
-        maxCalories: 0,
-        portionSize: 'couple',
-        microPreferences: []
-      });
-    } catch (error) {
-      console.error('Failed to reset preferences:', error);
-    }
-  },
-  
-  loadPreferences: async () => {
-    try {
-      const [
-        storedPreference,
-        storedAllergies,
-        storedDislikedIngredients,
-        storedSpiceLevel,
-        storedCuisineTypes,
-        storedCookingTimeLimit,
-        storedMaxCalories,
-        storedPortionSize,
-        storedMicroPreferences
-      ] = await AsyncStorage.multiGet([
-        'dietaryPreference',
-        'allergies',
-        'dislikedIngredients',
-        'spiceLevel',
-        'cuisineTypes',
-        'cookingTimeLimit',
-        'maxCalories',
-        'portionSize',
-        'microPreferences'
-      ]);
-      
-      // Update state with stored values
-      set({
-        dietaryPreference: (storedPreference[1] as DietaryPreference) || 'all',
-        allergies: storedAllergies[1] ? JSON.parse(storedAllergies[1]) : [],
-        dislikedIngredients: storedDislikedIngredients[1] ? JSON.parse(storedDislikedIngredients[1]) : [],
-        spiceLevel: (storedSpiceLevel[1] as SpiceLevel) || 'medium',
-        cuisineTypes: storedCuisineTypes[1] ? JSON.parse(storedCuisineTypes[1]) : [],
-        cookingTimeLimit: storedCookingTimeLimit[1] ? parseInt(storedCookingTimeLimit[1], 10) : 0,
-        maxCalories: storedMaxCalories[1] ? parseInt(storedMaxCalories[1], 10) : 0,
-        portionSize: (storedPortionSize[1] as PortionSize) || 'couple',
-        microPreferences: storedMicroPreferences[1] ? JSON.parse(storedMicroPreferences[1]) : []
-      });
-    } catch (error) {
-      console.error('Failed to load preferences:', error);
-    }
-  },
-}));
+  cookingGoals: [],
+  mealTimePreference: '',
+};
 
-// Helper hook to load preferences on app start
+export const usePreferencesStore = create<PreferencesState>()(
+  persist(
+    (set) => ({
+      ...defaultPreferences,
+      
+      setDietaryPreferences: (preferences) => set({ dietaryPreferences: preferences }), // Changed from singular to plural
+      setAllergies: (allergies) => set({ allergies }),
+      setDislikedIngredients: (ingredients) => set({ dislikedIngredients: ingredients }),
+      setSpiceLevel: (level) => set({ spiceLevel: level }),
+      setCuisineTypes: (cuisines) => set({ cuisineTypes: cuisines }),
+      setCookingTimeLimit: (limit) => set({ cookingTimeLimit: limit }),
+      setMaxCalories: (calories) => set({ maxCalories: calories }),
+      setPortionSize: (size) => set({ portionSize: size }),
+      setMicroPreferences: (preferences) => set({ microPreferences: preferences }),
+      setCookingGoals: (goals) => set({ cookingGoals: goals }),
+      setMealTimePreference: (preference) => set({ mealTimePreference: preference }),
+      
+      resetPreferences: () => set({ ...defaultPreferences }),
+      
+      loadPreferences: async () => {
+        try {
+          const [
+            storedPreferences, // Changed from singular
+            storedAllergies,
+            storedDislikedIngredients,
+            storedSpiceLevel,
+            storedCuisineTypes,
+            storedCookingTimeLimit,
+            storedMaxCalories,
+            storedPortionSize,
+            storedMicroPreferences,
+            storedCookingGoals,
+            storedMealTimePreference
+          ] = await AsyncStorage.multiGet([
+            'dietaryPreference',
+            'allergies',
+            'dislikedIngredients',
+            'spiceLevel',
+            'cuisineTypes',
+            'cookingTimeLimit',
+            'maxCalories',
+            'portionSize',
+            'microPreferences',
+            'cookingGoals',
+            'mealTimePreference'
+          ]);
+          
+          set({
+            dietaryPreferences: storedPreferences[1] ? JSON.parse(storedPreferences[1]) : ['No Restrictions'], // Changed from singular
+            allergies: storedAllergies[1] ? JSON.parse(storedAllergies[1]) : [],
+            dislikedIngredients: storedDislikedIngredients[1] ? JSON.parse(storedDislikedIngredients[1]) : [],
+            spiceLevel: (storedSpiceLevel[1] as SpiceLevel) || 'Medium',
+            cuisineTypes: storedCuisineTypes[1] ? JSON.parse(storedCuisineTypes[1]) : [],
+            cookingTimeLimit: storedCookingTimeLimit[1] ? parseInt(storedCookingTimeLimit[1], 10) : 0,
+            maxCalories: storedMaxCalories[1] ? parseInt(storedMaxCalories[1], 10) : 0,
+            portionSize: (storedPortionSize[1] as PortionSize) || 'Medium',
+            microPreferences: storedMicroPreferences[1] ? JSON.parse(storedMicroPreferences[1]) : [],
+            cookingGoals: storedCookingGoals[1] ? JSON.parse(storedCookingGoals[1]) : [],
+            mealTimePreference: storedMealTimePreference[1] || ''
+          });
+        } catch (error) {
+          console.error('Failed to load preferences:', error);
+        }
+      },
+    }),
+    {
+      name: 'recipe-preferences-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+    }
+  )
+);
+
 export const useLoadPreferences = () => {
   const loadPreferences = usePreferencesStore(state => state.loadPreferences);
   
@@ -231,7 +135,7 @@ export const useLoadPreferences = () => {
   }, [loadPreferences]);
   
   return usePreferencesStore(state => ({
-    dietaryPreference: state.dietaryPreference,
+    dietaryPreferences: state.dietaryPreferences, // Changed from singular
     allergies: state.allergies,
     dislikedIngredients: state.dislikedIngredients,
     spiceLevel: state.spiceLevel,
@@ -239,6 +143,78 @@ export const useLoadPreferences = () => {
     cookingTimeLimit: state.cookingTimeLimit,
     maxCalories: state.maxCalories,
     portionSize: state.portionSize,
-    microPreferences: state.microPreferences
+    microPreferences: state.microPreferences,
+    cookingGoals: state.cookingGoals,
+    mealTimePreference: state.mealTimePreference
   }));
-}; 
+};
+
+export const getDietaryPreferences = (): DietaryPreference[] => [
+  'No Restrictions',
+  'Vegetarian',
+  'Vegan',
+  'Gluten-Free',
+  'Dairy-Free',
+  'Keto',
+  'Paleo',
+  'Low-Carb',
+];
+
+export const getSpiceLevels = (): SpiceLevel[] => [
+  'Mild',
+  'Medium',
+  'Spicy',
+  'Extra Spicy'
+];
+
+export const getPortionSizes = (): PortionSize[] => [
+  'Small',
+  'Medium',
+  'Large',
+  'Extra Large'
+];
+
+export const getMicroPreferences = (): MicroPreference[] => [
+  'High Protein',
+  'Low Fat',
+  'Low Sodium',
+  'Low Sugar',
+  'High Fiber'
+];
+
+export const getCookingGoals = (): CookingGoal[] => [
+  'Meal Prep',
+  'Quick Meals',
+  'Weight Loss',
+  'Building Muscle',
+  'Energy Boost'
+];
+
+export const getCommonAllergies = (): string[] => [
+  'Peanuts', 
+  'Tree nuts', 
+  'Milk', 
+  'Eggs', 
+  'Fish', 
+  'Shellfish', 
+  'Wheat', 
+  'Soy', 
+  'Sesame'
+];
+
+export const getPopularCuisines = (): string[] => [
+  'Italian', 
+  'Chinese', 
+  'Mexican', 
+  'Indian', 
+  'Japanese', 
+  'Thai', 
+  'French', 
+  'Mediterranean',
+  'American', 
+  'Korean', 
+  'Middle Eastern', 
+  'Greek',
+  'Vietnamese', 
+  'Spanish'
+];

@@ -4,12 +4,13 @@ import { AlertCircle } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import colors from '@/constants/colors';
+import { RecipeErrorType } from '@/services/recipeService'; // Import RecipeErrorType
 
 interface ErrorScreenProps {
   title?: string;
   message?: string;
   buttonText?: string;
-  errorType?: 'generation' | 'network' | 'timeout' | 'validation' | 'unknown';
+  errorType?: RecipeErrorType; // Use RecipeErrorType
   imageUri?: string;
   onTryAgain?: () => void;
 }
@@ -18,7 +19,7 @@ export default function ErrorScreen({
   title = 'Generation Failed',
   message = 'We couldn\'t create a recipe with these ingredients. Please try different ingredients or try again later.',
   buttonText = 'Try Again',
-  errorType = 'generation',
+  errorType = RecipeErrorType.GENERATE_ERROR, // Default to an enum member
   imageUri = 'https://images.unsplash.com/photo-1594322436404-5a0526db4d13?q=80&w=2029&auto=format&fit=crop',
   onTryAgain
 }: ErrorScreenProps) {
@@ -31,14 +32,14 @@ export default function ErrorScreen({
   // Different icons based on error type
   const renderIcon = () => {
     switch (errorType) {
-      case 'network':
+      case RecipeErrorType.FETCH_ERROR: // Assuming 'network' maps to FETCH_ERROR
         return <AlertCircle size={48} color={colors.error} />;
-      case 'timeout':
-        return <AlertCircle size={48} color={colors.warning} />;
-      case 'validation':
-        return <AlertCircle size={48} color={colors.primary} />;
-      case 'generation':
-      case 'unknown':
+      // case RecipeErrorType.TIMEOUT_ERROR: // Add if you have a timeout error type
+      //   return <AlertCircle size={48} color={colors.warning} />;
+      // case RecipeErrorType.VALIDATION_ERROR: // Add if you have a validation error type
+      //   return <AlertCircle size={48} color={colors.primary} />;
+      case RecipeErrorType.GENERATE_ERROR:
+      // case RecipeErrorType.UNKNOWN_ERROR: // Add if you have an unknown error type
       default:
         return <AlertCircle size={48} color={colors.error} />;
     }
@@ -136,4 +137,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   }
-}); 
+});

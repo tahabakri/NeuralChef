@@ -15,21 +15,28 @@ import colors from '@/constants/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import typography from '@/constants/typography';
 
-// Define recipe interface
-export interface Recipe {
-  id: string;
-  title: string;
-  image: string | ImageSourcePropType;
-  cookTime: number; // in minutes
-  difficulty: 'Easy' | 'Medium' | 'Hard';
-  rating: number;
-  tags?: string[];
-  ingredients?: string[];
+import { Recipe as ServiceRecipe } from '@/services/recipeService';
+
+// Define recipe interface extending the service Recipe type
+export interface Recipe extends Omit<ServiceRecipe, 'cookTime' | 'rating' | 'steps' | 'ingredients'> {
+  image?: string | ImageSourcePropType;
+  cookTime: number; // Required for display
+  rating: number; // Required for display
   saved?: boolean;
-  description?: string;
   imageUrl?: string;
   servings?: number;
+  steps?: ServiceRecipe['steps']; // Make steps optional
+  ingredients?: ServiceRecipe['ingredients']; // Make ingredients optional
 }
+
+// Helper function to ensure required display properties
+export const prepareRecipeForCard = (recipe: Partial<Recipe> & Pick<Recipe, 'id' | 'title' | 'difficulty' | 'tags'>): Recipe => ({
+  ...recipe,
+  cookTime: recipe.cookTime || 0,
+  rating: recipe.rating || 0,
+  ingredients: recipe.ingredients || [],
+  steps: recipe.steps || [],
+});
 
 interface RecipeCardProps {
   recipe: Recipe;
@@ -39,7 +46,15 @@ interface RecipeCardProps {
   style?: ViewStyle; // Style prop for the container
   backgroundComponent?: React.ReactNode; // Custom background component
   large?: boolean;
+  selectable?: boolean; // Whether the card can be selected for bulk actions
+  selected?: boolean; // Whether the card is currently selected
+  onLongPress?: (id: string) => void; // Handle long press for selection
 }
+
+// Placeholder image when no image is available
+const PLACEHOLDER_IMAGE = require('@/assets/images/empty-recipe.png');
+// Default cook time when none is provided
+const DEFAULT_COOK_TIME = '15–20 min';
 
 const RecipeCard: React.FC<RecipeCardProps> = ({ 
   recipe, 
@@ -48,7 +63,10 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   onPress, 
   style, 
   backgroundComponent,
-  large = false
+  large = false,
+  selectable = false,
+  selected = false,
+  onLongPress
 }) => {
   // Handle save button press
   const handleSavePress = () => {
@@ -64,8 +82,20 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
     }
   };
 
+  // Handle long press for selection
+  const handleLongPress = () => {
+    if (selectable && onLongPress) {
+      onLongPress(recipe.id);
+    }
+  };
+
   // Format cook time to display (e.g. 45 -> "45 min", 60 -> "1 hr")
   const formatCookTime = (minutes: number): string => {
+    // Handle undefined, NaN, or invalid values
+    if (minutes === undefined || minutes === null || isNaN(minutes) || minutes <= 0) {
+      return DEFAULT_COOK_TIME;
+    }
+    
     if (minutes < 60) {
       return `${minutes} min`;
     }
@@ -77,27 +107,56 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
     return `${hours} hr ${remainingMinutes} min`;
   };
 
+  // Get image source with fallback to placeholder
+  const getImageSource = () => {
+    if (!recipe.image && !recipe.imageUrl) {
+      return PLACEHOLDER_IMAGE;
+    }
+    const imageSource = recipe.imageUrl || recipe.image;
+    return typeof imageSource === 'string' ? { uri: imageSource } : imageSource;
+  };
+
   // Create card component based on the card wrapper
-  const CardWrapper = ({ children }) => {
+  const CardWrapper = ({ children }: { children: React.ReactNode }) => {
     if (onPress) {
       return (
         <TouchableOpacity 
-          style={[type === 'featured' ? styles.featuredContainer : 
-                 type === 'horizontal' ? styles.horizontalContainer : 
-                 styles.verticalContainer, style]}
+          style={[
+            type === 'featured' ? styles.featuredContainer : 
+            type === 'horizontal' ? styles.horizontalContainer : 
+            styles.verticalContainer, 
+            style,
+            selected && styles.selectedCard
+          ]}
           onPress={handlePress}
+          onLongPress={handleLongPress}
+          delayLongPress={500}
           activeOpacity={0.8}
         >
           {children}
+          {selected && (
+            <View style={styles.selectionIndicator}>
+              <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+            </View>
+          )}
         </TouchableOpacity>
       );
     }
     
     return (
-      <View style={[type === 'featured' ? styles.featuredContainer : 
-                   type === 'horizontal' ? styles.horizontalContainer : 
-                   styles.verticalContainer, style]}>
+      <View style={[
+        type === 'featured' ? styles.featuredContainer : 
+        type === 'horizontal' ? styles.horizontalContainer : 
+        styles.verticalContainer, 
+        style,
+        selected && styles.selectedCard
+      ]}>
         {children}
+        {selected && (
+          <View style={styles.selectionIndicator}>
+            <Ionicons name="checkmark-circle" size={24} color={colors.primary} />
+          </View>
+        )}
       </View>
     );
   };
@@ -108,7 +167,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
       <CardWrapper>
         {backgroundComponent}
         <Image
-          source={typeof recipe.image === 'string' ? { uri: recipe.image } : recipe.image}
+          source={getImageSource()}
           style={styles.featuredImage}
           resizeMode="cover"
         />
@@ -165,7 +224,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
       <CardWrapper>
         {backgroundComponent}
         <Image
-          source={typeof recipe.image === 'string' ? { uri: recipe.image } : recipe.image}
+          source={getImageSource()}
           style={styles.horizontalImage}
           resizeMode="cover"
         />
@@ -211,7 +270,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
       {backgroundComponent}
       <View style={styles.imageContainer}>
         <Image
-          source={typeof recipe.image === 'string' ? { uri: recipe.image } : recipe.image}
+          source={getImageSource()}
           style={styles.verticalImage}
           resizeMode="cover"
         />
@@ -259,17 +318,18 @@ const styles = StyleSheet.create({
       ios: {
         shadowColor: colors.shadowDark,
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
       },
       android: {
-        elevation: 4,
+        elevation: 6,
       },
     }),
   },
   featuredImage: {
     width: '100%',
     height: '100%',
+    borderRadius: 16,
   },
   featuredOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -344,18 +404,20 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
       },
       android: {
-        elevation: 2,
+        elevation: 4,
       },
     }),
   },
   horizontalImage: {
     width: 100,
     height: '100%',
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
   },
   horizontalContent: {
     flex: 1,
@@ -422,12 +484,12 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
       },
       android: {
-        elevation: 2,
+        elevation: 4,
       },
     }),
   },
@@ -435,10 +497,15 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 140,
     position: 'relative',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    overflow: 'hidden',
   },
   verticalImage: {
     width: '100%',
     height: '100%',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
   verticalSaveButton: {
     position: 'absolute',
@@ -476,6 +543,23 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontFamily: 'Poppins-Regular',
   },
+  selectedCard: {
+    borderWidth: 2,
+    borderColor: colors.primary,
+    backgroundColor: `${colors.primary}10`,
+  },
+  selectionIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
 });
 
-export default RecipeCard; 
+export default RecipeCard;

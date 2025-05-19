@@ -1,176 +1,259 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  Image,
   TouchableOpacity,
   SafeAreaView,
+  ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import colors from '@/constants/colors';
-import gradients from '@/constants/gradients';
-import GradientButton from '@/components/common/GradientButton';
+import { ChevronLeft, Heart, Clock, Share2 } from 'lucide-react-native';
 
-/**
- * Recipe Detail Screen
- * Shows details for a specific recipe
- */
+import colors from '@/constants/colors';
+import typography from '@/constants/typography';
+
+// Components
+import BackArrow from '@/components/BackArrow';
+import RecipeHeader from '@/components/RecipeHeader';
+import SaveButton from '@/components/SaveButton';
+import ImageStep from '@/components/ImageStep';
+import NutritionalInfo from '@/components/NutritionalInfo';
+import IngredientList from '@/components/IngredientList';
+import StepList from '@/components/StepList';
+import ProgressBar from '@/components/ProgressBar';
+import ShareModal from '@/components/ShareModal';
+import StarRating from '@/components/StarRating'; // Imported StarRating
+import LottieIllustration from '@/components/LottieIllustration';
+import Button from '@/components/Button';
+
+// Stores & Services
+// import { type Recipe as ServiceRecipe } from '@/services/recipeService'; // Commenting out as we use local mock
+import { getMockRecipeById } from '@/utils/mockRecipes'; // Import the mock recipe getter
+
+// Mock data structure for a recipe
+interface Ingredient {
+  id?: string; // Added optional id
+  name: string;
+  amount?: string;
+  unit?: string;
+}
+
+interface RecipeStep {
+  id?: string; // Added optional id
+  step: number;
+  description: string;
+  completed?: boolean;
+}
+
+// Removed the duplicate, non-exported Recipe interface.
+// The exported one below is now the single source of truth.
+
+export interface Recipe {
+  id: string;
+  title: string;
+  description: string;
+  image?: string; // Changed from imageUrl to image
+  ingredients: Ingredient[];
+  steps: RecipeStep[];
+  cookTime: number;
+  prepTime?: number; // Added optional prepTime
+  servings: number;
+  difficulty?: string; // Added optional difficulty
+  cuisine?: string; // Added optional cuisine
+  isSaved?: boolean; // Added optional isSaved
+  mealType?: string; // Added optional mealType
+  calories?: number;
+  protein?: number;
+  rating?: number;
+}
+
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
-  // Mock recipe data - in a real app, this would come from an API or store
-  const recipe = {
-    id,
-    title: 'Spaghetti Carbonara',
-    description: 'A classic Italian pasta dish with a creamy egg sauce, crispy pancetta, and Parmesan cheese.',
-    cookTime: 30,
-    prepTime: 15,
-    servings: 4,
-    difficulty: 'Medium',
-    cuisine: 'Italian',
-    ingredients: [
-      { id: '1', name: 'Spaghetti', amount: '400g' },
-      { id: '2', name: 'Pancetta', amount: '150g' },
-      { id: '3', name: 'Egg Yolks', amount: '4' },
-      { id: '4', name: 'Parmesan Cheese', amount: '50g' },
-      { id: '5', name: 'Black Pepper', amount: '1 tsp' },
-      { id: '6', name: 'Salt', amount: 'to taste' },
-    ],
-    steps: [
-      { id: '1', description: 'Bring a large pot of salted water to boil and cook the spaghetti until al dente.' },
-      { id: '2', description: 'While the pasta cooks, heat a large skillet over medium heat and add the pancetta. Cook until crispy.' },
-      { id: '3', description: 'In a bowl, whisk together the egg yolks and grated Parmesan cheese.' },
-      { id: '4', description: 'When the pasta is done, reserve 1/2 cup of pasta water and drain.' },
-      { id: '5', description: 'Add the hot pasta to the skillet with the pancetta, stirring to combine.' },
-      { id: '6', description: 'Remove the skillet from heat and quickly add the egg mixture, stirring constantly. The residual heat will cook the eggs into a creamy sauce.' },
-      { id: '7', description: 'If the sauce is too thick, add a splash of the reserved pasta water.' },
-      { id: '8', description: 'Season with freshly ground black pepper and serve immediately with extra Parmesan.' },
-    ],
-    image: 'https://images.unsplash.com/photo-1546549032-9571cd6b27df?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8NHx8Y2FyYm9uYXJhfGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=800&q=60',
-    isSaved: false,
+  const [recipe, setRecipe] = useState<Recipe | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([1, 2]); // Steps 1 and 2 are completed
+
+  useEffect(() => {
+    const loadRecipe = () => {
+      setIsLoading(true);
+      setError(null);
+      if (!id) {
+        setError("Recipe ID is missing.");
+        setIsLoading(false);
+        setRecipe(null);
+        return;
+      }
+
+      // Simulate API call delay
+      setTimeout(() => {
+        try {
+          const foundRecipe = getMockRecipeById(id);
+          if (foundRecipe) {
+            setRecipe(foundRecipe);
+          } else {
+            setError(`Recipe with ID "${id}" not found.`);
+            setRecipe(null);
+          }
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Failed to load recipe details.');
+          setRecipe(null);
+        } finally {
+          setIsLoading(false);
+        }
+      }, 500);
+    };
+
+    loadRecipe();
+  }, [id]);
+
+  const toggleStepCompletion = (stepNumber: number) => {
+    if (completedSteps.includes(stepNumber)) {
+      setCompletedSteps(completedSteps.filter(step => step !== stepNumber));
+    } else {
+      setCompletedSteps([...completedSteps, stepNumber]);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4CAF50" />
+        <Text style={styles.loadingText}>Loading Recipe...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !recipe) {
+    return (
+      <SafeAreaView style={styles.errorContainer}>
+        <Text style={styles.errorText}>Error: {error || 'Recipe not found.'}</Text>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => router.back()}
+        >
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+  
+  // Calculate progress percentage
+  const progress = completedSteps.length / recipe.steps.length;
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" /> 
       
       <Stack.Screen
         options={{
-          headerTransparent: true,
-          headerTintColor: 'white',
-          headerTitle: '',
-          headerLeft: (props) => (
-            <TouchableOpacity
-              onPress={router.back}
-              style={styles.backButton}
+          headerShown: true,
+          title: "",
+          headerLeft: () => (
+            <TouchableOpacity 
+              style={styles.headerButton} 
+              onPress={() => router.back()}
             >
-              <Ionicons name="arrow-back" size={24} color="white" />
+              <ChevronLeft size={24} color="#333" />
             </TouchableOpacity>
           ),
           headerRight: () => (
-            <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="bookmark-outline" size={24} color="white" />
-            </TouchableOpacity>
+            <View style={styles.headerRightContainer}>
+              <TouchableOpacity style={styles.headerButton}>
+                <Heart size={24} color="#333" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.headerButton}>
+                <Share2 size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
           ),
+          headerStyle: { backgroundColor: '#FFF8EC' },
+          headerShadowVisible: false,
         }}
       />
       
-      <ScrollView>
-        <View style={styles.headerImageContainer}>
-          <Image 
-            source={{ uri: recipe.image }} 
-            style={styles.headerImage}
-          />
-          <LinearGradient
-            colors={['rgba(0,0,0,0.6)', 'transparent']}
-            style={styles.headerGradient}
-          />
-          <View style={styles.recipeHeaderInfo}>
-            <Text style={styles.recipeTitle}>{recipe.title}</Text>
-            <Text style={styles.recipeCuisine}>{recipe.cuisine} Cuisine</Text>
-          </View>
-        </View>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Image 
+          source={{ uri: recipe.image }} // Changed from recipe.imageUrl
+          style={styles.recipeImage}
+          resizeMode="cover"
+        />
         
-        <View style={styles.content}>
-          <Text style={styles.description}>{recipe.description}</Text>
+        <View style={styles.contentContainer}>
+          <TouchableOpacity style={styles.nutritionCard}>
+            <View>
+              <Text style={styles.sectionTitle}>Nutritional Info</Text>
+              <Text style={styles.nutritionText}>
+                {recipe.calories} kcal • {recipe.protein} g protein
+              </Text>
+            </View>
+            <ChevronLeft 
+              size={24} 
+              color="#999" 
+              style={{ transform: [{ rotate: '180deg' }] }}
+            />
+          </TouchableOpacity>
           
-          <View style={styles.statsContainer}>
-            <View style={styles.stat}>
-              <Ionicons name="time-outline" size={20} color={colors.primary} />
-              <Text style={styles.statLabel}>Prep</Text>
-              <Text style={styles.statValue}>{recipe.prepTime} min</Text>
-            </View>
-            
-            <View style={styles.stat}>
-              <Ionicons name="timer-outline" size={20} color={colors.primary} />
-              <Text style={styles.statLabel}>Cook</Text>
-              <Text style={styles.statValue}>{recipe.cookTime} min</Text>
-            </View>
-            
-            <View style={styles.stat}>
-              <Ionicons name="people-outline" size={20} color={colors.primary} />
-              <Text style={styles.statLabel}>Serves</Text>
-              <Text style={styles.statValue}>{recipe.servings}</Text>
-            </View>
-            
-            <View style={styles.stat}>
-              <Ionicons name="speedometer-outline" size={20} color={colors.primary} />
-              <Text style={styles.statLabel}>Difficulty</Text>
-              <Text style={styles.statValue}>{recipe.difficulty}</Text>
-            </View>
-          </View>
-          
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Ingredients</Text>
-            <LinearGradient
-              colors={gradients.softPeach.colors}
-              start={gradients.softPeach.direction.start}
-              end={gradients.softPeach.direction.end}
-              style={styles.ingredientsList}
-            >
-              {recipe.ingredients.map((ingredient) => (
-                <View key={ingredient.id} style={styles.ingredient}>
-                  <View style={styles.ingredientDot} />
-                  <Text style={styles.ingredientName}>{ingredient.name}</Text>
-                  <Text style={styles.ingredientAmount}>{ingredient.amount}</Text>
-                </View>
-              ))}
-            </LinearGradient>
-          </View>
-          
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Instructions</Text>
-            {recipe.steps.map((step, index) => (
-              <View key={step.id} style={styles.step}>
-                <View style={styles.stepNumberContainer}>
-                  <LinearGradient
-                    colors={gradients.warmSunset.colors}
-                    style={styles.stepNumberGradient}
-                  >
-                    <Text style={styles.stepNumber}>{index + 1}</Text>
-                  </LinearGradient>
-                </View>
-                <Text style={styles.stepText}>{step.description}</Text>
+          <Text style={styles.sectionTitle}>Ingredients</Text>
+          <View style={styles.ingredientsList}>
+            {recipe.ingredients.map((ingredient, index) => (
+              <View key={index} style={styles.ingredientItem}>
+                <Text style={styles.bulletPoint}>•</Text>
+                <Text style={styles.ingredientText}>{ingredient.name}</Text>
               </View>
             ))}
           </View>
+          
+          <Text style={styles.sectionTitle}>6 Steps</Text>
+          <View style={styles.stepsList}>
+            {recipe.steps.map((step) => (
+              <TouchableOpacity 
+                key={step.step} 
+                style={styles.stepItem}
+                onPress={() => toggleStepCompletion(step.step)}
+              >
+                <View style={[
+                  styles.stepCheckbox, 
+                  completedSteps.includes(step.step) && styles.stepCheckboxChecked
+                ]}>
+                  {completedSteps.includes(step.step) && (
+                    <Text style={styles.checkmark}>✓</Text>
+                  )}
+                </View>
+                <View style={styles.stepContent}>
+                  <Text style={styles.stepText}>{step.description}</Text>
+                  {step.step === 2 && (
+                    <View style={styles.timeIndicator}>
+                      <Clock size={16} color="#555" />
+                      <Text style={styles.timeText}>5 min</Text>
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+          
+          <View style={styles.progressContainer}>
+            <View style={styles.progressBar}>
+              <View 
+                style={[
+                  styles.progressFill, 
+                  { width: `${progress * 100}%` }
+                ]} 
+              />
+            </View>
+            <Text style={styles.progressText}>
+              {completedSteps.length} of {recipe.steps.length} steps completed ({Math.round(progress * 100)}%)
+            </Text>
+          </View>
         </View>
       </ScrollView>
-      
-      <View style={styles.buttonContainer}>
-        <GradientButton
-          title="Start Cooking"
-          gradient="sunriseOrange"
-          onPress={() => console.log('Start cooking')}
-          fullWidth
-        />
-      </View>
     </SafeAreaView>
   );
 }
@@ -178,162 +261,158 @@ export default function RecipeDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: '#FFF8EC',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFF8EC',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#333',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#FFF8EC',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#F44336',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  headerButton: {
+    padding: 8,
+  },
+  headerRightContainer: {
+    flexDirection: 'row',
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: '#4CAF50',
+    borderRadius: 8,
   },
-  actionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  headerImageContainer: {
-    height: 300,
-    position: 'relative',
-  },
-  headerImage: {
-    width: '100%',
-    height: '100%',
-  },
-  headerGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 100,
-  },
-  recipeHeaderInfo: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-  },
-  recipeTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: 'white',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-    marginBottom: 4,
-  },
-  recipeCuisine: {
+  backButtonText: {
+    color: '#fff',
     fontSize: 16,
-    color: 'white',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    fontWeight: '600',
   },
-  content: {
+  scrollContent: {
+    flexGrow: 1,
+  },
+  recipeImage: {
+    width: '100%',
+    height: 300,
+  },
+  contentContainer: {
     padding: 16,
   },
-  description: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: colors.text,
-    marginBottom: 20,
-  },
-  statsContainer: {
+  nutritionCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 20,
-  },
-  stat: {
     alignItems: 'center',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  statValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  section: {
+    backgroundColor: '#FFFDF3',
+    padding: 16,
+    borderRadius: 16,
     marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 12,
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 16,
+  },
+  nutritionText: {
+    fontSize: 18,
+    color: '#555',
   },
   ingredientsList: {
-    borderRadius: 12,
-    padding: 16,
+    marginBottom: 24,
   },
-  ingredient: {
+  ingredientItem: {
     flexDirection: 'row',
+    marginBottom: 12,
     alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.05)',
   },
-  ingredientDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
+  bulletPoint: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
     marginRight: 8,
   },
-  ingredientName: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.text,
+  ingredientText: {
+    fontSize: 18,
+    color: '#333',
   },
-  ingredientAmount: {
-    fontSize: 14,
-    color: colors.textSecondary,
+  stepsList: {
+    marginBottom: 24,
   },
-  step: {
+  stepItem: {
     flexDirection: 'row',
     marginBottom: 16,
   },
-  stepNumberContainer: {
-    marginRight: 12,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  stepNumberGradient: {
-    width: '100%',
-    height: '100%',
+  stepCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#CCC',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 12,
+    marginTop: 2,
   },
-  stepNumber: {
-    color: 'white',
-    fontWeight: 'bold',
+  stepCheckboxChecked: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
+  },
+  checkmark: {
+    color: '#FFF',
     fontSize: 14,
+    fontWeight: 'bold',
+  },
+  stepContent: {
+    flex: 1,
   },
   stepText: {
-    flex: 1,
-    fontSize: 16,
-    lineHeight: 24,
-    color: colors.text,
+    fontSize: 18,
+    color: '#333',
+    marginBottom: 4,
   },
-  buttonContainer: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: 'white',
+  timeIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
   },
-}); 
+  timeText: {
+    fontSize: 14,
+    color: '#555',
+    marginLeft: 4,
+  },
+  progressContainer: {
+    marginTop: 16,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+  },
+  progressText: {
+    fontSize: 14,
+    color: '#555',
+    textAlign: 'center',
+  },
+});

@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import colors from '@/constants/colors';
+import BackHeader from '@/components/BackHeader';
 import { usePreferencesStore } from '@/stores/preferencesStore';
 import StylePreferencesStep from '@/components/onboarding/StylePreferencesStep';
 
@@ -48,24 +49,20 @@ export default function PreferencesScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       
-      {/* Header with back button */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Preferences</Text>
-        <TouchableOpacity
-          style={styles.saveButton}
-          onPress={handleSave}
-        >
-          <Text style={styles.saveButtonText}>Save</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Use the new BackHeader component */}
+      <BackHeader 
+        title="Preferences"
+        rightContent={
+          <TouchableOpacity
+            style={styles.saveButton}
+            onPress={handleSave}
+          >
+            <Text style={styles.saveButtonText}>Save</Text>
+          </TouchableOpacity>
+        }
+      />
       
       <ScrollView 
         style={styles.scrollView}
@@ -155,33 +152,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 60 : 30,
-    paddingBottom: 16,
-    backgroundColor: colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  saveButton: {
-    padding: 8,
-  },
-  saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.primary,
-  },
   scrollView: {
     flex: 1,
   },
@@ -246,5 +216,13 @@ const styles = StyleSheet.create({
   preferenceDescription: {
     fontSize: 14,
     color: colors.textSecondary,
+  },
+  saveButton: {
+    padding: 8,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.primary,
   },
 }); 

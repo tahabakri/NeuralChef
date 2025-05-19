@@ -1,20 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, Stack, Link, useLocalSearchParams } from 'expo-router';
 import { useRecipeStore, RecipeError } from '@/stores/recipeStore';
 import { useIngredientsStore } from '@/stores/ingredientsStore';
 import ErrorState from '@/components/ErrorState';
 import LoadingOverlay from '@/components/LoadingOverlay';
+import Button from '@/components/Button'; // Added for Cancel button
+import BackArrow from '@/components/BackArrow'; // Added for header
 import colors from '@/constants/colors';
 import { NetworkManager } from '@/components/OfflineBanner';
-import { generateRecipe } from '@/services/recipeService';
+import { generateRecipe, RecipeErrorType } from '@/services/recipeService';
 import { LinearGradient } from 'expo-linear-gradient';
 
 function GenerateScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const [isOffline, setIsOffline] = useState(NetworkManager.isOffline);
-  const { ingredients } = useIngredientsStore();
+  const { 
+    ingredients: storeIngredients, 
+    setIngredientsBatch: setStoreIngredients, 
+    clearIngredients 
+  } = useIngredientsStore();
   const { setHasNewRecipe } = useRecipeStore();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<RecipeError | null>(null);
@@ -30,122 +37,159 @@ function GenerateScreen() {
   
   // Start recipe generation as soon as the screen loads
   useEffect(() => {
-    if (isOffline) {
-      // Handle offline state
-      return;
-    }
-    
-    if (ingredients.length === 0) {
-      // Redirect back to input if no ingredients
-      router.replace('/input');
-      return;
-    }
-    
-    // Start recipe generation
-    generateRecipeFromIngredients();
-  }, []);
+    const initializeAndGenerate = async () => {
+      if (isOffline) {
+        // setError or show offline message, handled by UI
+        return;
+      }
+
+      let currentIngredients: string[] = [];
+      const isRandomGeneration = params.random === 'true';
+      const mealType = params.mealType as string || 'any';
+
+      if (params.ingredients) {
+        try {
+          const parsedIngredients = JSON.parse(params.ingredients as string);
+          if (Array.isArray(parsedIngredients) && parsedIngredients.every(i => typeof i === 'string')) {
+            currentIngredients = parsedIngredients;
+            // Update store with these ingredients if they came from params
+            // This ensures consistency if user navigates back/forth or if other parts rely on the store
+            setStoreIngredients(currentIngredients.map(name => ({ id: name, name }))); // Simple ID for now
+          }
+        } catch (e) {
+          console.error("Failed to parse ingredients from params:", e);
+          // Fallback or error
+        }
+      } else if (!isRandomGeneration) {
+        currentIngredients = storeIngredients.map(ing => ing.name);
+      }
+
+      if (currentIngredients.length === 0 && !isRandomGeneration) {
+        router.replace('/input');
+        return;
+      }
+      
+      await generateRecipeFromIngredients(currentIngredients, isRandomGeneration, mealType);
+    };
+
+    initializeAndGenerate();
+
+    return () => {
+      // Clear ingredients from the store when the screen is unmounted
+      // This is important to avoid stale ingredients if the user navigates away
+      // and then comes back to input ingredients manually.
+      // However, only clear if not coming from a flow that sets params.ingredients,
+      // as that implies a specific set of ingredients for this generation attempt.
+      // A more robust solution might involve a flag or checking navigation source.
+      // For now, let's clear it to handle the common case of finishing generation.
+      // This might need refinement based on exact back navigation behavior.
+      // clearIngredients(); // Decided to clear explicitly on success/error/cancel
+    };
+  }, [params, isOffline, storeIngredients, setStoreIngredients, router]);
   
-  const generateRecipeFromIngredients = async () => {
+  const generateRecipeFromIngredients = async (ingredientNames: string[], isRandom: boolean = false, mealType: string = 'any') => {
     try {
       setIsLoading(true);
       setError(null);
+      setGenerationStage('initial');
       
-      // Extract ingredient names for generation
-      const ingredientNames = ingredients.map(ing => ing.name);
-      
-      // Stage 1: Generate recipe text using Gemini AI
+      // Stage 1: Generate recipe text
       setGenerationStage('text');
       
-      // Generate the recipe
-      const generatedRecipe = await generateRecipe(ingredientNames);
+      const recipePayload = isRandom 
+        ? { random: true, mealType } 
+        : { ingredients: ingredientNames, mealType };
+
+      const generatedRecipe = await generateRecipe(recipePayload);
       
       if (!generatedRecipe) {
         throw new Error('Failed to generate recipe');
       }
       
-      // Stage 2: Generate images for steps using Runware AI
+      // Stage 2: Simulate image generation
       setGenerationStage('images');
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Shorter delay
       
-      // In a real implementation, this would call an image generation service
-      // Wait a bit to simulate image generation
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Stage 3: Complete - store recipe and navigate
+      // Stage 3: Complete
       setGenerationStage('complete');
-      
-      // Mark as having a new recipe
       setHasNewRecipe(true);
-      
-      // Navigate to recipe screen
+      clearIngredients(); // Clear store on successful generation
       router.replace(`/recipe/${generatedRecipe.id || ''}`);
+
     } catch (err) {
       console.error('Failed to generate recipe:', err);
-      
-      // Set error state
       setError({
-        type: err instanceof Error && err.message.includes('network') ? 'network' : 'generation',
+        type: err instanceof Error && err.message.includes('network') ? RecipeErrorType.NETWORK_ERROR : RecipeErrorType.GENERATE_ERROR,
         message: err instanceof Error ? err.message : 'Failed to generate recipe',
         details: err instanceof Error ? err.stack : undefined,
         timestamp: Date.now()
       });
-      
       setIsLoading(false);
+      // Do not clear ingredients on error, user might want to retry with same.
     }
   };
   
-  // Retry generating the recipe
   const handleRetry = () => {
-    generateRecipeFromIngredients();
+    // Re-trigger generation with the current understanding of ingredients
+    // This logic might need to re-evaluate params vs store similar to useEffect
+    let currentIngredients: string[] = [];
+    const isRandomGeneration = params.random === 'true';
+    const mealType = params.mealType as string || 'any';
+
+    if (params.ingredients) {
+      try {
+        currentIngredients = JSON.parse(params.ingredients as string);
+      } catch (e) { /* ignore */ }
+    } else if (!isRandomGeneration) {
+      currentIngredients = storeIngredients.map(ing => ing.name);
+    }
+    generateRecipeFromIngredients(currentIngredients, isRandomGeneration, mealType);
   };
   
-  // Go back to input screen
   const handleGoBack = () => {
+    clearIngredients(); // Clear store when explicitly going back
     router.replace('/input');
   };
+
+  const handleCancel = () => {
+    clearIngredients(); // Clear store on cancel
+    router.replace('/'); // Navigate to Home
+  };
   
-  // Get loading message based on generation stage
   const getLoadingMessage = (): string => {
+    const baseMessage = params.random === 'true' 
+      ? `Finding a surprise ${params.mealType || 'meal'}...`
+      : 'Crafting your recipe...';
+
     switch (generationStage) {
       case 'text':
-        return 'Crafting your recipe...';
+        return params.random === 'true' ? baseMessage : 'Writing down the steps...';
       case 'images':
-        return 'Creating vivid recipe images...';
+        return params.random === 'true' ? 'Adding some flair...' : 'Visualizing the dish...';
       case 'complete':
-        return 'Finalizing your culinary masterpiece...';
+        return 'Almost ready!';
       default:
-        return 'Preparing ingredients...';
+        return baseMessage;
     }
   };
   
-  // If there's an error, show error screen
   if (error) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar style="dark" />
-        <Stack.Screen options={{
-          title: 'Recipe Generation',
-          headerShown: true,
-          headerBackVisible: false,
-        }} />
-        
+        <Stack.Screen options={{ title: 'Generation Error', headerShown: true, headerBackVisible: false }} />
         <View style={styles.errorContainer}>
           <ErrorState
-            title="Couldn't generate a recipe"
-            message="We couldn't create a recipe with these ingredients. Please try again or use different ingredients."
+            title="Couldn't Generate Recipe"
+            message={error.message || "Something went wrong. Please try again."}
             retryButtonText="Try Again"
             onRetry={handleRetry}
           />
-          
           <View style={styles.backButtonContainer}>
-            <LinearGradient
-              colors={['#FF8C61', '#F96E43']} // "Sunrise Orange" gradient
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.gradientButton}
-            >
-              <Text style={styles.gradientButtonText} onPress={handleGoBack}>
-                Go Back to Ingredients
-              </Text>
+            <LinearGradient colors={['#FF8C61', '#F96E43']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientButton}>
+              <TouchableOpacity onPress={handleGoBack} style={{width: '100%', alignItems: 'center'}}>
+                <Text style={styles.gradientButtonText}>Back to Ingredients</Text>
+              </TouchableOpacity>
             </LinearGradient>
           </View>
         </View>
@@ -153,35 +197,23 @@ function GenerateScreen() {
     );
   }
   
-  // If offline, show offline error
   if (isOffline) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar style="dark" />
-        <Stack.Screen options={{
-          title: 'Offline Mode',
-          headerShown: true,
-          headerBackVisible: false,
-        }} />
-        
+        <Stack.Screen options={{ title: 'Offline', headerShown: true, headerBackVisible: false }} />
         <View style={styles.errorContainer}>
           <ErrorState
-            title="Offline Mode"
-            message="Recipe generation requires an internet connection. Please connect to continue."
-            retryButtonText="Try Again"
-            onRetry={handleRetry}
+            title="You're Offline"
+            message="Recipe generation needs an internet connection. Please check your connection and try again."
+            retryButtonText="Retry"
+            onRetry={handleRetry} // Retry will re-check offline status
           />
-          
           <View style={styles.backButtonContainer}>
-            <LinearGradient
-              colors={['#FF8C61', '#F96E43']} // "Sunrise Orange" gradient
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.gradientButton}
-            >
-              <Text style={styles.gradientButtonText} onPress={handleGoBack}>
-                Go Back to Ingredients
-              </Text>
+             <LinearGradient colors={['#FF8C61', '#F96E43']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientButton}>
+              <TouchableOpacity onPress={handleGoBack} style={{width: '100%', alignItems: 'center'}}>
+                <Text style={styles.gradientButtonText}>Back to Ingredients</Text>
+              </TouchableOpacity>
             </LinearGradient>
           </View>
         </View>
@@ -189,23 +221,30 @@ function GenerateScreen() {
     );
   }
   
-  // Loading screen during generation
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
-      
       <Stack.Screen options={{
-        title: 'Creating Recipe',
+        title: params.random === 'true' ? 'Surprise Me!' : 'Creating Your Recipe',
         headerShown: true,
+        headerLeft: () => (
+          <TouchableOpacity onPress={handleCancel} style={{ marginLeft: Platform.OS === 'ios' ? 16 : 0 }}>
+            <BackArrow />
+          </TouchableOpacity>
+        ),
         headerBackVisible: false,
       }} />
       
       <LoadingOverlay message={getLoadingMessage()} />
       
-      <View style={styles.content}>
-        <Text style={styles.ingredientsText}>
-          Using {ingredients.length} ingredient{ingredients.length !== 1 ? 's' : ''}
-        </Text>
+      <View style={styles.cancelButtonContainer}>
+        <Button
+          title="Cancel"
+          onPress={handleCancel}
+          style={styles.cancelButton}
+          textStyle={styles.cancelButtonText}
+          variant="secondary"
+        />
       </View>
     </SafeAreaView>
   );
@@ -216,30 +255,16 @@ export default GenerateScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-  },
-  ingredientsText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginTop: 8,
-    textAlign: 'center',
-    position: 'absolute',
-    bottom: 40,
+    backgroundColor: colors.background, // Use consistent background
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16,
+    padding: 24, // Increased padding
   },
   backButtonContainer: {
-    marginTop: 16,
+    marginTop: 24, // Increased spacing
     width: '100%',
   },
   gradientButton: {
@@ -247,10 +272,24 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     paddingVertical: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   gradientButtonText: {
     color: colors.white,
     fontWeight: '600',
     fontSize: 16,
   },
-}); 
+  cancelButtonContainer: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 40 : 20, // Adjust for platform
+    left: 24, // Consistent padding
+    right: 24, // Consistent padding
+  },
+  cancelButton: {
+    backgroundColor: colors.textTertiary, // Use color from constants
+    borderColor: colors.textTertiary,
+  },
+  cancelButtonText: {
+    color: colors.textSecondary, // Contrasting text color
+  },
+});

@@ -8,7 +8,7 @@ import spacing from '@/constants/spacing';
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'outline' | 'gradient';
+  variant?: 'primary' | 'secondary' | 'outline' | 'gradient' | 'success';
   size?: 'small' | 'medium' | 'large';
   loading?: boolean;
   disabled?: boolean;
@@ -36,6 +36,7 @@ const Button = ({
   const isPrimary = variant === 'primary';
   const isOutline = variant === 'outline';
   const isGradient = variant === 'gradient';
+  const isSuccess = variant === 'success';
   
   const getButtonStyles = (): ViewStyle => {
     let buttonStyle: ViewStyle = {
@@ -52,6 +53,11 @@ const Button = ({
         borderWidth: 1,
         borderColor: colors.primary,
       };
+    } else if (isSuccess) {
+      buttonStyle = {
+        ...buttonStyle,
+        backgroundColor: colors.success,
+      };
     } else if (!isPrimary && !isGradient) {
       buttonStyle = {
         ...buttonStyle,
@@ -59,13 +65,15 @@ const Button = ({
       };
     }
 
-    // Apply shadow for gradient and primary buttons
-    if ((isPrimary || isGradient) && !disabled) {
+    // Apply shadow for gradient, primary and success buttons
+    if ((isPrimary || isGradient || isSuccess) && !disabled) {
       buttonStyle = {
         ...buttonStyle,
         ...styles.buttonShadow,
         // Add extra shadow for gradient buttons
-        ...(isGradient && styles.gradientButtonShadow)
+        ...(isGradient && styles.gradientButtonShadow),
+        // Add success button shadow
+        ...(isSuccess && styles.successButtonShadow)
       };
     }
     
@@ -83,7 +91,7 @@ const Button = ({
         ...textStyleObj,
         color: colors.primary,
       };
-    } else if (!isPrimary && !isGradient) {
+    } else if (!isPrimary && !isGradient && !isSuccess) {
       textStyleObj = {
         ...textStyleObj,
         color: colors.primary,
@@ -122,6 +130,28 @@ const Button = ({
       >
         <LinearGradient
           colors={gradientColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0.8 }}
+          style={styles.gradient}
+        >
+          {renderContent()}
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
+  
+  // Use gradient for success buttons too
+  if (isSuccess && !disabled) {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={onPress}
+        disabled={disabled || loading}
+        style={[getButtonStyles(), style]}
+        accessibilityLabel={accessibilityLabel}
+      >
+        <LinearGradient
+          colors={[colors.success, '#2d8a4f']} // Darker success color
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0.8 }}
           style={styles.gradient}
@@ -185,6 +215,19 @@ const styles = StyleSheet.create({
       },
       android: {
         elevation: 6,
+      },
+    }),
+  },
+  successButtonShadow: {
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.success,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 5,
       },
     }),
   },

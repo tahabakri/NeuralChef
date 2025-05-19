@@ -9,6 +9,12 @@ const colors = {
     secondary: "#FF9800", // Orange - secondary accent
     secondaryLight: "#FFCC80",
     secondaryDark: "#EF6C00",
+
+    // Specific UI colors from feedback
+    softPeachStart: "#FFF3E0",
+    softPeachEnd: "#FFE0B2", // Also used as warningLight
+    sunriseOrange: "#FFA726",
+    cancelButtonGray: "#B0BEC5",
     
     // Accent colors for info pills
     accentBlue: "#2196F3",
@@ -49,8 +55,11 @@ const colors = {
     textTertiary: "#9E9E9E",
     textLight: "#FFFFFF",
     textDark: "#000000",
+    textDisabled: "#BDBDBD", // Added for disabled text elements
     
     // UI elements
+    backgroundDisabled: "#EEEEEE", // Added for disabled button backgrounds
+    iconDisabledBackground: "#F5F5F5", // Added for disabled icon container backgrounds
     border: "#E0E0E0",
     borderActive: "#BBDEFB",
     divider: "#EEEEEE",

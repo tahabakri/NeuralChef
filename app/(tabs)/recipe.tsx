@@ -1,21 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { StyleSheet, View, SafeAreaView, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import RecipeView from '@/components/RecipeView';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import Button from '@/components/Button';
-import { useRecipe, useRecipeLoading, useRecipeError, getUserFriendlyErrorMessage } from '@/stores/recipeStore';
+import { useRecipe, useRecipeLoading, useRecipeError } from '@/stores/recipeStore';
+import { type Recipe as ServiceRecipe, getUserFriendlyErrorMessage, Difficulty, type Ingredient } from '@/services/recipeService';
 import { useSavedRecipesStore } from '@/stores/savedRecipesStore';
 import colors from '@/constants/colors';
+import { useUndoStore } from '@/stores/undoStore';
+import BackArrow from '@/components/BackArrow';
 
 export default function RecipeScreen() {
   const router = useRouter();
-  
-  // Get recipe from store using dedicated selectors
   const recipe = useRecipe();
-  const recipeLoading = useRecipeLoading(); // Matches original variable name 'recipeLoading'
+  const recipeLoading = useRecipeLoading();
   const error = useRecipeError();
   const { savedRecipes, saveRecipe, removeSavedRecipe, isSaved } = useSavedRecipesStore();
+  const { setCurrentScreen } = useUndoStore();
+  
+  // Set current screen for undo functionality
+  React.useEffect(() => {
+    setCurrentScreen('recipe');
+  }, [setCurrentScreen]);
   
   // Navigate to input
   const handleNewRecipe = () => {
@@ -68,16 +75,44 @@ export default function RecipeScreen() {
   
   return (
     <View style={styles.container}>
-      <RecipeView 
-        recipe={recipe}
+      <View style={styles.backContainer}>
+        <BackArrow />
+      </View>
+      <RecipeView
+        recipe={{
+          id: recipe.id,
+          title: recipe.title,
+          description: recipe.description || '', // Ensure description is not undefined
+          ingredients: recipe.ingredients.map(ing => `${ing.amount || ''} ${ing.unit || ''} ${ing.name}`.trim()),
+          steps: recipe.steps.map(s => ({ instruction: s.instruction })),
+          heroImage: recipe.heroImage,
+          cookTime: recipe.cookTime ? `${recipe.cookTime} min` : undefined,
+          prepTime: 'N/A',
+          servings: 4, // Default servings as it's not in store recipe
+          rating: recipe.rating,
+          category: recipe.tags?.[0] // Use first tag as category
+        }}
         isSaved={isSaved(recipe.title)}
         onBack={handleBack}
-        onToggleSave={(recipeId) => {
+        onToggleSave={() => {
           const recipeIsSaved = isSaved(recipe.title);
           if (recipeIsSaved) {
             removeSavedRecipe(recipe.title);
           } else {
-            saveRecipe(recipe);
+            // Transform recipe to ServiceRecipe for saving
+            const recipeToSave: ServiceRecipe = {
+              id: recipe.id,
+              title: recipe.title,
+              description: recipe.description || '',
+              cookTime: recipe.cookTime,
+              ingredients: recipe.ingredients,
+              heroImage: recipe.heroImage,
+              steps: recipe.steps,
+              difficulty: 'Medium' as Difficulty, // Default difficulty
+              rating: recipe.rating || 3.5, // Default rating if not available
+              tags: recipe.tags || []
+            };
+            saveRecipe(recipeToSave);
           }
         }}
       />
@@ -111,4 +146,10 @@ const styles = StyleSheet.create({
   errorButton: {
     minWidth: 200,
   },
+  backContainer: {
+    position: 'absolute',
+    top: 16,
+    left: 0,
+    zIndex: 10,
+  }
 });

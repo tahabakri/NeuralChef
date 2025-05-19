@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import colors from '@/constants/colors';
+import HomeScreen from '@/components/HomeScreen';
 
 export default function Index() {
   const { onboardingComplete } = useOnboardingStore();
@@ -25,11 +26,11 @@ export default function Index() {
     );
   }
   
-  // Redirect based on onboarding completion status
+  // Redirect to onboarding if not completed
   if (!onboardingComplete) {
     return <Redirect href="/onboarding" />;
   }
   
-  // If onboarding is completed, redirect to the input screen
-  return <Redirect href="/input" />;
+  // If onboarding is completed, show the HomeScreen
+  return <HomeScreen />;
 }

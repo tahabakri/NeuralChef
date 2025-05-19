@@ -22,6 +22,7 @@ interface IngredientsActions {
   addIngredient: (ingredient: string | Ingredient) => void;
   removeIngredient: (id: string) => void;
   updateIngredient: (id: string, updates: Partial<Ingredient>) => void;
+  setIngredientsBatch: (newIngredients: Ingredient[]) => void; // New action
   clearIngredients: () => void;
   toggleIngredient: (id: string) => void;
   addRecentIngredient: (name: string) => void;
@@ -80,6 +81,11 @@ export const useIngredientsStore = create<IngredientsState & IngredientsActions>
       )
     }));
     
+    get().saveIngredients();
+  },
+
+  setIngredientsBatch: (newIngredients) => {
+    set({ ingredients: newIngredients });
     get().saveIngredients();
   },
   
@@ -171,4 +177,4 @@ export const useIngredientsStore = create<IngredientsState & IngredientsActions>
 // Initialize by loading saved data
 if (typeof window !== 'undefined') {
   useIngredientsStore.getState().loadIngredients();
-} 
+}

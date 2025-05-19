@@ -17,6 +17,8 @@ import colors from '@/constants/colors';
 interface VoiceInputModalProps {
   onComplete: (recognizedText: string) => void;
   onClose: () => void;
+  visible?: boolean;
+  onInputReceived?: (text: string) => void;
 }
 
 // Placeholder for actual voice recognition implementation
@@ -31,7 +33,12 @@ const simulateVoiceRecognition = (): Promise<string> => {
   });
 };
 
-export default function VoiceInputModal({ onComplete, onClose }: VoiceInputModalProps) {
+export default function VoiceInputModal({ 
+  onComplete, 
+  onClose, 
+  visible = true,
+  onInputReceived
+}: VoiceInputModalProps) {
   const [isListening, setIsListening] = useState(false);
   const [recognizedText, setRecognizedText] = useState('');
   
@@ -92,7 +99,11 @@ export default function VoiceInputModal({ onComplete, onClose }: VoiceInputModal
   // Handle completion
   const handleComplete = () => {
     if (recognizedText) {
+      // Call both for compatibility
       onComplete(recognizedText);
+      if (onInputReceived) {
+        onInputReceived(recognizedText);
+      }
     } else {
       onClose();
     }
@@ -100,7 +111,7 @@ export default function VoiceInputModal({ onComplete, onClose }: VoiceInputModal
   
   return (
     <Modal
-      visible={true}
+      visible={visible}
       animationType="slide"
       transparent={true}
       onRequestClose={onClose}

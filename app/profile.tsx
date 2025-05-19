@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import colors from '@/constants/colors';
+import BackHeader from '@/components/BackHeader';
 import { useUserStore, User } from '@/stores/userStore';
 
 export default function ProfileScreen() {
@@ -97,19 +98,11 @@ export default function ProfileScreen() {
     <View style={styles.container}>
       <StatusBar style="light" />
       
-      {/* Header */}
-      <LinearGradient
-        colors={['#6A5ACD', '#836FFF']} // Purple gradient
-        style={styles.headerGradient}
-      >
-        <View style={styles.headerContent}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Profile</Text>
+      {/* Replace with BackHeader */}
+      <BackHeader 
+        title="Profile"
+        transparent={true}
+        rightContent={
           <TouchableOpacity
             style={styles.editButton}
             onPress={toggleEditMode}
@@ -118,8 +111,14 @@ export default function ProfileScreen() {
               {isEditing ? 'Cancel' : 'Edit'}
             </Text>
           </TouchableOpacity>
-        </View>
-      </LinearGradient>
+        }
+      />
+      
+      {/* Background Gradient */}
+      <LinearGradient
+        colors={['#6A5ACD', '#836FFF']} // Purple gradient
+        style={styles.headerGradient}
+      />
       
       <ScrollView 
         style={styles.scrollView}

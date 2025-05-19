@@ -32,6 +32,7 @@ import StarRating from '@/components/StarRating';
 import SaveButton from '@/components/SaveButton';
 import ShareModal from '@/components/ShareModal';
 import EditIngredients from '@/components/EditIngredients';
+import BackHeader from '@/components/BackHeader';
 import { useFeedback } from '@/components/FeedbackSystem';
 import colors from '@/constants/colors';
 import { useRecipeStore } from '@/stores/recipeStore';
@@ -343,55 +344,38 @@ export default function RecipeScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
       
-      {/* Gray Gradient Header */}
-      <LinearGradient
-        colors={['#607D8B', '#CFD8DC']}
-        style={styles.headerGradient}
-      >
-        <View style={styles.headerContent}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.back()}
-            accessibilityLabel="Go back"
-          >
-            <Ionicons name="chevron-back" size={28} color="white" />
-          </TouchableOpacity>
-          
-          <View style={styles.headerActions}>
-            <TouchableOpacity 
-              style={styles.headerButton}
-              onPress={toggleSaved}
-              accessibilityLabel={isSaved ? "Remove from saved recipes" : "Save recipe"}
-            >
-              <Ionicons 
-                name={isSaved ? "bookmark" : "bookmark-outline"} 
-                size={24} 
-                color="white" 
-              />
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.headerButton}
-              onPress={openShareModal}
-              accessibilityLabel="Share recipe"
-            >
-              <Ionicons name="share-outline" size={24} color="white" />
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.headerButton}
-              onPress={toggleVoiceNavigation}
-              accessibilityLabel={isListening ? "Turn off voice navigation" : "Turn on voice navigation"}
-            >
-              <Ionicons 
-                name={isListening ? "mic" : "mic-outline"} 
-                size={24} 
-                color="white" 
-              />
-            </TouchableOpacity>
+      {/* Hero Image */}
+      <View style={styles.heroContainer}>
+        {recipe?.heroImage ? (
+          <Image 
+            source={{ uri: recipe.heroImage }} 
+            style={styles.heroImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.placeholderHero}>
+            <Ionicons name="restaurant-outline" size={48} color="rgba(0,0,0,0.2)" />
           </View>
-        </View>
-      </LinearGradient>
+        )}
+        <LinearGradient
+          colors={['rgba(0,0,0,0.7)', 'transparent']}
+          style={styles.heroGradient}
+          pointerEvents="none"
+        />
+      </View>
+      
+      {/* Back Header */}
+      <BackHeader 
+        transparent={true}
+        rightContent={
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={openShareModal}
+          >
+            <Ionicons name="share-outline" size={24} color="white" />
+          </TouchableOpacity>
+        }
+      />
       
       <ScrollView 
         ref={scrollViewRef}
@@ -673,20 +657,29 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heroContainer: {
-    height: 300,
+    height: 250,
     width: '100%',
-    marginTop: -20, // Overlap with header
+    position: 'absolute',
+    top: 0,
+    zIndex: 1,
   },
   heroImage: {
-    height: '100%',
     width: '100%',
+    height: '100%',
+  },
+  placeholderHero: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.backgroundAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   heroGradient: {
     position: 'absolute',
-    bottom: 0,
+    top: 0,
     left: 0,
     right: 0,
-    height: 150,
+    height: 100,
   },
   heroContent: {
     position: 'absolute',
@@ -837,10 +830,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   actionButton: {
-    flex: 1,
-    marginHorizontal: 4,
-    borderRadius: 12,
-    overflow: 'hidden',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   actionButtonGradient: {
     flexDirection: 'row',

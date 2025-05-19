@@ -14,6 +14,7 @@ import colors from '@/constants/colors';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import typography from '@/constants/typography';
+import BackArrow from '@/components/BackArrow';
 
 interface StylePreferencesStepProps {
   onNext: () => void;
@@ -92,9 +93,7 @@ const StylePreferencesStep = ({ onNext, onPrevious, stepIndex, totalSteps }: Sty
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={onPrevious} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={colors.text} />
-        </TouchableOpacity>
+        <BackArrow onBack={onPrevious} />
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
             <View style={[styles.progress, { width: `${((stepIndex + 1) / totalSteps) * 100}%` }]} />

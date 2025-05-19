@@ -18,14 +18,12 @@ import colors from '@/constants/colors';
 import ThemeSwitch from '@/components/ThemeSwitch';
 import NotificationSwitch from '@/components/NotificationSwitch';
 import VoiceSwitch from '@/components/VoiceSwitch';
-import StylePreferencesStep from '@/components/onboarding/StylePreferencesStep';
 import ConfirmModal from '@/components/ConfirmModal';
 
 export default function SettingsScreen() {
   const router = useRouter();
   
   // State for modals
-  const [preferencesModalVisible, setPreferencesModalVisible] = useState(false);
   const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
   const [deleteDataConfirmVisible, setDeleteDataConfirmVisible] = useState(false);
   
@@ -47,15 +45,7 @@ export default function SettingsScreen() {
   
   // Handle edit preferences
   const handleEditPreferences = () => {
-    setPreferencesModalVisible(true);
-  };
-  
-  // Handle preferences modal completion
-  const handlePreferencesSave = () => {
-    if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
-    setPreferencesModalVisible(false);
+    router.push('/preferences');
   };
   
   // Handle logout
@@ -171,35 +161,6 @@ export default function SettingsScreen() {
           />
         </View>
       </ScrollView>
-      
-      {/* Preferences Modal */}
-      <Modal
-        visible={preferencesModalVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setPreferencesModalVisible(false)}
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Dietary Preferences</Text>
-            <TouchableOpacity
-              style={styles.modalCloseButton}
-              onPress={() => setPreferencesModalVisible(false)}
-            >
-              <Ionicons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.modalContent}>
-            <StylePreferencesStep
-              onNext={handlePreferencesSave}
-              onPrevious={() => setPreferencesModalVisible(false)} // Renamed onBack to onPrevious
-              stepIndex={0} // Added stepIndex
-              totalSteps={1} // Added totalSteps
-            />
-          </View>
-        </SafeAreaView>
-      </Modal>
       
       {/* Logout Confirmation Modal */}
       <ConfirmModal

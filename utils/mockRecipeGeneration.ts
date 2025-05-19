@@ -30,7 +30,7 @@ export interface RecipePreferences {
   dietaryRestrictions?: ('vegetarian' | 'vegan' | 'gluten-free' | 'dairy-free' | 'low-carb')[];
   mealType?: 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'dessert';
   cookingTime?: 'quick' | 'medium' | 'slow';
-  skillLevel?: 'beginner' | 'intermediate' | 'advanced';
+  skillLevel?: 'easy' | 'medium' | 'hard'; // Unified with GeneratedRecipe.difficulty
   cuisine?: string;
   excludeIngredients?: string[];
 }
@@ -538,15 +538,21 @@ function filterTemplatesByPreferences(templates: GeneratedRecipe[], preferences:
     
     // Filter by skill level
     if (preferences.skillLevel && preferences.skillLevel !== template.difficulty) {
-      if (preferences.skillLevel === 'beginner' && template.difficulty !== 'easy') {
-        return false;
-      }
-      if (preferences.skillLevel === 'intermediate' && template.difficulty !== 'medium') {
-        return false;
-      }
-      if (preferences.skillLevel === 'advanced' && template.difficulty !== 'hard') {
-        return false;
-      }
+      // This direct comparison is now valid as types are unified.
+      // The more specific checks below are redundant if the types are identical,
+      // but kept for clarity or if subtle differences were intended.
+      // However, with unified types, this simpler check is sufficient:
+      return false; 
+      // Original detailed logic (now redundant if types are identical):
+      // if (preferences.skillLevel === 'easy' && template.difficulty !== 'easy') {
+      //   return false;
+      // }
+      // if (preferences.skillLevel === 'medium' && template.difficulty !== 'medium') {
+      //   return false;
+      // }
+      // if (preferences.skillLevel === 'hard' && template.difficulty !== 'hard') {
+      //   return false;
+      // }
     }
     
     // Filter by excluded ingredients
@@ -641,4 +647,4 @@ function modifySteps(steps: RecipeStep[]): RecipeStep[] {
   }
   
   return modifiedSteps;
-} 
+}

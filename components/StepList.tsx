@@ -19,11 +19,16 @@ import Animated, {
   FadeOut,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { GestureHandlerRootView, Swipeable, PanGestureHandler } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
+import { usePathname } from 'expo-router';
 import colors from '@/constants/colors';
 import ImageStep from './ImageStep';
 import TimerButton from './TimerButton';
 import StepCheckbox from './StepCheckbox';
+import gradients from '@/constants/gradients';
+import { useUndoStore } from '@/stores/undoStore';
 
 interface Step {
   instruction: string;
@@ -53,9 +58,19 @@ export default function StepList({
     new Array(steps.length).fill(true)
   );
   const [activeTimers, setActiveTimers] = useState<Set<number>>(new Set());
+  const [activeStepIndex, setActiveStepIndex] = useState<number>(0);
+  
+  const pathname = usePathname();
+  const addAction = useUndoStore(state => state.addAction);
+  const setCurrentScreen = useUndoStore(state => state.setCurrentScreen);
   
   const scrollViewRef = useRef<ScrollView>(null);
   const progressWidth = useRef(new RNAnimated.Value(0)).current;
+  
+  // Set current screen for undo functionality
+  React.useEffect(() => {
+    setCurrentScreen('recipe');
+  }, [setCurrentScreen]);
   
   // Calculate progress percentage
   const completedCount = completedSteps.filter(Boolean).length;
@@ -75,8 +90,25 @@ export default function StepList({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     const newCompletedSteps = [...completedSteps];
-    newCompletedSteps[index] = !newCompletedSteps[index];
+    const previousValue = newCompletedSteps[index];
+    newCompletedSteps[index] = !previousValue;
     setCompletedSteps(newCompletedSteps);
+    
+    // Add to undo store for undo functionality
+    addAction({
+      type: 'TOGGLE_STEP_COMPLETE',
+      payload: { index, value: previousValue },
+      screen: 'recipe',
+      undo: () => {
+        const undoSteps = [...newCompletedSteps];
+        undoSteps[index] = previousValue;
+        setCompletedSteps(undoSteps);
+        
+        if (onStepComplete) {
+          onStepComplete(index, previousValue);
+        }
+      }
+    });
     
     if (onStepComplete) {
       onStepComplete(index, newCompletedSteps[index]);
@@ -84,12 +116,7 @@ export default function StepList({
     
     // If a step was marked as complete and there's a next step, scroll to it
     if (newCompletedSteps[index] && index < steps.length - 1 && autoScrollToNextStep) {
-      setTimeout(() => {
-        scrollViewRef.current?.scrollTo({
-          y: (index + 1) * 160, // Approximate height of a step
-          animated: true,
-        });
-      }, 500);
+      navigateToStep(index + 1);
     }
   };
   
@@ -127,12 +154,61 @@ export default function StepList({
     }
   };
   
+  // Navigate to specific step
+  const navigateToStep = (index: number) => {
+    if (index < 0 || index >= steps.length) return;
+    
+    setActiveStepIndex(index);
+    
+    // Provide haptic feedback
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // Ensure the step is expanded
+    if (!expandedSteps[index]) {
+      const newExpandedSteps = [...expandedSteps];
+      newExpandedSteps[index] = true;
+      setExpandedSteps(newExpandedSteps);
+    }
+    
+    // Scroll to the step
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({
+        y: index * 220, // Approximate height including the new navigation buttons
+        animated: true,
+      });
+    }, 100);
+  };
+  
+  // Handle previous step navigation
+  const handlePreviousStep = (index: number) => {
+    navigateToStep(index - 1);
+  };
+  
+  // Handle next step navigation
+  const handleNextStep = (index: number) => {
+    navigateToStep(index + 1);
+  };
+  
+  // Handle swipe gestures
+  const handleSwipeLeft = (index: number) => {
+    if (index < steps.length - 1) {
+      navigateToStep(index + 1);
+    }
+  };
+  
+  const handleSwipeRight = (index: number) => {
+    if (index > 0) {
+      navigateToStep(index - 1);
+    }
+  };
+  
   // Render individual step
   const renderStep = ({ item, index }: { item: Step, index: number }) => {
     const isCompleted = completedSteps[index];
     const isExpanded = expandedSteps[index];
     const hasTimer = item.hasTimer && item.timerDuration;
     const isTimerActive = activeTimers.has(index);
+    const isActive = index === activeStepIndex;
     
     // Animated values for step animation
     const itemOpacity = useSharedValue(1);
@@ -146,77 +222,173 @@ export default function StepList({
       };
     });
     
-    return (
-      <Animated.View 
-        style={[styles.stepContainer, animatedStyle]}
-        entering={FadeIn.duration(500).delay(index * 100)}
-      >
-        <View style={styles.stepHeader}>
-          <View style={styles.stepNumberContainer}>
-            <Text style={styles.stepNumber}>{index + 1}</Text>
-          </View>
-          
-          <TouchableOpacity
-            style={styles.expandButton}
-            onPress={() => toggleExpandStep(index)}
-          >
-            <Ionicons 
-              name={isExpanded ? "chevron-up" : "chevron-down"} 
-              size={20} 
-              color={colors.textSecondary} 
-            />
-          </TouchableOpacity>
-          
-          <StepCheckbox
-            checked={isCompleted}
-            onToggle={() => handleStepComplete(index)}
-          />
+    // Render swipe actions
+    const renderRightActions = () => {
+      if (index === 0) return null;
+      return (
+        <View style={styles.swipeActionContainer}>
+          <Text style={styles.swipeActionText}>Previous</Text>
+          <Ionicons name="chevron-back" size={24} color={colors.textSecondary} />
         </View>
-        
-        {isExpanded && (
+      );
+    };
+    
+    const renderLeftActions = () => {
+      if (index === steps.length - 1) return null;
+      return (
+        <View style={[styles.swipeActionContainer, styles.swipeActionContainerRight]}>
+          <Ionicons name="chevron-forward" size={24} color={colors.textSecondary} />
+          <Text style={styles.swipeActionText}>Next</Text>
+        </View>
+      );
+    };
+    
+    return (
+      <GestureHandlerRootView>
+        <Swipeable
+          renderRightActions={renderRightActions}
+          renderLeftActions={renderLeftActions}
+          onSwipeableOpen={(direction) => {
+            if (direction === 'right') {
+              handleSwipeRight(index);
+            } else {
+              handleSwipeLeft(index);
+            }
+          }}
+          overshootRight={false}
+          overshootLeft={false}
+        >
           <Animated.View 
-            entering={FadeIn}
-            exiting={FadeOut}
+            style={[
+              styles.stepContainer, 
+              isActive && styles.activeStepContainer,
+              animatedStyle
+            ]}
+            entering={FadeIn.duration(500).delay(index * 100)}
           >
-            {item.imageUrl && (
-              <ImageStep 
-                imageUrl={item.imageUrl} 
-                isCompleted={isCompleted}
-                altText={`Step ${index + 1}: ${item.instruction}`}
-                onRegenerateImage={onRegenerateImage ? () => handleRegenerateImage(index) : undefined}
-              />
-            )}
-            
-            <Text style={[
-              styles.stepInstruction, 
-              isCompleted && styles.completedStepInstruction
-            ]}>
-              {item.instruction}
-            </Text>
-            
-            {/* Timer Button */}
-            {hasTimer && (
-              <View style={styles.timerContainer}>
-                <TimerButton
-                  duration={item.timerDuration || 0}
-                  isActive={isTimerActive}
-                  isCompleted={isCompleted}
-                  onStart={() => handleTimerStart(index)}
-                  onComplete={() => handleTimerComplete(index)}
+            <View style={styles.stepHeader}>
+              <View style={styles.stepNumberContainer}>
+                <Text style={styles.stepNumber}>{index + 1}</Text>
+              </View>
+              
+              <TouchableOpacity
+                style={styles.expandButton}
+                onPress={() => toggleExpandStep(index)}
+              >
+                <Ionicons 
+                  name={isExpanded ? "chevron-up" : "chevron-down"} 
+                  size={20} 
+                  color={colors.textSecondary} 
                 />
-              </View>
-            )}
+              </TouchableOpacity>
+              
+              <StepCheckbox
+                checked={isCompleted}
+                onToggle={() => handleStepComplete(index)}
+              />
+            </View>
             
-            {/* Optional tip */}
-            {item.tip && (
-              <View style={styles.tipContainer}>
-                <Ionicons name="bulb-outline" size={16} color={colors.warning} />
-                <Text style={styles.tipText}>{item.tip}</Text>
-              </View>
+            {isExpanded && (
+              <Animated.View 
+                entering={FadeIn}
+                exiting={FadeOut}
+              >
+                {item.imageUrl && (
+                  <ImageStep 
+                    imageUrl={item.imageUrl} 
+                    isCompleted={isCompleted}
+                    altText={`Step ${index + 1}: ${item.instruction}`}
+                    onRegenerateImage={onRegenerateImage ? () => handleRegenerateImage(index) : undefined}
+                  />
+                )}
+                
+                <Text style={[
+                  styles.stepInstruction, 
+                  isCompleted && styles.completedStepInstruction
+                ]}>
+                  {item.instruction}
+                </Text>
+                
+                {/* Timer Button */}
+                {hasTimer && (
+                  <View style={styles.timerContainer}>
+                    <TimerButton
+                      duration={item.timerDuration || 0}
+                      isActive={isTimerActive}
+                      isCompleted={isCompleted}
+                      onStart={() => handleTimerStart(index)}
+                      onComplete={() => handleTimerComplete(index)}
+                    />
+                  </View>
+                )}
+                
+                {/* Optional tip */}
+                {item.tip && (
+                  <View style={styles.tipContainer}>
+                    <Ionicons name="bulb-outline" size={16} color={colors.warning} />
+                    <Text style={styles.tipText}>{item.tip}</Text>
+                  </View>
+                )}
+                
+                {/* Navigation buttons */}
+                <View style={styles.navigationContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.navigationButton,
+                      index === 0 && styles.disabledButton
+                    ]}
+                    onPress={() => handlePreviousStep(index)}
+                    disabled={index === 0}
+                  >
+                    {index > 0 ? (
+                      <LinearGradient
+                        colors={gradients.sunriseOrange.colors}
+                        start={gradients.sunriseOrange.direction.start}
+                        end={gradients.sunriseOrange.direction.end}
+                        style={styles.navigationButtonGradient}
+                      >
+                        <Ionicons name="arrow-back" size={18} color={colors.white} />
+                        <Text style={styles.navigationButtonText}>Previous</Text>
+                      </LinearGradient>
+                    ) : (
+                      <View style={[styles.navigationButtonGradient, styles.disabledButtonContent]}>
+                        <Ionicons name="arrow-back" size={18} color={colors.textTertiary} />
+                        <Text style={styles.disabledButtonText}>Previous</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity
+                    style={[
+                      styles.navigationButton,
+                      index === steps.length - 1 && styles.disabledButton
+                    ]}
+                    onPress={() => handleNextStep(index)}
+                    disabled={index === steps.length - 1}
+                  >
+                    {index < steps.length - 1 ? (
+                      <LinearGradient
+                        colors={gradients.sunriseOrange.colors}
+                        start={gradients.sunriseOrange.direction.start}
+                        end={gradients.sunriseOrange.direction.end}
+                        style={styles.navigationButtonGradient}
+                      >
+                        <Text style={styles.navigationButtonText}>Next</Text>
+                        <Ionicons name="arrow-forward" size={18} color={colors.white} />
+                      </LinearGradient>
+                    ) : (
+                      <View style={[styles.navigationButtonGradient, styles.disabledButtonContent]}>
+                        <Text style={styles.disabledButtonText}>Next</Text>
+                        <Ionicons name="arrow-forward" size={18} color={colors.textTertiary} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
             )}
           </Animated.View>
-        )}
-      </Animated.View>
+        </Swipeable>
+      </GestureHandlerRootView>
     );
   };
 
@@ -309,6 +481,10 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  activeStepContainer: {
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
   stepHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -387,5 +563,63 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     fontFamily: 'Poppins-Regular',
+  },
+  navigationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  navigationButton: {
+    flex: 1,
+    maxWidth: '48%',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  navigationButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  navigationButtonText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '600',
+    marginHorizontal: 6,
+    fontFamily: 'Poppins-Medium',
+  },
+  disabledButton: {
+    opacity: 0.7,
+    backgroundColor: colors.backgroundAlt,
+  },
+  disabledButtonContent: {
+    backgroundColor: colors.backgroundAlt,
+  },
+  disabledButtonText: {
+    color: colors.textTertiary,
+    fontSize: 14,
+    fontWeight: '600',
+    marginHorizontal: 6,
+    fontFamily: 'Poppins-Medium',
+  },
+  swipeActionContainer: {
+    backgroundColor: colors.backgroundAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 100,
+    height: '100%',
+    flexDirection: 'row',
+  },
+  swipeActionContainerRight: {
+    justifyContent: 'flex-end',
+  },
+  swipeActionText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    marginHorizontal: 4,
+    fontFamily: 'Poppins-Medium',
   },
 }); 

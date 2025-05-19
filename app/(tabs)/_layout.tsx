@@ -1,7 +1,8 @@
 import React from "react";
 import { Tabs } from "expo-router";
 import { View, Platform, Dimensions, StyleSheet } from "react-native";
-import { Home, Bookmark, History, Settings, Flame } from 'lucide-react-native';
+import { Home, Bookmark, History, Settings, Flame, Calendar } from 'lucide-react-native';
+import OfflineBanner from '@/components/OfflineBanner';
 import Animated, { 
   useAnimatedStyle, 
   withTiming, 
@@ -151,6 +152,45 @@ function ActiveIndicator({ focused }: { focused: boolean }) {
   );
 }
 
+const tabs = [
+  {
+    name: 'index',
+    label: 'Home',
+    icon: 'home',
+    color: colors.primary
+  },
+  {
+    name: 'recipe',
+    label: 'Recipes',
+    icon: 'restaurant',
+    color: colors.secondary
+  },
+  {
+    name: 'meal-planner',
+    label: 'Meal Planner',
+    icon: 'calendar',
+    color: colors.secondary
+  },
+  {
+    name: 'saved',
+    label: 'Saved',
+    icon: 'bookmark',
+    color: colors.success 
+  },
+  {
+    name: 'history',
+    label: 'History',
+    icon: 'time',
+    color: colors.info
+  },
+  {
+    name: 'settings',
+    label: 'Settings',
+    icon: 'settings',
+    color: colors.textTertiary
+  },
+];
+
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 49 + insets.bottom : 56;
@@ -158,9 +198,10 @@ export default function TabsLayout() {
   const hasNewRecipe = useRecipeStore(state => state.hasNewRecipe);
   
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: colors.primary,
+    <View style={{ flex: 1 }}>
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textTertiary,
         tabBarStyle: {
           height: TAB_BAR_HEIGHT,
@@ -180,7 +221,7 @@ export default function TabsLayout() {
         tabBarLabelStyle: {
           fontFamily: 'OpenSans-Medium',
           fontSize: 12,
-          marginTop: 2,
+          marginTop: 1,
         },
       }}
     >
@@ -208,6 +249,20 @@ export default function TabsLayout() {
               focused={focused} 
               color={color} 
               accessibilityLabel="Popular recipes tab"
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="meal-planner"
+        options={{
+          title: 'Meal Planner',
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon 
+              icon={Calendar} 
+              focused={focused} 
+              color={color} 
+              accessibilityLabel="Meal planner tab"
             />
           ),
         }}
@@ -255,6 +310,8 @@ export default function TabsLayout() {
           ),
         }}
       />
-    </Tabs>
+      </Tabs>
+      <OfflineBanner />
+    </View>
   );
 }

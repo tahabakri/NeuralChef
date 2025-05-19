@@ -29,6 +29,8 @@ import colors from '@/constants/colors';
 import { commonIngredients, validateIngredient } from '@/constants/ingredients';
 import CustomTag from './CustomTag';
 import VoiceInputModal from './VoiceInputModal';
+import { Ionicons } from '@expo/vector-icons';
+import typography from '@/constants/typography';
 
 interface TagInputProps {
   label?: string;
@@ -86,7 +88,7 @@ export default function TagInput({
   const [invalidTags, setInvalidTags] = useState<Record<string, string>>({});
   const [voiceModalVisible, setVoiceModalVisible] = useState(false);
   const inputRef = useRef<TextInput>(null);
-  const animatedHeight = useRef(new Animated.Value(0)).current;
+  const animatedHeight = useSharedValue(0);
   
   // Parse comma-separated string into array of tags
   const tagsArray = value.split(',').filter(tag => tag.trim() !== '').map(tag => tag.trim());
@@ -102,11 +104,10 @@ export default function TagInput({
       setShowSuggestions(filtered.length > 0);
       
       // Animate suggestion panel
-      Animated.timing(animatedHeight, {
-        toValue: filtered.length > 0 ? 250 : 0, // Increased height to show more suggestions
-        duration: 200,
-        useNativeDriver: false
-      }).start();
+      animatedHeight.value = withTiming(
+        filtered.length > 0 ? 250 : 0, 
+        { duration: 200 }
+      );
     } else {
       // If text is empty, show a selection of common ingredients as suggestions
       const commonSuggestions = commonIngredients
@@ -118,20 +119,12 @@ export default function TagInput({
         setShowSuggestions(true);
         
         // Animate suggestion panel
-        Animated.timing(animatedHeight, {
-          toValue: 250,
-          duration: 200,
-          useNativeDriver: false
-        }).start();
+        animatedHeight.value = withTiming(250, { duration: 200 });
       } else {
         setShowSuggestions(false);
         
         // Animate suggestion panel closed
-        Animated.timing(animatedHeight, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: false
-        }).start();
+        animatedHeight.value = withTiming(0, { duration: 200 });
       }
     }
   };
@@ -180,11 +173,7 @@ export default function TagInput({
       setShowSuggestions(true);
       
       // Animate suggestion panel
-      Animated.timing(animatedHeight, {
-        toValue: 250,
-        duration: 200,
-        useNativeDriver: false
-      }).start();
+      animatedHeight.value = withTiming(250, { duration: 200 });
     }
     
     // Provide positive haptic feedback
@@ -341,20 +330,15 @@ export default function TagInput({
       setShowSuggestions(true);
       
       // Animate suggestion panel
-      Animated.timing(animatedHeight, {
-        toValue: filteredSuggestions.length > 0 ? 150 : 0,
-        duration: 200,
-        useNativeDriver: false
-      }).start();
+      animatedHeight.value = withTiming(
+        filteredSuggestions.length > 0 ? 150 : 0, 
+        { duration: 200 }
+      );
     } else {
       setShowSuggestions(false);
       
       // Animate suggestion panel closed
-      Animated.timing(animatedHeight, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: false
-      }).start();
+      animatedHeight.value = withTiming(0, { duration: 200 });
     }
   }, [inputValue]);
 
@@ -464,6 +448,14 @@ export default function TagInput({
     Keyboard.dismiss();
   };
 
+  // Animation styles for suggestions container
+  const suggestionsStyle = useAnimatedStyle(() => {
+    return {
+      maxHeight: animatedHeight.value,
+      opacity: animatedHeight.value > 0 ? 1 : 0,
+    };
+  });
+
   return (
     <View style={[styles.container, containerStyle]}>
       {label && (
@@ -543,7 +535,7 @@ export default function TagInput({
       </View>
       
       {/* Suggestions */}
-      <Animated.View style={[styles.suggestionsContainer, { height: animatedHeight }]}>
+      <Animated.View style={[styles.suggestionsContainer, suggestionsStyle]}>
         {showSuggestions && filteredSuggestions.length > 0 && (
           <FlatList
             data={filteredSuggestions}
@@ -615,8 +607,8 @@ export default function TagInput({
       {/* Voice Input Modal */}
       <VoiceInputModal 
         visible={voiceModalVisible}
+        onComplete={handleVoiceInputReceived}
         onClose={() => setVoiceModalVisible(false)}
-        onInputReceived={handleVoiceInputReceived}
       />
     </View>
   );
@@ -657,7 +649,7 @@ const styles = StyleSheet.create({
   tag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.tagBackground,
+    backgroundColor: colors.primaryLight, // Changed to soft green
     borderRadius: 16,
     paddingVertical: 6,
     paddingHorizontal: 10,
@@ -785,4 +777,4 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '500',
   },
-}); 
+});

@@ -7,11 +7,13 @@ import {
   Modal,
   Dimensions,
   Platform,
+  Text,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import colors from '@/constants/colors';
 import CachedImage from './CachedImage';
+import { Tooltip } from './Tooltip';
 
 interface ImageStepProps {
   imageUrl: string;
@@ -21,6 +23,8 @@ interface ImageStepProps {
 }
 
 const { width: screenWidth } = Dimensions.get('window');
+// Define fallback image path
+const FALLBACK_IMAGE = require('@/assets/images/chef.png');
 
 export default function ImageStep({
   imageUrl,
@@ -53,6 +57,8 @@ export default function ImageStep({
   const handleRegenerateImage = () => {
     if (onRegenerateImage) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setError(false);
+      setIsLoading(true);
       onRegenerateImage();
     }
   };
@@ -68,23 +74,46 @@ export default function ImageStep({
         accessibilityHint="Double tap to view image in full screen"
       >
         <View style={[styles.imageContainer, isCompleted && styles.completedImageContainer]}>
-          <CachedImage
-            source={imageUrl}
-            style={styles.image}
-            contentFit="cover"
-            onLoad={handleLoadEnd}
-            onError={handleError}
-            placeholder={
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={colors.primary} />
-              </View>
-            }
-            accessibilityLabel={altText || "Step image"}
-          />
+          {!error ? (
+            <CachedImage
+              source={imageUrl}
+              style={styles.image}
+              contentFit="cover"
+              onLoad={handleLoadEnd}
+              onError={handleError}
+              placeholder={
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                </View>
+              }
+              accessibilityLabel={altText || "Step image"}
+            />
+          ) : (
+            // Fallback image when there's an error
+            <CachedImage
+              source={FALLBACK_IMAGE}
+              style={styles.image}
+              contentFit="cover"
+              accessibilityLabel="Fallback cooking illustration"
+            />
+          )}
           
           {error && (
             <View style={styles.errorContainer}>
-              <Ionicons name="image-outline" size={32} color={colors.textTertiary} />
+              <Tooltip content="Image unavailable, retrying...">
+                <View style={styles.errorTooltipContainer}>
+                  <Ionicons name="alert-circle" size={24} color={colors.warning} />
+                </View>
+              </Tooltip>
+              
+              <TouchableOpacity
+                style={styles.retryButton}
+                onPress={handleRegenerateImage}
+                accessibilityLabel="Retry loading image"
+                accessibilityRole="button"
+              >
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
             </View>
           )}
           
@@ -125,7 +154,7 @@ export default function ImageStep({
           </TouchableOpacity>
           
           <CachedImage
-            source={imageUrl}
+            source={!error ? imageUrl : FALLBACK_IMAGE}
             style={styles.fullScreenImage}
             contentFit="contain"
             accessibilityLabel={altText || "Step image (fullscreen)"}
@@ -167,11 +196,28 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundAlt,
   },
   errorContainer: {
-    width: '100%',
-    height: '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.backgroundAlt,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  errorTooltipContainer: {
+    padding: 8,
+  },
+  retryButton: {
+    marginTop: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    backgroundColor: colors.primary,
+    borderRadius: 20,
+  },
+  retryButtonText: {
+    color: colors.white,
+    fontWeight: '500',
   },
   expandIconContainer: {
     position: 'absolute',

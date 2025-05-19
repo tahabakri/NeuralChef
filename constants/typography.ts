@@ -4,6 +4,7 @@
  */
 
 import { TextStyle } from 'react-native';
+import { Language } from '@/stores/userStore';
 
 // Base font styles using Open Sans
 const fontFamily = {
@@ -39,12 +40,12 @@ const lineHeight = {
   huge: 48, // ~1.5x fontSize 
 };
 
-// Font weights (these map to the font file names)
+// Font weights (using valid React Native fontWeight values)
 const fontWeight = {
-  regular: '400', // Corresponds to OpenSans-Regular
-  medium: '500',  // Corresponds to OpenSans-Medium
-  semiBold: '600',// Corresponds to OpenSans-Semibold
-  bold: '700',    // Corresponds to OpenSans-Bold
+  regular: "400" as const, // Corresponds to OpenSans-Regular
+  medium: "500" as const,  // Corresponds to OpenSans-Medium
+  semiBold: "600" as const,// Corresponds to OpenSans-Semibold
+  bold: "700" as const,    // Corresponds to OpenSans-Bold
 };
 
 // Text styles
@@ -53,7 +54,7 @@ const typography: Record<string, TextStyle> = {
   title1: {
     fontFamily: fontFamily.bold,
     fontSize: fontSize.huge,
-    fontWeight: fontWeight.bold, // Still useful for systems that might try to infer weight
+    fontWeight: fontWeight.bold,
     lineHeight: lineHeight.huge,
   },
   title2: {
@@ -128,6 +129,123 @@ const typography: Record<string, TextStyle> = {
     fontWeight: fontWeight.regular, // Changed from medium for consistency with bodySmall
     lineHeight: lineHeight.sm,
   },
+};
+
+// Localized text content
+export type TextKey = 
+  // Common UI elements
+  | 'app_name'
+  | 'confirm'
+  | 'cancel'
+  | 'save'
+  | 'delete'
+  | 'search'
+  | 'tryAgain'
+  | 'loading'
+  // Settings screen
+  | 'settings'
+  | 'appearance'
+  | 'preferences'
+  | 'account'
+  | 'language'
+  | 'darkMode'
+  | 'metrics'
+  | 'notifications'
+  | 'editProfile'
+  | 'dietaryPreferences'
+  | 'voiceCommands'
+  | 'saveHistory'
+  | 'clearData'
+  | 'logOut'
+  | 'restartOnboarding'
+  | 'appVersion'
+  // Error messages
+  | 'errorTitle'
+  | 'errorGeneric'
+  | 'errorNetwork'
+  | 'errorTimeout'
+  | 'errorInvalidInput';
+
+// Text content in different languages
+const textContent: Record<Language, Record<TextKey, string>> = {
+  en: {
+    // Common UI elements
+    app_name: 'ReciptAI',
+    confirm: 'Confirm',
+    cancel: 'Cancel',
+    save: 'Save',
+    delete: 'Delete',
+    search: 'Search',
+    tryAgain: 'Try Again',
+    loading: 'Loading...',
+    // Settings screen
+    settings: 'Settings',
+    appearance: 'Appearance',
+    preferences: 'Preferences',
+    account: 'Account',
+    language: 'Language',
+    darkMode: 'Dark Mode',
+    metrics: 'Metric Units',
+    notifications: 'Notifications',
+    editProfile: 'Edit Profile',
+    dietaryPreferences: 'Dietary Preferences',
+    voiceCommands: 'Voice Commands',
+    saveHistory: 'Save History',
+    clearData: 'Clear App Data',
+    logOut: 'Log Out',
+    restartOnboarding: 'Restart Onboarding',
+    appVersion: 'Version',
+    // Error messages
+    errorTitle: 'Something went wrong',
+    errorGeneric: 'An error occurred. Please try again later.',
+    errorNetwork: 'Network error. Please check your connection and try again.',
+    errorTimeout: 'Request timed out. Please try again later.',
+    errorInvalidInput: 'Invalid input. Please check your information and try again.'
+  },
+  ar: {
+    // Common UI elements
+    app_name: 'ريسبتاي',
+    confirm: 'تأكيد',
+    cancel: 'إلغاء',
+    save: 'حفظ',
+    delete: 'حذف',
+    search: 'بحث',
+    tryAgain: 'حاول مرة أخرى',
+    loading: 'جاري التحميل...',
+    // Settings screen
+    settings: 'الإعدادات',
+    appearance: 'المظهر',
+    preferences: 'التفضيلات',
+    account: 'الحساب',
+    language: 'اللغة',
+    darkMode: 'الوضع الداكن',
+    metrics: 'نظام متري',
+    notifications: 'الإشعارات',
+    editProfile: 'تعديل الملف الشخصي',
+    dietaryPreferences: 'التفضيلات الغذائية',
+    voiceCommands: 'الأوامر الصوتية',
+    saveHistory: 'حفظ السجل',
+    clearData: 'مسح بيانات التطبيق',
+    logOut: 'تسجيل الخروج',
+    restartOnboarding: 'إعادة تشغيل التعريف',
+    appVersion: 'الإصدار',
+    // Error messages
+    errorTitle: 'حدث خطأ ما',
+    errorGeneric: 'حدث خطأ. يرجى المحاولة مرة أخرى لاحقًا.',
+    errorNetwork: 'خطأ في الشبكة. يرجى التحقق من اتصالك والمحاولة مرة أخرى.',
+    errorTimeout: 'انتهت مهلة الطلب. يرجى المحاولة مرة أخرى لاحقًا.',
+    errorInvalidInput: 'إدخال غير صالح. يرجى التحقق من المعلومات والمحاولة مرة أخرى.'
+  }
+};
+
+// Helper function to get text based on current language
+export const getText = (key: TextKey, language: Language = 'en'): string => {
+  return textContent[language][key] || textContent.en[key] || key;
+};
+
+// RTL support for Arabic
+export const isRTL = (language: Language): boolean => {
+  return language === 'ar';
 };
 
 export default typography; 

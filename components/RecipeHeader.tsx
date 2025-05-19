@@ -9,6 +9,7 @@ interface RecipeHeaderProps {
   servings?: number;
   prepTime?: string;
   cookTime?: string;
+  difficulty?: string; // Added difficulty
 }
 
 export default function RecipeHeader({
@@ -16,7 +17,8 @@ export default function RecipeHeader({
   description,
   servings,
   prepTime,
-  cookTime
+  cookTime,
+  difficulty // Added difficulty
 }: RecipeHeaderProps) {
   return (
     <CardContainer style={styles.container} variant="elevated">
@@ -45,6 +47,12 @@ export default function RecipeHeader({
           <View style={styles.metaItem}>
             <Text style={styles.metaLabel}>Cook Time</Text>
             <Text style={styles.metaValue}>{cookTime}</Text>
+          </View>
+        )}
+        {difficulty && (
+          <View style={styles.metaItem}>
+            <Text style={styles.metaLabel}>Difficulty</Text>
+            <Text style={styles.metaValue}>{difficulty}</Text>
           </View>
         )}
       </View>
