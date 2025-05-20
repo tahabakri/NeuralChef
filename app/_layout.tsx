@@ -110,7 +110,7 @@ export default function RootLayout() {
   useEffect(() => {
     // Handler for deep links
     const handleDeepLink = (event: { url: string }) => {
-      if (!appReady) {
+      if (!appReady || !fontsLoaded) { // Check for fontsLoaded as well
         // Store the URL to handle after app is ready
         initialURLRef.current = event.url;
         return;
@@ -135,7 +135,7 @@ export default function RootLayout() {
     return () => {
       subscription.remove();
     };
-  }, [appReady]);
+  }, [appReady, fontsLoaded]); // Added fontsLoaded to dependency array
   
   // Function to handle URLs with type safety
   const handleURL = (url: string) => {
@@ -152,7 +152,7 @@ export default function RootLayout() {
         if (validatedRoute) {
           // Type-safe navigation
           router.push({
-            pathname: validatedRoute.route,
+            pathname: validatedRoute.route as any, // Assert type to resolve mismatch
             params: validatedRoute.params
           });
         } else {
@@ -190,7 +190,7 @@ export default function RootLayout() {
   }, [onboardingComplete, setOnboardingComplete]);
 
   useEffect(() => {
-    if (appReady) {
+    if (appReady && fontsLoaded) { // Added fontsLoaded here
       // Process any stored deep link first
       if (initialURLRef.current) {
         handleURL(initialURLRef.current);
@@ -205,7 +205,7 @@ export default function RootLayout() {
         router.replace('/(tabs)');
       }
     }
-  }, [appReady, onboardingComplete, router]);
+  }, [appReady, fontsLoaded, onboardingComplete, router]); // Added fontsLoaded to dependency array
 
   if (!fontsLoaded || !appReady) {
     return (

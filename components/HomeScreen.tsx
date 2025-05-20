@@ -15,18 +15,19 @@ import typography from '@/constants/typography';
 import { Ionicons } from '@expo/vector-icons';
 import { GreetingHeader } from './home';
 import { Search, ArrowRight } from 'lucide-react-native';
+import { AppRoutes } from '@/app/routes';
 
-// Custom bottom tab bar component
+// Custom bottom tab bar component - updated to match new navigation flow
 const BottomTabBar = () => {
   const handleTabPress = (route: string) => {
-    router.push(route);
+    router.push(route as any);
   };
 
   return (
     <View style={tabStyles.container}>
       <TouchableOpacity 
         style={tabStyles.tabItem}
-        onPress={() => handleTabPress('/')}
+        onPress={() => handleTabPress("/")}
       >
         <Ionicons name="home" size={22} color={colors.primary} />
         <Text style={tabStyles.activeLabel}>Home</Text>
@@ -34,15 +35,15 @@ const BottomTabBar = () => {
       
       <TouchableOpacity 
         style={tabStyles.tabItem}
-        onPress={() => handleTabPress('/popular')}
+        onPress={() => handleTabPress("/(tabs)/meal-planner")}
       >
-        <Ionicons name="flame-outline" size={22} color={colors.textTertiary} />
-        <Text style={tabStyles.label}>Popular</Text>
+        <Ionicons name="calendar-outline" size={22} color={colors.textTertiary} />
+        <Text style={tabStyles.label}>Meal Planner</Text>
       </TouchableOpacity>
       
       <TouchableOpacity 
         style={tabStyles.tabItem}
-        onPress={() => handleTabPress('/saved')}
+        onPress={() => handleTabPress("/saved")}
       >
         <Ionicons name="bookmark-outline" size={22} color={colors.textTertiary} />
         <Text style={tabStyles.label}>Saved</Text>
@@ -50,7 +51,7 @@ const BottomTabBar = () => {
       
       <TouchableOpacity 
         style={tabStyles.tabItem}
-        onPress={() => handleTabPress('/history')}
+        onPress={() => handleTabPress("/history")}
       >
         <Ionicons name="time-outline" size={22} color={colors.textTertiary} />
         <Text style={tabStyles.label}>History</Text>
@@ -58,7 +59,7 @@ const BottomTabBar = () => {
       
       <TouchableOpacity 
         style={tabStyles.tabItem}
-        onPress={() => handleTabPress('/settings')}
+        onPress={() => handleTabPress("/settings")}
       >
         <Ionicons name="settings-outline" size={22} color={colors.textTertiary} />
         <Text style={tabStyles.label}>Settings</Text>
@@ -100,20 +101,29 @@ const tabStyles = StyleSheet.create({
 
 const HomeScreen: React.FC = () => {
   const handleSearchPress = () => {
-    router.push('/search');
+    router.push("/search" as any);
   };
 
   const handleCategoryPress = (category: string) => {
-    // Navigate to category-specific view
-    router.push(`/recipes?category=${category}`);
+    // Navigate to category-specific view with params
+    router.push({
+      pathname: "/recipes",
+      params: { category }
+    } as any);
   };
 
   const handleRecipePress = (recipeId: string) => {
-    router.push(`/recipe/${recipeId}`);
+    router.push({
+      pathname: "/recipe/[id]",
+      params: { id: recipeId }
+    } as any);
   };
   
   const handleSeeAllPress = (category: string) => {
-    router.push(`/recipes?category=${category}`);
+    router.push({
+      pathname: "/recipes",
+      params: { category }
+    } as any);
   };
 
   return (

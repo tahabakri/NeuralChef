@@ -45,7 +45,7 @@ export default function RecipeDetailScreen() {
   const [similarRecipes, setSimilarRecipes] = useState<Recipe[]>([]);
   
   // Get store hooks
-  const { recipe: storeRecipe, generateRecipe } = useRecipeStore();
+  const { selectedRecipe: storeRecipe, generateRecipe } = useRecipeStore(); // Corrected to selectedRecipe
   const { savedRecipes, isSaved, updateRecipe } = useSavedRecipesStore();
   
   // Load recipe on mount
@@ -116,10 +116,10 @@ export default function RecipeDetailScreen() {
       r.id !== currentRecipe.id && // Not the current recipe
       (
         // Match by tags
-        (currentRecipe.tags && r.tags && 
+        (currentRecipe.tags && r.tags &&
           r.tags.some(tag => currentRecipe.tags?.includes(tag))) ||
         // Or match by category
-        (currentRecipe.category && r.category === currentRecipe.category)
+        ((currentRecipe as any).category && (r as any).category === (currentRecipe as any).category) // Added type assertion for category
       )
     );
     
@@ -232,24 +232,24 @@ export default function RecipeDetailScreen() {
           </View>
           
           <View style={styles.metaInfoContainer}>
-            {recipe.prepTime && (
+            {(recipe as any).prepTime && ( // Added type assertion
               <View style={styles.metaInfo}>
                 <Ionicons name="time-outline" size={16} color="white" />
-                <Text style={styles.metaInfoText}>Prep: {recipe.prepTime}</Text>
+                <Text style={styles.metaInfoText}>Prep: {(recipe as any).prepTime}</Text>
               </View>
             )}
             
-            {recipe.cookTime && (
+            {recipe.cookTime && ( // cookTime seems to be part of the base Recipe type
               <View style={styles.metaInfo}>
                 <Ionicons name="flame-outline" size={16} color="white" />
                 <Text style={styles.metaInfoText}>Cook: {recipe.cookTime}</Text>
               </View>
             )}
             
-            {recipe.servings && (
+            {(recipe as any).servings && ( // Added type assertion
               <View style={styles.metaInfo}>
                 <Ionicons name="people-outline" size={16} color="white" />
-                <Text style={styles.metaInfoText}>Serves: {recipe.servings}</Text>
+                <Text style={styles.metaInfoText}>Serves: {(recipe as any).servings}</Text>
               </View>
             )}
           </View>
@@ -270,8 +270,8 @@ export default function RecipeDetailScreen() {
         {/* Ingredients list */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ingredients</Text>
-          <IngredientList 
-            ingredients={recipe.ingredients} 
+          <IngredientList
+            ingredients={recipe.ingredients.map(ing => `${ing.amount || ''} ${ing.unit || ''} ${ing.name}`.trim())} // Mapped ingredients to string array
             editable={false}
           />
         </View>

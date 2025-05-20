@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { AlertCircle } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import LottieIllustration from './LottieIllustration'; // Added LottieIllustration import
 import colors from '@/constants/colors';
 import { RecipeErrorType } from '@/services/recipeService'; // Import RecipeErrorType
 
@@ -16,14 +17,22 @@ interface ErrorScreenProps {
 }
 
 export default function ErrorScreen({
-  title = 'Generation Failed',
-  message = 'We couldn\'t create a recipe with these ingredients. Please try different ingredients or try again later.',
+  title: propTitle, // Renamed to avoid conflict
+  message: propMessage, // Renamed to avoid conflict
   buttonText = 'Try Again',
   errorType = RecipeErrorType.GENERATE_ERROR, // Default to an enum member
   imageUri = 'https://images.unsplash.com/photo-1594322436404-5a0526db4d13?q=80&w=2029&auto=format&fit=crop',
   onTryAgain
 }: ErrorScreenProps) {
-  
+
+  // Determine if it's a "Recipe Not Found" error
+  const isRecipeNotFound = errorType === RecipeErrorType.RECIPE_NOT_FOUND;
+
+  const title = propTitle ?? (isRecipeNotFound ? "Recipe Not Found" : "Generation Failed");
+  const message = propMessage ?? (isRecipeNotFound
+    ? "Oops! No recipe magic here! Let’s try something tasty instead!"
+    : "We couldn't create a recipe with these ingredients. Please try different ingredients or try again later.");
+
   const handleTryAgain = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (onTryAgain) onTryAgain();
@@ -48,7 +57,14 @@ export default function ErrorScreen({
   return (
     <View style={styles.container}>
       <View style={styles.card}>
-        {imageUri ? (
+        {isRecipeNotFound ? (
+          <LottieIllustration
+            type="magic-wand" // Corrected to use type prop
+            style={styles.lottieAnimation}
+            autoPlay
+            loop
+          />
+        ) : imageUri ? (
           <Image
             source={{ uri: imageUri }}
             style={styles.image}
@@ -104,6 +120,11 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 200,
     borderRadius: 8,
+    marginBottom: 16,
+  },
+  lottieAnimation: { // Added style for Lottie animation
+    width: 200,
+    height: 200,
     marginBottom: 16,
   },
   title: {

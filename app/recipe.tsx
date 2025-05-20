@@ -37,7 +37,7 @@ import { useFeedback } from '@/components/FeedbackSystem';
 import colors from '@/constants/colors';
 import { useRecipeStore } from '@/stores/recipeStore';
 import { useSavedRecipesStore } from '@/stores/savedRecipesStore';
-import { Recipe } from '@/services/recipeService';
+import { Recipe, Difficulty } from '@/services/recipeService'; // Correct import for Recipe interface and Difficulty type
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
@@ -255,8 +255,8 @@ export default function RecipeScreen() {
     
     try {
       const shareMessage = `Check out this recipe for ${recipe.title}!\n\n` +
-        `🍽️ Ingredients:\n${recipe.ingredients.join('\n')}\n\n` +
-        `👨‍🍳 Instructions:\n${recipe.steps.map((step, i) => 
+        `🍽️ Ingredients:\n${recipe.ingredients.map(ing => `${ing.amount} ${ing.unit} ${ing.name}`).join('\n')}\n\n` +
+        `👨‍🍳 Instructions:\n${recipe.steps.map((step, i) =>
           `${i + 1}. ${step.instruction}`).join('\n')}\n\n` +
         'Generated with ReciptAI';
       
@@ -318,25 +318,37 @@ export default function RecipeScreen() {
       id: 'related1',
       title: 'Similar Dish with Variations',
       description: 'A different take on this recipe with alternative ingredients',
-      imageUrl: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-4.0.3',
+      heroImage: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-4.0.3',
       prepTime: '15 min',
-      cookTime: '25 min',
-      ingredients: ['Ingredient 1', 'Ingredient 2', 'Ingredient 3'],
-      steps: [{ instruction: 'Step 1' }, { instruction: 'Step 2' }],
+      cookTime: 25,
+      ingredients: [
+        { name: 'Alternative Ingredient A', amount: '1', unit: 'cup' },
+        { name: 'Alternative Ingredient B', amount: '200', unit: 'g' },
+      ],
+      steps: [{ instruction: 'Mix ingredients' }, { instruction: 'Cook for 25 mins' }],
       servings: 4,
-      difficulty: 'Medium' as 'Medium' // Type assertion for difficulty
+      difficulty: 'Medium' as Difficulty,
+      tags: ['variation', 'alternative'],
+      category: 'Dinner',
+      rating: 4.2
     },
     {
       id: 'related2',
       title: 'Another Related Recipe',
       description: 'Uses similar cooking techniques',
-      imageUrl: 'https://images.unsplash.com/photo-1546549032-9571cd6b27df?ixlib=rb-4.0.3',
+      heroImage: 'https://images.unsplash.com/photo-1546549032-9571cd6b27df?ixlib=rb-4.0.3',
       prepTime: '10 min',
-      cookTime: '20 min',
-      ingredients: ['Ingredient 1', 'Ingredient 2', 'Ingredient 3'],
-      steps: [{ instruction: 'Step 1' }, { instruction: 'Step 2' }],
+      cookTime: 20,
+      ingredients: [
+        { name: 'Core Ingredient X', amount: '2', unit: 'pieces' },
+        { name: 'Spice Y', amount: '1', unit: 'tsp' },
+      ],
+      steps: [{ instruction: 'Prep ingredients' }, { instruction: 'Combine and serve' }],
       servings: 2,
-      difficulty: 'Easy' as 'Easy' // Type assertion for difficulty
+      difficulty: 'Easy' as Difficulty,
+      tags: ['quick', 'easy-meal'],
+      category: 'Lunch',
+      rating: 4.0
     }
   ];
 
@@ -473,8 +485,8 @@ export default function RecipeScreen() {
         {/* Ingredients Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ingredients</Text>
-          <IngredientList 
-            ingredients={recipe.ingredients} 
+          <IngredientList
+            ingredients={recipe.ingredients.map(ing => `${ing.amount} ${ing.unit} ${ing.name}`)}
             editable={true}
           />
         </View>

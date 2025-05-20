@@ -145,7 +145,7 @@ export default function HomeScreen() {
   // Sample data for Today's Picks
   const todaysPicks = [
     {
-      id: '1',
+      id: '4',
       title: 'Chicken Caesar Salad',
       description: 'Fresh romaine lettuce with grilled chicken, croutons, and caesar dressing',
       image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c',
@@ -156,7 +156,7 @@ export default function HomeScreen() {
       tags: ['lunch', 'salad', 'protein']
     },
     {
-      id: '2',
+      id: '5',
       title: 'Vegetable Stir Fry',
       description: 'Quick and healthy vegetable stir fry with your favorite veggies',
       image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19',
@@ -167,7 +167,7 @@ export default function HomeScreen() {
       tags: ['lunch', 'quick', 'vegetarian']
     },
     {
-      id: '3',
+      id: '6',
       title: 'Margherita Pizza',
       description: 'Classic pizza with tomato, mozzarella, and fresh basil',
       image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591',
@@ -233,14 +233,18 @@ export default function HomeScreen() {
   
   const handleCombinationPress = (combination: any) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try {
-      router.push({
-        pathname: '/generate',
-        params: { ingredients: JSON.stringify(combination.ingredients) }
-      });
-    } catch (error) {
-      console.error('Error navigating with combination:', error);
-    }
+    
+    // Map common combinations to specific recipe IDs
+    const recipeMapping: Record<string, string> = {
+      'Rice + Chicken': '2', // Map to Spicy Chicken Stir-fry recipe
+      'Pasta + Tomato': '1'  // Map to Classic Tomato Pasta recipe
+    };
+    
+    // Get the recipe ID based on the combination name, or use the first recipe as fallback
+    const recipeId = recipeMapping[combination.name] || '1';
+    
+    // Navigate directly to the recipe page with the ID
+    router.push(`/recipe/${recipeId}`);
   };
   
   const handleRecipePress = (recipeId: string) => {

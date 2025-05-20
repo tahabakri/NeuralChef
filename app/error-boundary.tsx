@@ -4,6 +4,7 @@ import colors from '@/constants/colors';
 import typography from '@/constants/typography';
 import { AlertTriangle } from 'lucide-react-native';
 import ErrorScreen from '@/components/ErrorScreen';
+import { RecipeErrorType } from '@/services/recipeService'; // Import RecipeErrorType
 
 interface Props {
   children: React.ReactNode;
@@ -95,21 +96,25 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   // Determine error type based on error message
-  getErrorType(error: Error | null): 'generation' | 'network' | 'timeout' | 'validation' | 'unknown' {
-    if (!error) return 'unknown';
+  getErrorType(error: Error | null): RecipeErrorType {
+    if (!error) return RecipeErrorType.UNKNOWN_ERROR;
     
     if (error.message.includes('Network request failed')) {
-      return 'network';
+      return RecipeErrorType.NETWORK_ERROR;
+    // Assuming 'Timeout' maps to a generic FETCH_ERROR or a new TIMEOUT_ERROR if defined
+    // For now, let's map it to FETCH_ERROR as a placeholder, or consider adding TIMEOUT_ERROR to RecipeErrorType
     } else if (error.message.includes('Timeout')) {
-      return 'timeout';
-    } else if (error.message.includes('Failed to generate recipe') || 
+      return RecipeErrorType.FETCH_ERROR; // Or a new RecipeErrorType.TIMEOUT_ERROR
+    } else if (error.message.includes('Failed to generate recipe') ||
                error.message.includes('AI generation failed')) {
-      return 'generation';
-    } else if (error.message.includes('validation') || 
+      return RecipeErrorType.GENERATE_ERROR;
+    // Assuming 'validation' or 'Invalid input' maps to a generic GENERATE_ERROR or a new VALIDATION_ERROR
+    // For now, let's map it to GENERATE_ERROR as a placeholder, or consider adding VALIDATION_ERROR to RecipeErrorType
+    } else if (error.message.includes('validation') ||
                error.message.includes('Invalid input')) {
-      return 'validation';
+      return RecipeErrorType.GENERATE_ERROR; // Or a new RecipeErrorType.VALIDATION_ERROR
     } else {
-      return 'unknown';
+      return RecipeErrorType.UNKNOWN_ERROR;
     }
   }
 

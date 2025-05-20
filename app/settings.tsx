@@ -53,7 +53,7 @@ export default function SettingsScreen() {
   
   // Render a setting item with toggle
   const renderToggleSetting = (
-    icon: string, 
+    icon: keyof typeof Ionicons.glyphMap, 
     title: string, 
     description: string, 
     value: boolean, 
@@ -62,7 +62,10 @@ export default function SettingsScreen() {
     <View style={styles.settingItem}>
       <View style={styles.settingIcon}>
         <LinearGradient
-          colors={value ? gradients.freshGreen.colors : gradients.subtleGray.colors}
+          colors={value 
+            ? [gradients.freshGreen.colors[0], gradients.freshGreen.colors[1]] as const
+            : [gradients.subtleGray.colors[0], gradients.subtleGray.colors[1]] as const
+          }
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.iconGradient}

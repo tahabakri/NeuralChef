@@ -18,7 +18,10 @@ export interface Recipe {
   title: string;
   description?: string;
   heroImage?: string;
-  cookTime?: number;
+  cookTime?: number; // e.g., 30 (for 30 minutes)
+  prepTime?: string; // e.g., "15 min"
+  servings?: number; // e.g., 4
+  category?: string; // e.g., "Dinner", "Dessert"
   difficulty: Difficulty;
   rating?: number;
   tags: string[];
@@ -32,6 +35,8 @@ export enum RecipeErrorType {
   DELETE_ERROR = 'DELETE_ERROR',
   GENERATE_ERROR = 'GENERATE_ERROR',
   NETWORK_ERROR = 'NETWORK_ERROR',
+  RECIPE_NOT_FOUND = 'RECIPE_NOT_FOUND', // Added for recipe not found cases
+  UNKNOWN_ERROR = 'UNKNOWN_ERROR', // Added for unknown error cases
 }
 
 export interface RecipeError {

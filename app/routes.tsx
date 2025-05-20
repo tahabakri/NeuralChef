@@ -15,11 +15,16 @@ export type AppRoutes = {
   "/onboarding": undefined;
   "/legacy-onboarding": undefined;
   "/(tabs)": undefined;
+  "/(tabs)/index": undefined;
+  "/(tabs)/meal-planner": undefined;
+  "/(tabs)/saved": undefined;
+  "/(tabs)/history": undefined;
+  "/(tabs)/settings": undefined;
   "/history": undefined;
   "/saved": undefined;
   "/settings": undefined;
-  "/popular": undefined;
   "/recipe/[id]": { id: string };
+  "/recipes": { category?: string };
   "/modal": undefined;
   "/input": undefined;
   "/generate": undefined;
@@ -75,7 +80,7 @@ export function validateDeepLink(path: string): { route: keyof AppRoutes; params
     "/onboarding",
     "/(tabs)",
     "/(tabs)/index",
-    "/(tabs)/popular",
+    "/(tabs)/meal-planner",
     "/(tabs)/saved",
     "/(tabs)/history",
     "/(tabs)/settings",
@@ -108,7 +113,7 @@ export default function RoutesDocumentation() {
     "/onboarding",
     "/(tabs)",
     "/(tabs)/index",
-    "/(tabs)/popular",
+    "/(tabs)/meal-planner",
     "/(tabs)/saved",
     "/(tabs)/history",
     "/(tabs)/settings",

@@ -152,18 +152,13 @@ function ActiveIndicator({ focused }: { focused: boolean }) {
   );
 }
 
+// Updated tabs array based on new navigation flow (removed Shopping List and Challenges)
 const tabs = [
   {
     name: 'index',
     label: 'Home',
     icon: 'home',
     color: colors.primary
-  },
-  {
-    name: 'recipe',
-    label: 'Recipes',
-    icon: 'restaurant',
-    color: colors.secondary
   },
   {
     name: 'meal-planner',
@@ -235,20 +230,6 @@ export default function TabsLayout() {
               focused={focused} 
               color={color} 
               accessibilityLabel="Home tab"
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="popular"
-        options={{
-          title: 'Popular',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon 
-              icon={Flame} 
-              focused={focused} 
-              color={color} 
-              accessibilityLabel="Popular recipes tab"
             />
           ),
         }}

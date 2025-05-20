@@ -8,7 +8,8 @@ export type LottieType =
   | 'shopping-list'
   | 'welcome'
   | 'error'
-  | 'cooking';
+  | 'cooking'
+  | 'magic-wand'; // Added new type
 
 interface LottieIllustrationProps {
   type: LottieType;
@@ -42,6 +43,8 @@ const LottieIllustration = ({
         return require('../assets/animations/error.json');
       case 'cooking':
         return require('../assets/animations/cooking.json');
+      case 'magic-wand':
+        return require('../assets/animations/magic-wand.json'); // Added magic-wand animation
       default:
         return require('../assets/animations/empty-state.json');
     }

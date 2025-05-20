@@ -13,7 +13,7 @@ import SaveButton from '@/components/SaveButton';
 import ErrorScreen from '@/components/ErrorScreen';
 
 // Import stores
-import { useRecipeStore } from '@/stores/recipeStore';
+import { useRecipeStore, Recipe } from '@/stores/recipeStore'; // Import Recipe type
 import { useSavedRecipesStore } from '@/stores/savedRecipesStore';
 import colors from '@/constants/colors';
 
@@ -26,11 +26,11 @@ export default function RecipeDetailScreen() {
   const [userRating, setUserRating] = useState(0);
   
   // Get stores
-  const { recipe: currentRecipe } = useRecipeStore();
-  const { savedRecipes, addSavedRecipe, removeSavedRecipe, isSavedRecipe } = useSavedRecipesStore();
+  const { selectedRecipe: currentRecipe } = useRecipeStore(); // Corrected to selectedRecipe
+  const { savedRecipes, saveRecipe, removeSavedRecipe, isSaved: storeIsSaved } = useSavedRecipesStore(); // Corrected function names and aliased isSaved
   
   // State for this recipe
-  const [recipe, setRecipe] = useState(null);
+  const [recipe, setRecipe] = useState<Recipe | null>(null); // Typed state
   const [isSaved, setIsSaved] = useState(false);
   
   useEffect(() => {
@@ -40,13 +40,13 @@ export default function RecipeDetailScreen() {
       // If we have a matching current recipe, use it
       if (currentRecipe && currentRecipe.id === recipeId) {
         setRecipe(currentRecipe);
-        setIsSaved(isSavedRecipe(currentRecipe.id));
+        setIsSaved(storeIsSaved(currentRecipe.title)); // Use title and corrected function
       } else {
         // Try to find in saved recipes
         const savedRecipe = savedRecipes.find(r => r.id === recipeId);
         if (savedRecipe) {
-          setRecipe(savedRecipe);
-          setIsSaved(true);
+          setRecipe(savedRecipe); // This should be fine with typed useState
+          setIsSaved(true); // Already known to be saved
         } else {
           // Recipe not found
           setRecipe(null);
@@ -59,10 +59,10 @@ export default function RecipeDetailScreen() {
     };
     
     loadRecipe();
-  }, [recipeId, currentRecipe, savedRecipes]);
+  }, [recipeId, currentRecipe, savedRecipes, storeIsSaved]); // Added storeIsSaved to dependencies
   
   // Handle rating change
-  const handleRating = (rating) => {
+  const handleRating = (rating: number) => { // Typed parameter
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setUserRating(rating);
     
@@ -74,12 +74,14 @@ export default function RecipeDetailScreen() {
   const toggleSaveRecipe = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
+    if (!recipe) return; // Guard against null recipe
+
     if (isSaved) {
-      removeSavedRecipe(recipe.id);
-      setIsSaved(false);
+      removeSavedRecipe(recipe.title); // Use title
+      // setIsSaved(false); // State will update reactively from useEffect
     } else {
-      addSavedRecipe(recipe);
-      setIsSaved(true);
+      saveRecipe(recipe); // Corrected function name
+      // setIsSaved(true); // State will update reactively from useEffect
     }
   };
   
@@ -87,16 +89,21 @@ export default function RecipeDetailScreen() {
   const shareRecipe = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
+    if (!recipe) return; // Guard against null recipe
+
     try {
+      const ingredientsText = recipe.ingredients.map(ing => `${ing.amount} ${ing.unit || ''} ${ing.name}`).join('\n');
+      const stepsText = recipe.steps.map((step: { instruction: string }, i: number) => // Typed parameters
+          `${i + 1}. ${step.instruction}`).join('\n');
+
       const shareMessage = `Check out this recipe for ${recipe.title}!\n\n` +
-        `🍽️ Ingredients:\n${recipe.ingredients.join('\n')}\n\n` +
-        `👨‍🍳 Instructions:\n${recipe.steps.map((step, i) => 
-          `${i + 1}. ${step.instruction}`).join('\n')}\n\n` +
+        `🍽️ Ingredients:\n${ingredientsText}\n\n` + // Corrected ingredients formatting
+        `👨‍🍳 Instructions:\n${stepsText}\n\n` +
         'Generated with ReciptAI';
       
       await Share.share({
         message: shareMessage,
-        title: recipe.title,
+        title: recipe.title, // recipe is confirmed not null here
       });
     } catch (error) {
       console.error('Error sharing recipe:', error);
@@ -159,7 +166,7 @@ export default function RecipeDetailScreen() {
         <View style={styles.content}>
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Ingredients</Text>
-            <IngredientList ingredients={recipe.ingredients} />
+            <IngredientList ingredients={recipe.ingredients.map(ing => `${ing.amount || ''} ${ing.unit || ''} ${ing.name}`.trim())} />
           </View>
           
           <View style={styles.section}>
@@ -167,10 +174,10 @@ export default function RecipeDetailScreen() {
             <StepList steps={recipe.steps} />
           </View>
           
-          <SaveButton 
-            isSaved={isSaved} 
-            onPress={toggleSaveRecipe} 
-            style={styles.saveButton} 
+          <SaveButton
+            recipe={recipe} // Pass recipe object
+            style={styles.saveButton}
+            // isSaved and onPress are handled internally by SaveButton or not applicable
           />
         </View>
       </ScrollView>
