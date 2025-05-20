@@ -80,7 +80,7 @@ const config = {
       }
     },
     // Standalone recipe screen (for deep links)
-    'recipe/:id': 'recipe/:id',
+    // 'recipe/:id': 'recipe/:id', // Removed as per instructions
   },
 };
 

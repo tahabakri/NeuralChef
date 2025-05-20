@@ -172,12 +172,7 @@ const tabs = [
     icon: 'bookmark',
     color: colors.success 
   },
-  {
-    name: 'history',
-    label: 'History',
-    icon: 'time',
-    color: colors.info
-  },
+
   {
     name: 'settings',
     label: 'Settings',
@@ -259,20 +254,6 @@ export default function TabsLayout() {
               color={color}
               showBadge={hasNewRecipe}
               accessibilityLabel="Saved recipes tab"
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="history"
-        options={{
-          title: 'History',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon 
-              icon={History} 
-              focused={focused} 
-              color={color} 
-              accessibilityLabel="History tab"
             />
           ),
         }}
