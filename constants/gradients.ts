@@ -1,5 +1,5 @@
 /**
- * Gradient definitions for consistent styling across the app
+ * Gradient definitions for consistent styling across the Yumio app
  * Each gradient includes colors, direction, and optional opacity settings
  */
 
@@ -32,31 +32,31 @@ const gradients = {
    * Soft Peach: Warm welcome gradient for splash screen and recipe cards
    */
   softPeach: {
-    colors: ["#FFF3E0", "#FFE0B2"],
+    colors: ["#FFF3E0", "#F9E4C6"],
     direction: directions.topToBottom,
   },
   
   /**
-   * Sunrise Orange: Vibrant orange gradient for primary CTAs
+   * Yumio Orange: Vibrant orange gradient for primary CTAs from logo
    */
-  sunriseOrange: {
-    colors: ["#FFA726", "#FB8C00"],
+  yumioOrange: {
+    colors: ["#F4A261", "#E67E22"],
     direction: directions.leftToRight,
   },
   
   /**
-   * Fresh Green: Nature-inspired gradient for confirmation actions
+   * Chef Green: Nature-inspired gradient for confirmation actions from logo
    */
-  freshGreen: {
-    colors: ["#A5D6A7", "#81C784"],
+  chefGreen: {
+    colors: ["#81C784", "#2E7D32"],
     direction: directions.leftToRight,
   },
   
   /**
-   * Warm Cocoa: Rich brown gradient for headers/footers
+   * Warm Cocoa: Rich brown gradient for headers/footers matching text
    */
   warmCocoa: {
-    colors: ["#5D4037", "#3E2723"],
+    colors: ["#7D5A50", "#5C4033"],
     direction: directions.topToBottom,
   },
   
@@ -64,7 +64,7 @@ const gradients = {
    * Citrus Pop: Vibrant gradient for section dividers and highlights
    */
   citrusPop: {
-    colors: ["#FCE38A", "#F38181"],
+    colors: ["#FFC107", "#F4A261"],
     direction: directions.leftToRight,
   },
   
@@ -80,7 +80,7 @@ const gradients = {
    * Warm Sunset: For featured recipes
    */
   warmSunset: {
-    colors: ["#FFCC80", "#FF8A65"],
+    colors: ["#F4A261", "#FF8A65"],
     direction: directions.topLeftToBottomRight,
   },
 
@@ -88,7 +88,7 @@ const gradients = {
    * Cool Mint: For optional actions
    */
   coolMint: {
-    colors: ["#B2DFDB", "#80CBC4"],
+    colors: ["#B2DFDB", "#81C784"],
     direction: directions.leftToRight,
   },
 
@@ -104,7 +104,7 @@ const gradients = {
    * App Background: Main app background
    */
   appBackground: {
-    colors: ["#FFFFFF", "#F9F9F9"],
+    colors: ["#FFF3E0", "#F9E4C6"],
     direction: directions.topToBottom,
   },
 };

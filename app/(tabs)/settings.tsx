@@ -58,14 +58,29 @@ export default function SettingsScreen() {
     Alert.alert('Success', 'You have been logged out');
   };
   
-  // Handle delete data
+  // Handle delete data - MODIFIED
   const handleDeleteData = () => {
     if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); // Changed to Warning for this flow
     }
-    // In a real app, you would call an API to delete user data
     setDeleteDataConfirmVisible(false);
-    Alert.alert('Success', 'Your data has been deleted');
+
+    // IMPORTANT: Add your actual data deletion logic here if this action should also delete data.
+    // This could be an API call that happens before or after navigating to onboarding.
+    console.log("IMPORTANT: Implement actual user data deletion via API if required.");
+
+    // 1. Reset onboarding completion flag (e.g., in AsyncStorage or Zustand store)
+    // Example: AsyncStorage.setItem('hasCompletedOnboarding', 'false');
+    // Example: useOnboardingStore.setState({ hasCompletedOnboarding: false });
+    console.log("Redirecting to onboarding. Ensure onboarding completion flag is reset.");
+
+    // 2. Navigate to the onboarding route
+    // Replace '/onboarding' with your actual onboarding route if different
+    // Using router.replace to ensure the user cannot navigate back to the settings screen from onboarding
+    router.replace('/onboarding'); 
+
+    // Alert.alert('Success', 'Your data has been deleted'); // This might be confusing if user is just sent to onboarding
+    // Optionally, you could show a different message before navigating, or no message.
   };
   
   return (

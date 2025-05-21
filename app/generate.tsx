@@ -5,12 +5,13 @@ import { useRouter, Stack, Link, useLocalSearchParams } from 'expo-router';
 import { useRecipeStore, RecipeError } from '@/stores/recipeStore';
 import { useIngredientsStore } from '@/stores/ingredientsStore';
 import ErrorState from '@/components/ErrorState';
-import LoadingOverlay from '@/components/LoadingOverlay';
-import Button from '@/components/Button'; // Added for Cancel button
-import BackArrow from '@/components/BackArrow'; // Added for header
+import GenerationProgress from '@/components/GenerationProgress';
+import RecipePreview from '@/components/RecipePreview';
+import Button from '@/components/Button';
+import BackArrow from '@/components/BackArrow';
 import colors from '@/constants/colors';
 import { NetworkManager } from '@/components/OfflineBanner';
-import { generateRecipe, RecipeErrorType } from '@/services/recipeService';
+import { generateRecipe, RecipeErrorType, Recipe } from '@/services/recipeService';
 import { LinearGradient } from 'expo-linear-gradient';
 
 function GenerateScreen() {
@@ -26,6 +27,7 @@ function GenerateScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<RecipeError | null>(null);
   const [generationStage, setGenerationStage] = useState<'initial' | 'text' | 'images' | 'complete'>('initial');
+  const [generatedRecipe, setGeneratedRecipe] = useState<Recipe | null>(null);
   
   // Subscribe to network status changes
   useEffect(() => {
@@ -53,7 +55,6 @@ function GenerateScreen() {
           if (Array.isArray(parsedIngredients) && parsedIngredients.every(i => typeof i === 'string')) {
             currentIngredients = parsedIngredients;
             // Update store with these ingredients if they came from params
-            // This ensures consistency if user navigates back/forth or if other parts rely on the store
             setStoreIngredients(currentIngredients.map(name => ({ id: name, name }))); // Simple ID for now
           }
         } catch (e) {
@@ -75,15 +76,7 @@ function GenerateScreen() {
     initializeAndGenerate();
 
     return () => {
-      // Clear ingredients from the store when the screen is unmounted
-      // This is important to avoid stale ingredients if the user navigates away
-      // and then comes back to input ingredients manually.
-      // However, only clear if not coming from a flow that sets params.ingredients,
-      // as that implies a specific set of ingredients for this generation attempt.
-      // A more robust solution might involve a flag or checking navigation source.
-      // For now, let's clear it to handle the common case of finishing generation.
-      // This might need refinement based on exact back navigation behavior.
-      // clearIngredients(); // Decided to clear explicitly on success/error/cancel
+      // Cleanup function - no need to clear ingredients here
     };
   }, [params, isOffline, storeIngredients, setStoreIngredients, router]);
   
@@ -91,6 +84,7 @@ function GenerateScreen() {
     try {
       setIsLoading(true);
       setError(null);
+      setGeneratedRecipe(null);
       setGenerationStage('initial');
       
       // Stage 1: Generate recipe text
@@ -100,9 +94,9 @@ function GenerateScreen() {
         ? { random: true, mealType } 
         : { ingredients: ingredientNames, mealType };
 
-      const generatedRecipe = await generateRecipe(recipePayload);
+      const recipe = await generateRecipe(recipePayload);
       
-      if (!generatedRecipe) {
+      if (!recipe) {
         throw new Error('Failed to generate recipe');
       }
       
@@ -112,9 +106,9 @@ function GenerateScreen() {
       
       // Stage 3: Complete
       setGenerationStage('complete');
+      setIsLoading(false);
       setHasNewRecipe(true);
-      clearIngredients(); // Clear store on successful generation
-      router.replace(`/recipe/${generatedRecipe.id || ''}`);
+      setGeneratedRecipe(recipe);
 
     } catch (err) {
       console.error('Failed to generate recipe:', err);
@@ -125,13 +119,11 @@ function GenerateScreen() {
         timestamp: Date.now()
       });
       setIsLoading(false);
-      // Do not clear ingredients on error, user might want to retry with same.
     }
   };
   
   const handleRetry = () => {
     // Re-trigger generation with the current understanding of ingredients
-    // This logic might need to re-evaluate params vs store similar to useEffect
     let currentIngredients: string[] = [];
     const isRandomGeneration = params.random === 'true';
     const mealType = params.mealType as string || 'any';
@@ -154,6 +146,13 @@ function GenerateScreen() {
   const handleCancel = () => {
     clearIngredients(); // Clear store on cancel
     router.replace('/'); // Navigate to Home
+  };
+
+  const handleViewFullRecipe = () => {
+    if (generatedRecipe) {
+      clearIngredients(); // Clear store on successful navigation
+      router.replace(`/recipe/${generatedRecipe.id}`);
+    }
   };
   
   const getLoadingMessage = (): string => {
@@ -207,7 +206,7 @@ function GenerateScreen() {
             title="You're Offline"
             message="Recipe generation needs an internet connection. Please check your connection and try again."
             retryButtonText="Retry"
-            onRetry={handleRetry} // Retry will re-check offline status
+            onRetry={handleRetry}
           />
           <View style={styles.backButtonContainer}>
              <LinearGradient colors={['#FF8C61', '#F96E43']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientButton}>
@@ -235,61 +234,77 @@ function GenerateScreen() {
         headerBackVisible: false,
       }} />
       
-      <LoadingOverlay message={getLoadingMessage()} />
-      
-      <View style={styles.cancelButtonContainer}>
-        <Button
-          title="Cancel"
-          onPress={handleCancel}
-          style={styles.cancelButton}
-          textStyle={styles.cancelButtonText}
-          variant="secondary"
+      {isLoading ? (
+        <GenerationProgress 
+          stage={generationStage} 
+          message={getLoadingMessage()} 
         />
-      </View>
+      ) : generatedRecipe ? (
+        <RecipePreview 
+          recipe={generatedRecipe}
+          onViewFullRecipe={handleViewFullRecipe}
+          onTryAgain={handleRetry}
+        />
+      ) : null}
+      
+      {isLoading && (
+        <View style={styles.cancelButtonContainer}>
+          <Button
+            title="Cancel"
+            onPress={handleCancel}
+            style={styles.cancelButton}
+            textStyle={styles.cancelButtonText}
+            variant="secondary"
+          />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
 
-export default GenerateScreen;
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background, // Use consistent background
+    backgroundColor: colors.background,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24, // Increased padding
+    padding: 20,
   },
   backButtonContainer: {
-    marginTop: 24, // Increased spacing
-    width: '100%',
+    marginTop: 16,
+    width: '80%',
+    maxWidth: 300,
   },
   gradientButton: {
-    borderRadius: 12,
+    borderRadius: 25,
     overflow: 'hidden',
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 12,
   },
   gradientButtonText: {
-    color: colors.white,
-    fontWeight: '600',
+    color: 'white',
+    fontWeight: 'bold',
     fontSize: 16,
+    fontFamily: 'Poppins-Bold',
   },
   cancelButtonContainer: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 40 : 20, // Adjust for platform
-    left: 24, // Consistent padding
-    right: 24, // Consistent padding
+    bottom: 20,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   cancelButton: {
-    backgroundColor: colors.textTertiary, // Use color from constants
-    borderColor: colors.textTertiary,
+    backgroundColor: colors.cancelButtonGray || '#E0E0E0',
+    paddingHorizontal: 24,
+    minWidth: 120,
   },
   cancelButtonText: {
-    color: colors.textSecondary, // Contrasting text color
+    color: colors.textTertiary,
   },
 });
+
+export default GenerateScreen;

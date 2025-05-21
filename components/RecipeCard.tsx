@@ -8,7 +8,9 @@ import {
   Platform,
   ImageSourcePropType,
   ImageBackground,
-  ViewStyle
+  ViewStyle,
+  StyleProp,
+  Pressable
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import colors from '@/constants/colors';
@@ -49,12 +51,20 @@ interface RecipeCardProps {
   selectable?: boolean; // Whether the card can be selected for bulk actions
   selected?: boolean; // Whether the card is currently selected
   onLongPress?: (id: string) => void; // Handle long press for selection
+  isNew?: boolean; // Add this property
 }
 
 // Placeholder image when no image is available
 const PLACEHOLDER_IMAGE = require('@/assets/images/empty-recipe.png');
 // Default cook time when none is provided
 const DEFAULT_COOK_TIME = '15–20 min';
+
+// Add a NewBadge component
+const NewBadge = () => (
+  <View style={styles.newBadge}>
+    <Text style={styles.newBadgeText}>New</Text>
+  </View>
+);
 
 const RecipeCard: React.FC<RecipeCardProps> = ({ 
   recipe, 
@@ -66,7 +76,8 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
   large = false,
   selectable = false,
   selected = false,
-  onLongPress
+  onLongPress,
+  isNew = false
 }) => {
   // Handle save button press
   const handleSavePress = () => {
@@ -172,6 +183,11 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
           resizeMode="cover"
         />
         
+        <LinearGradient
+          colors={['transparent', 'rgba(0, 0, 0, 0.7)']}
+          style={styles.featuredOverlayGradient}
+        />
+        
         <View style={styles.featuredOverlay}>
           <View style={styles.featuredContent}>
             <View style={styles.tagContainer}>
@@ -274,6 +290,7 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
           style={styles.verticalImage}
           resizeMode="cover"
         />
+        {isNew && <NewBadge />}
         {onSaveToggle && (
           <TouchableOpacity
             style={styles.verticalSaveButton}
@@ -332,12 +349,22 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   featuredOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'flex-end',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     padding: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
+    paddingTop: 32,
+    backgroundColor: 'transparent',
+  },
+  featuredOverlayGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '70%',
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
   },
   featuredContent: {
     flex: 1,
@@ -559,6 +586,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
+  },
+  newBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: colors.accent,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    zIndex: 10,
+  },
+  newBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
   },
 });
 

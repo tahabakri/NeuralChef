@@ -13,7 +13,10 @@ import Animated, {
 import colors from "@/constants/colors";
 import typography from "@/constants/typography";
 import { useRecipeStore } from "@/stores/recipeStore";
+import { useMealPlannerStore } from "@/stores/mealPlannerStore"; // Added for Meal Planner badge
+import { format } from 'date-fns'; // Added for date formatting
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient'; // Added for TabBar gradient
 
 const { width } = Dimensions.get('window');
 const TAB_ICON_SIZE = 24;
@@ -26,11 +29,13 @@ function NotificationBadge() {
   
   React.useEffect(() => {
     if (hasNewRecipe) {
+      // Show with a spring animation for a bouncy effect
       opacity.value = withTiming(1, { duration: 300 });
       scale.value = withSpring(1, { damping: 12, stiffness: 120 });
     } else {
-      opacity.value = withTiming(0, { duration: 200 });
-      scale.value = withTiming(0.8, { duration: 200 });
+      // Fade out with a subtle scale down animation
+      opacity.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.cubic) });
+      scale.value = withTiming(0.8, { duration: 250, easing: Easing.out(Easing.cubic) });
     }
   }, [hasNewRecipe]);
   
@@ -41,7 +46,8 @@ function NotificationBadge() {
     };
   });
   
-  if (!hasNewRecipe) return null;
+  // Return null when animation is complete and badge is fully hidden
+  if (!hasNewRecipe && opacity.value === 0) return null;
   
   return (
     <Animated.View 
@@ -186,92 +192,109 @@ export default function TabsLayout() {
   const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 49 + insets.bottom : 56;
   
   const hasNewRecipe = useRecipeStore(state => state.hasNewRecipe);
+  const { getMealsForDateAndType } = useMealPlannerStore();
+
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const hasMealsTodayWithNotification = [
+    ...getMealsForDateAndType(today, 'breakfast'),
+    ...getMealsForDateAndType(today, 'lunch'),
+    ...getMealsForDateAndType(today, 'dinner'),
+  ].some(meal => meal.notificationsEnabled);
   
   return (
     <View style={{ flex: 1 }}>
       <Tabs
         screenOptions={{
           tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textTertiary,
-        tabBarStyle: {
-          height: TAB_BAR_HEIGHT,
-          paddingTop: 8,
-          paddingBottom: Platform.OS === 'ios' ? insets.bottom : 8,
-          backgroundColor: colors.white,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-          elevation: 8,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.05,
-          shadowRadius: 3,
-        },
-        headerShown: false,
-        tabBarShowLabel: true,
-        tabBarLabelStyle: {
-          fontFamily: 'OpenSans-Medium',
-          fontSize: 12,
-          marginTop: 1,
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon 
-              icon={Home} 
-              focused={focused} 
-              color={color} 
-              accessibilityLabel="Home tab"
+          tabBarInactiveTintColor: colors.textTertiary,
+          tabBarStyle: {
+            height: TAB_BAR_HEIGHT,
+            paddingTop: 8,
+            paddingBottom: Platform.OS === 'ios' ? insets.bottom : 8,
+            backgroundColor: 'transparent', // Changed for gradient
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+            elevation: 8,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: 0.05,
+            shadowRadius: 3,
+          },
+          tabBarBackground: () => (
+            <LinearGradient
+              colors={[colors.backgroundGradientStart, colors.backgroundGradientEnd]}
+              style={StyleSheet.absoluteFill}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
             />
           ),
+          headerShown: false,
+          tabBarShowLabel: true,
+          tabBarLabelStyle: {
+            fontFamily: 'OpenSans-Medium',
+            fontSize: 12,
+            marginTop: 1,
+          },
         }}
-      />
-      <Tabs.Screen
-        name="meal-planner"
-        options={{
-          title: 'Meal Planner',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon 
-              icon={Calendar} 
-              focused={focused} 
-              color={color} 
-              accessibilityLabel="Meal planner tab"
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="saved"
-        options={{
-          title: 'Saved',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon 
-              icon={Bookmark} 
-              focused={focused} 
-              color={color}
-              showBadge={hasNewRecipe}
-              accessibilityLabel="Saved recipes tab"
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon 
-              icon={Settings} 
-              focused={focused} 
-              color={color} 
-              accessibilityLabel="Settings tab"
-            />
-          ),
-        }}
-      />
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Kitchen',
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon 
+                icon={Home} 
+                focused={focused} 
+                color={color} 
+                accessibilityLabel="Kitchen tab"
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="meal-planner"
+          options={{
+            title: 'Meal Plan',
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon 
+                icon={Calendar} 
+                focused={focused} 
+                color={color}
+                showBadge={hasMealsTodayWithNotification}
+                accessibilityLabel="Meal planner tab"
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="saved"
+          options={{
+            title: 'Favorites',
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon 
+                icon={Bookmark} 
+                focused={focused} 
+                color={color}
+                showBadge={hasNewRecipe}
+                accessibilityLabel="Saved recipes tab"
+              />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            title: 'Chef Settings',
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon 
+                icon={Settings} 
+                focused={focused} 
+                color={color}
+                accessibilityLabel="Settings tab"
+              />
+            ),
+          }}
+        />
       </Tabs>
       <OfflineBanner />
     </View>

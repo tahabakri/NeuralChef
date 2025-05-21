@@ -1,4 +1,4 @@
-import { prefetchAsync, Image } from 'expo-image';
+import { Image } from 'expo-image';
 
 /**
  * ImageCache service for improved image loading performance
@@ -22,7 +22,7 @@ class ImageCache {
     
     try {
       this.prefetchQueue.add(uri);
-      await prefetchAsync(uri);
+      await Image.prefetch(uri);
       this.prefetchedImages.add(uri);
       return true;
     } catch (error) {
@@ -78,4 +78,4 @@ class ImageCache {
 }
 
 // Export singleton instance
-export const imageCache = new ImageCache(); 
+export const imageCache = new ImageCache();

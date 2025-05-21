@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, Pressable, FlatList, ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import colors from '@/constants/colors';
@@ -11,6 +11,9 @@ import BulkActionBar from '@/components/BulkActionBar';
 import EmptyStateAnimation from '@/components/EmptyStateAnimation';
 import { FontAwesome } from '@expo/vector-icons';
 
+// Time threshold for new recipes (24 hours = 86400000ms)
+const NEW_RECIPE_THRESHOLD = 86400000; // 24 hours in milliseconds
+
 // Extend Recipe type to include createdAt
 interface RecipeWithTimestamp extends Recipe {
   createdAt?: string; // Changed to string to match expected type
@@ -18,7 +21,15 @@ interface RecipeWithTimestamp extends Recipe {
 
 export default function SavedScreen() {
   const router = useRouter();
-  const { recipes } = useRecipeStore();
+  const { recipes, hasNewRecipe, setHasNewRecipe, lastNewRecipeTimestamp } = useRecipeStore();
+  
+  // Clear the new recipe notification when this screen is viewed
+  useEffect(() => {
+    if (hasNewRecipe) {
+      // Clear the notification dot when user visits this tab
+      setHasNewRecipe(false);
+    }
+  }, [hasNewRecipe, setHasNewRecipe]);
   
   // State variables
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,6 +41,25 @@ export default function SavedScreen() {
   
   // Mock saved recipes for now - in a real app, you would have a "saved" flag or collection
   const savedRecipes = recipes.filter(recipe => recipe.id.startsWith('1')) as RecipeWithTimestamp[];
+  
+  // Check if a recipe is new (added in the last 24 hours)
+  const isRecipeNew = (recipe: RecipeWithTimestamp): boolean => {
+    if (!lastNewRecipeTimestamp) return false;
+    
+    const recipeTimestamp = recipe.createdAt 
+      ? parseInt(recipe.createdAt, 10) 
+      : 0;
+    
+    // If the recipe has no timestamp or the timestamp is older than our notification,
+    // it's not new
+    if (recipeTimestamp === 0 || recipeTimestamp < lastNewRecipeTimestamp) {
+      return false;
+    }
+    
+    // Check if the recipe was added in the last 24 hours
+    const now = Date.now();
+    return (now - recipeTimestamp) < NEW_RECIPE_THRESHOLD;
+  };
   
   // Get all unique tags from saved recipes
   const allTags = Array.from(
@@ -207,6 +237,7 @@ export default function SavedScreen() {
           numColumns={viewType === 'grid' ? 2 : 1}
           renderItem={({ item }) => {
             const cardStyle: ViewStyle = viewType === 'grid' ? styles.gridCard : styles.listCard;
+            const isNew = isRecipeNew(item);
             
             return (
               <RecipeCard
@@ -222,6 +253,7 @@ export default function SavedScreen() {
                 }}
                 selected={selectedRecipes.includes(item.id)}
                 selectable={isSelectionMode}
+                isNew={isNew}
               />
             );
           }}

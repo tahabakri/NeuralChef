@@ -1,16 +1,16 @@
-// Color palette for the AI Recipe Helper app
-// Light, modern design with accent colors
+// Color palette for the Yumio recipe app
+// Warm, playful design with colors from the Yumio logo
 
 const colors = {
     // Primary colors
-    primary: "#4CAF50", // Green - primary accent
-    primaryLight: "#A5D6A7",
-    primaryDark: "#2E7D32",
-    secondary: "#FF9800", // Orange - secondary accent
-    secondaryLight: "#FFCC80",
-    secondaryDark: "#EF6C00",
+    primary: "#2E7D32", // Green from spoon/scarf - primary action color
+    primaryLight: "#81C784",
+    primaryDark: "#1B5E20",
+    secondary: "#F4A261", // Orange from logo background - secondary action color
+    secondaryLight: "#FFD3A5",
+    secondaryDark: "#E67E22",
 
-    // Specific UI colors from feedback
+    // Specific UI colors from logo
     softPeachStart: "#FFF3E0",
     softPeachEnd: "#FFE0B2", // Also used as warningLight
     sunriseOrange: "#FFA726",
@@ -21,16 +21,16 @@ const colors = {
     accentBlueLight: "#90CAF9",
     accentYellow: "#FFC107",
     accentYellowLight: "#FFE082",
-    accentOrange: "#FF9800",
+    accentOrange: "#F4A261", // Same as secondary for consistency
     accentOrangeLight: "#FFCC80",
-    accentGreen: "#4CAF50",
+    accentGreen: "#2E7D32", // Same as primary for consistency
     accentGreenLight: "#A5D6A7",
     
     // Semantic colors
-    success: "#4CAF50",
+    success: "#2E7D32", // Same as primary
     error: "#F44336",
     errorLight: "#FFCDD2",
-    warning: "#FF9800",
+    warning: "#F4A261", // Same as secondary
     warningLight: "#FFE0B2",
     info: "#2196F3",
     infoLight: "#E3F2FD",
@@ -41,20 +41,20 @@ const colors = {
     // Neutrals
     white: "#FFFFFF",
     black: "#000000",
-    background: "#FFFFFF",
-    backgroundAlt: "#F0F4F8",
-    backgroundGradientStart: "#F7F7F7",
-    backgroundGradientEnd: "#E8ECEF",
+    background: "#F9E4C6", // Soft peach background
+    backgroundAlt: "#FFF3E0",
+    backgroundGradientStart: "#FFF3E0",
+    backgroundGradientEnd: "#F9E4C6",
     card: "#FFFFFF",
-    cardAlt: "#F5F5F5",
+    cardAlt: "#FFE8CC", // Lighter peach for cards
     searchBackground: '#F5F5F5',
     
     // Text colors
-    text: "#333333",
-    textSecondary: "#666666",
+    text: "#5C4033", // Deep brown for text
+    textSecondary: "#7D5A50",
     textTertiary: "#9E9E9E",
     textLight: "#FFFFFF",
-    textDark: "#000000",
+    textDark: "#5C4033",
     textDisabled: "#BDBDBD", // Added for disabled text elements
     
     // UI elements
@@ -65,11 +65,11 @@ const colors = {
     divider: "#EEEEEE",
     dragHandle: "#E0E0E0",
     tabBarBackground: "#FFFFFF",
-    tabBarBackgroundGradientStart: "#FFFFFF",
-    tabBarBackgroundGradientEnd: "#F0F4F8",
-    tabBarActiveTint: "#4CAF50",
+    tabBarBackgroundGradientStart: "#FFF3E0",
+    tabBarBackgroundGradientEnd: "#F9E4C6",
+    tabBarActiveTint: "#2E7D32", // Changed to primary green
     tabBarInactiveTint: "#9E9E9E",
-    tabBarActiveIndicator: "#4CAF50",
+    tabBarActiveIndicator: "#2E7D32", // Changed to primary green
     tabBarBorder: "#E0E0E0",
     
     // Misc

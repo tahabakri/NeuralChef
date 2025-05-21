@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { Recipe, RecipeError, RecipeErrorType } from '@/services/recipeService';
 import { todayRecipes } from '@/constants/sampleRecipes';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type { Recipe, RecipeError }; // Export Recipe and RecipeError types
 
@@ -11,6 +13,7 @@ interface RecipeStore {
   isLoading: boolean;
   error: RecipeError | null;
   hasNewRecipe: boolean;
+  lastNewRecipeTimestamp: number | null;
   fetchRecipes: () => Promise<void>;
   fetchPopularRecipes: () => Promise<void>;
   fetchRecipeById: (id: string) => Promise<void>;
@@ -18,9 +21,9 @@ interface RecipeStore {
   setHasNewRecipe: (value: boolean) => void;
 }
 
-export const useRecipe = () => useRecipeStore(state => state.selectedRecipe);
-export const useRecipeLoading = () => useRecipeStore(state => state.isLoading);
-export const useRecipeError = () => useRecipeStore(state => state.error);
+export const useRecipe = () => useRecipeStore((state: RecipeStore) => state.selectedRecipe);
+export const useRecipeLoading = () => useRecipeStore((state: RecipeStore) => state.isLoading);
+export const useRecipeError = () => useRecipeStore((state: RecipeStore) => state.error);
 
 // Mock data for development
 const MOCK_RECIPES: Recipe[] = [
@@ -101,67 +104,88 @@ const MOCK_RECIPES: Recipe[] = [
   }
 ];
 
-export const useRecipeStore = create<RecipeStore>((set) => ({
-  recipes: [],
-  popularRecipes: [],
-  selectedRecipe: null,
-  isLoading: false,
-  error: null,
-  hasNewRecipe: false,
-  fetchRecipes: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      set({ recipes: todayRecipes });
-    } catch (error) {
-      set({ error: { type: RecipeErrorType.FETCH_ERROR, message: 'Failed to fetch recipes' } });
-    } finally {
-      set({ isLoading: false });
-    }
-  },
-  fetchPopularRecipes: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      set({ popularRecipes: todayRecipes });
-    } catch (error) {
-      set({ error: { type: RecipeErrorType.FETCH_ERROR, message: 'Failed to fetch popular recipes' } });
-    } finally {
-      set({ isLoading: false });
-    }
-  },
-  fetchRecipeById: async (id) => {
-    set({ isLoading: true, error: null });
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      let recipe = todayRecipes.find(r => r.id === id);
-      
-      if (!recipe) {
-        recipe = MOCK_RECIPES.find(r => r.id === id);
+export const useRecipeStore = create<RecipeStore>()(
+  persist<RecipeStore>(
+    (set, get) => ({
+      recipes: [],
+      popularRecipes: [],
+      selectedRecipe: null,
+      isLoading: false,
+      error: null,
+      hasNewRecipe: false,
+      lastNewRecipeTimestamp: null,
+      fetchRecipes: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          set({ recipes: todayRecipes });
+        } catch (error) {
+          set({ error: { type: RecipeErrorType.FETCH_ERROR, message: 'Failed to fetch recipes' } });
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      fetchPopularRecipes: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          set({ popularRecipes: todayRecipes });
+        } catch (error) {
+          set({ error: { type: RecipeErrorType.FETCH_ERROR, message: 'Failed to fetch popular recipes' } });
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      fetchRecipeById: async (id) => {
+        set({ isLoading: true, error: null });
+        try {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          let recipe = todayRecipes.find(r => r.id === id);
+          
+          if (!recipe) {
+            recipe = MOCK_RECIPES.find(r => r.id === id);
+          }
+          
+          if (recipe) {
+            set({ selectedRecipe: recipe });
+          } else {
+            throw new Error('Recipe not found');
+          }
+        } catch (error) {
+          set({ error: { type: RecipeErrorType.FETCH_ERROR, message: 'Failed to fetch recipe' } });
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      generateRecipe: async (ingredients) => {
+        set({ isLoading: true, error: null });
+        try {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          const randomRecipe = todayRecipes[Math.floor(Math.random() * todayRecipes.length)];
+          const now = Date.now();
+          set({ 
+            selectedRecipe: randomRecipe, 
+            hasNewRecipe: true,
+            lastNewRecipeTimestamp: now
+          });
+        } catch (error) {
+          set({ error: { type: RecipeErrorType.GENERATE_ERROR, message: 'Failed to generate recipe' } });
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+      setHasNewRecipe: (value: boolean): void => {
+        set({ 
+          hasNewRecipe: value,
+          lastNewRecipeTimestamp: value && !get().lastNewRecipeTimestamp 
+            ? Date.now() 
+            : get().lastNewRecipeTimestamp
+        });
       }
-      
-      if (recipe) {
-        set({ selectedRecipe: recipe });
-      } else {
-        throw new Error('Recipe not found');
-      }
-    } catch (error) {
-      set({ error: { type: RecipeErrorType.FETCH_ERROR, message: 'Failed to fetch recipe' } });
-    } finally {
-      set({ isLoading: false });
+    }),
+    {
+      name: 'recipe-storage',
+      storage: createJSONStorage(() => AsyncStorage),
     }
-  },
-  generateRecipe: async (ingredients) => {
-    set({ isLoading: true, error: null });
-    try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      const randomRecipe = todayRecipes[Math.floor(Math.random() * todayRecipes.length)];
-      set({ selectedRecipe: randomRecipe, hasNewRecipe: true });
-    } catch (error) {
-      set({ error: { type: RecipeErrorType.GENERATE_ERROR, message: 'Failed to generate recipe' } });
-    } finally {
-      set({ isLoading: false });
-    }
-  },
-  setHasNewRecipe: (value) => set({ hasNewRecipe: value })
-}));
+  )
+);
