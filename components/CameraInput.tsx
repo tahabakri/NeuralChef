@@ -18,11 +18,13 @@ import IngredientDetectionConfirmation from './IngredientDetectionConfirmation';
 
 interface CameraInputProps {
   onIngredientsDetected: (ingredients: string[]) => void;
+  onClose?: () => void; // Added onClose prop
 }
 
-export default function CameraInput({ onIngredientsDetected }: CameraInputProps) {
+export default function CameraInput({ onIngredientsDetected, onClose }: CameraInputProps) {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [cameraVisible, setCameraVisible] = useState(false);
+  // cameraVisible state now controls if the camera UI is active within this component, not a modal
+  const [cameraActive, setCameraActive] = useState(false); 
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [detectedIngredients, setDetectedIngredients] = useState<string[]>([]);
@@ -36,10 +38,22 @@ export default function CameraInput({ onIngredientsDetected }: CameraInputProps)
       setHasPermission(status === 'granted');
       
       if (status === 'granted') {
-        setCameraVisible(true);
+        setCameraActive(true); // Activate camera UI directly
+      } else {
+        // Optionally handle permission denied more explicitly here if needed
+        console.warn('Camera permission denied');
       }
     } catch (err) {
       console.error('Failed to request camera permission:', err);
+    }
+  };
+  
+  // Function to activate camera view if permission is already granted
+  const openCameraView = () => {
+    if (hasPermission) {
+      setCameraActive(true);
+    } else {
+      requestCameraPermission(); // Request permission if not already granted or denied
     }
   };
   
@@ -96,109 +110,113 @@ export default function CameraInput({ onIngredientsDetected }: CameraInputProps)
   const confirmIngredients = (ingredients: string[]) => {
     onIngredientsDetected(ingredients);
     
-    // Close all modals
     setShowConfirmation(false);
-    setCameraVisible(false);
+    setCameraActive(false); // Deactivate camera UI
     resetCamera();
     
-    // Provide haptic feedback
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
+    onClose?.(); // Notify parent
   };
   
-  // Close camera
-  const closeCamera = () => {
-    setCameraVisible(false);
+  // Close camera and notify parent
+  const closeCameraAndNotifyParent = () => {
+    setCameraActive(false); // Deactivate camera UI
     resetCamera();
+    onClose?.(); // Notify parent
   };
   
+  // If camera is not active, show a button to open it.
+  // This button is part of the CameraInput component itself,
+  // shown when the parent (HomeScreen) has made CameraInput visible.
+  if (!cameraActive) {
+    return (
+      <View style={styles.openCameraPromptContainer}>
+        <TouchableOpacity
+          style={styles.cameraMainButton} // Re-using style from HomeScreen for consistency
+          onPress={openCameraView}
+        >
+          <CameraIcon size={32} color="white" />
+          <Text style={styles.cameraButtonText}>Open Camera</Text>
+        </TouchableOpacity>
+        {hasPermission === false && (
+          <Text style={styles.permissionDeniedText}>
+            Camera permission was denied. Please enable it in settings.
+          </Text>
+        )}
+      </View>
+    );
+  }
+  
+  // If camera is active, show the camera view or preview.
   return (
-    <View>
-      {/* Camera button */}
+    <View style={styles.cameraViewContainer}>
+      {/* Close button for the active camera view */}
       <TouchableOpacity
-        style={styles.cameraButton}
-        onPress={requestCameraPermission}
+        style={styles.closeButton} // This style was for the modal, ensure it's positioned correctly for embedded view
+        onPress={closeCameraAndNotifyParent}
       >
-        <CameraIcon size={20} color={colors.textSecondary} />
+        <X size={24} color={colors.white} />
       </TouchableOpacity>
       
-      {/* Camera Modal */}
-      <Modal
-        visible={cameraVisible}
-        animationType="slide"
-        onRequestClose={closeCamera}
-      >
-        <View style={styles.modalContainer}>
-          {/* Close button */}
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={closeCamera}
-          >
-            <X size={24} color={colors.white} />
-          </TouchableOpacity>
-          
-          {/* Camera preview or captured image */}
-          {!capturedImage ? (
-            <View style={styles.cameraContainer}>
-              {hasPermission ? (
-                <CameraView
-                  style={styles.camera}
-                  facing={'back'}
-                  ref={(ref: CameraView | null) => setCameraRef(ref)}
-                >
-                  <View style={styles.captureButtonContainer}>
-                    <TouchableOpacity
-                      style={styles.captureButton}
-                      onPress={takePicture}
-                    >
-                      <View style={styles.captureButtonInner} />
-                    </TouchableOpacity>
-                  </View>
-                </CameraView>
-              ) : (
-                <View style={styles.permissionContainer}>
-                  <Text style={styles.permissionText}>
-                    {hasPermission === false
-                      ? "Camera permission is required"
-                      : "Requesting camera permission..."}
-                  </Text>
-                </View>
-              )}
-            </View>
-          ) : (
-            <View style={styles.previewContainer}>
-              <Image
-                source={{ uri: capturedImage }}
-                style={styles.previewImage}
-              />
-              
-              {/* Simple processing indicator - the advanced confirmation is in a separate modal */}
-              {isProcessing && (
-                <View style={styles.processingContainer}>
-                  <ActivityIndicator size="large" color={colors.primary} />
-                  <Text style={styles.processingText}>
-                    Detecting ingredients...
-                  </Text>
-                </View>
-              )}
-              
-              {/* Simple controls for the preview */}
-              <View style={styles.previewControls}>
+      {/* Camera preview or captured image */}
+      {!capturedImage ? (
+        <View style={styles.cameraContainer}>
+          {hasPermission ? ( // Should always be true if cameraActive is true and this renders
+            <CameraView
+              style={styles.camera}
+              facing={'back'}
+              ref={(ref: CameraView | null) => setCameraRef(ref)}
+            >
+              <View style={styles.captureButtonContainer}>
                 <TouchableOpacity
-                  style={styles.previewButton}
-                  onPress={resetCamera}
+                  style={styles.captureButton}
+                  onPress={takePicture}
                 >
-                  <RefreshCw size={20} color={colors.white} />
-                  <Text style={styles.previewButtonText}>Retake</Text>
+                  <View style={styles.captureButtonInner} />
                 </TouchableOpacity>
               </View>
+            </CameraView>
+          ) : (
+            // This case should ideally not be reached if cameraActive logic is correct
+            <View style={styles.permissionContainer}>
+              <Text style={styles.permissionText}>
+                Requesting camera permission...
+              </Text>
             </View>
           )}
         </View>
-      </Modal>
+      ) : (
+        <View style={styles.previewContainer}>
+          <Image
+            source={{ uri: capturedImage }}
+            style={styles.previewImage}
+          />
+          
+          {isProcessing && (
+            <View style={styles.processingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.processingText}>
+                Detecting ingredients...
+              </Text>
+            </View>
+          )}
+          
+          <View style={styles.previewControls}>
+            <TouchableOpacity
+              style={styles.previewButton}
+              onPress={resetCamera} // Retake photo
+            >
+              <RefreshCw size={20} color={colors.white} />
+              <Text style={styles.previewButtonText}>Retake</Text>
+            </TouchableOpacity>
+            {/* The "Use this photo" or confirm button is handled by IngredientDetectionConfirmation */}
+          </View>
+        </View>
+      )}
       
-      {/* Advanced Ingredient Detection Confirmation Modal */}
+      {/* Advanced Ingredient Detection Confirmation Modal (still a modal) */}
       <IngredientDetectionConfirmation
         visible={showConfirmation}
         onClose={() => setShowConfirmation(false)}
@@ -211,24 +229,48 @@ export default function CameraInput({ onIngredientsDetected }: CameraInputProps)
 }
 
 const styles = StyleSheet.create({
-  cameraButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.cardAlt,
+  // Styles for the embedded camera view
+  cameraViewContainer: {
+    height: 300, // Or a flexible height, adjust as needed
+    width: '100%',
+    backgroundColor: colors.black,
+    borderRadius: 12, // Optional: if you want rounded corners for the embedded view
+    overflow: 'hidden', // Important if using borderRadius
+    position: 'relative', // For positioning the close button
+  },
+  openCameraPromptContainer: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  cameraMainButton: { // Copied from HomeScreen for consistency, adjust if needed
+    backgroundColor: colors.primary,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: 10,
   },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: colors.black,
+  cameraButtonText: { // Copied from HomeScreen
+    color: 'white',
+    fontSize: 14,
+    marginTop: 8,
+    fontFamily: 'Poppins-Medium',
   },
-  closeButton: {
+  permissionDeniedText: {
+    color: colors.error,
+    textAlign: 'center',
+    marginTop: 10,
+    fontSize: 12,
+  },
+  // modalContainer style removed as Modal is removed
+  closeButton: { // Adjusted for embedded view
     position: 'absolute',
-    top: 40,
-    right: 20,
+    top: 10, // Adjust positioning
+    right: 10, // Adjust positioning
     zIndex: 10,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     width: 40,
     height: 40,
     borderRadius: 20,

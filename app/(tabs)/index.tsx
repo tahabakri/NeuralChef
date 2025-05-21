@@ -60,12 +60,48 @@ export default function HomeScreen() {
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [activeInputMethod, setActiveInputMethod] = useState<'none' | 'type' | 'voice' | 'camera'>('none');
   const [inputText, setInputText] = useState('');
-  const [showCamera, setShowCamera] = useState(false);
+  // const [showCamera, setShowCamera] = useState(false); // Removed: Camera will be embedded
+  const [isVoiceListening, setIsVoiceListening] = useState(false);
+  const [recognizedText, setRecognizedText] = useState('');
   
-  // Animation values for input buttons
+  // Animation values for input buttons and expanded containers
   const scaleVoice = useSharedValue(1);
   const scaleType = useSharedValue(1);
   const scaleCamera = useSharedValue(1);
+  const expandAnimation = useSharedValue(0);
+  
+  // Pulse animation for voice recording
+  const pulseAnim = useSharedValue(1);
+  
+  // Animation for expanded container
+  const expandedContainerStyle = useAnimatedStyle(() => {
+    return {
+      maxHeight: withTiming(expandAnimation.value > 0 ? 500 : 0, { duration: 300 }),
+      opacity: withTiming(expandAnimation.value, { duration: 250 }),
+      transform: [{ translateY: withTiming(expandAnimation.value > 0 ? 0 : -20, { duration: 300 }) }],
+    };
+  });
+  
+  // Start animation when voice listening
+  useEffect(() => {
+    if (isVoiceListening) {
+      // Create a looping animation using reanimated
+      const loopAnimation = () => {
+        pulseAnim.value = withTiming(1.2, { duration: 1000, easing: Easing.inOut(Easing.quad) }, () => {
+          pulseAnim.value = withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.quad) }, () => {
+            if (isVoiceListening) {
+              loopAnimation();
+            }
+          });
+        });
+      };
+      
+      loopAnimation();
+    } else {
+      // Reset animation
+      pulseAnim.value = withTiming(1, { duration: 300 });
+    }
+  }, [isVoiceListening]);
   
   // Animate input button on press
   const animateButton = (scale: Animated.SharedValue<number>) => {
@@ -91,6 +127,12 @@ export default function HomeScreen() {
   const cameraButtonStyle = useAnimatedStyle(() => {
     return {
       transform: [{ scale: scaleCamera.value }]
+    };
+  });
+  
+  const voiceRecordingStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: pulseAnim.value }]
     };
   });
   
@@ -179,37 +221,138 @@ export default function HomeScreen() {
   
   // Handler functions
   const handleVoiceInput = (recognizedText: string) => {
-    setVoiceModalVisible(false);
     if (recognizedText.trim()) {
       try {
         // Process ingredients
         const newIngredients = recognizedText.split(/[,.]/).map(i => i.trim()).filter(Boolean);
         setIngredients(prev => [...prev, ...newIngredients]);
-        // Expand the type input to show the ingredients
+        // Show the ingredients
         setActiveInputMethod('type');
+        expandAnimation.value = 1;
       } catch (error) {
         console.error('Error processing voice input:', error);
       }
     }
+    // Reset voice state
+    setIsVoiceListening(false);
+    setRecognizedText('');
   };
   
   const handleCameraInput = (ingredients: string[]) => {
     if (ingredients.length > 0) {
       try {
-        router.push({
-          pathname: '/generate',
-          params: { ingredients: JSON.stringify(ingredients) }
-        });
+        setIngredients(prev => [...prev, ...ingredients]);
+        setActiveInputMethod('type');
+        expandAnimation.value = 1; // Expand type input to show results
       } catch (error) {
         console.error('Error processing camera input:', error);
       }
     }
+    // setShowCamera(false); // Removed: Camera is embedded, activeInputMethod change handles visibility
   };
   
   const handleTypeInput = () => {
     animateButton(scaleType);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setActiveInputMethod(activeInputMethod === 'type' ? 'none' : 'type');
+    
+    // Close other inputs first
+    if (activeInputMethod !== 'none' && activeInputMethod !== 'type') {
+      setActiveInputMethod('none'); 
+      expandAnimation.value = 0;
+      
+      // Add a small delay before opening the new one
+      setTimeout(() => {
+        setActiveInputMethod('type');
+        expandAnimation.value = 1;
+      }, 300);
+    } else if (activeInputMethod === 'type') {
+      // Close this input
+      setActiveInputMethod('none');
+      expandAnimation.value = 0;
+    } else {
+      // Open this input
+      setActiveInputMethod('type');
+      expandAnimation.value = 1;
+    }
+  };
+  
+  const handleCameraToggle = () => {
+    if (isOffline) return;
+    
+    animateButton(scaleCamera);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // Close other inputs first
+    if (activeInputMethod !== 'none' && activeInputMethod !== 'camera') {
+      setActiveInputMethod('none');
+      expandAnimation.value = 0;
+      
+      // Add a small delay before opening the new one
+      setTimeout(() => {
+        setActiveInputMethod('camera');
+        expandAnimation.value = 1;
+      }, 300);
+    } else if (activeInputMethod === 'camera') {
+      // Close this input
+      setActiveInputMethod('none');
+      expandAnimation.value = 0;
+    } else {
+      // Open this input
+      setActiveInputMethod('camera');
+      expandAnimation.value = 1;
+    }
+  };
+  
+  // Toggle input methods
+  const handleVoiceToggle = () => {
+    if (isOffline) return;
+    
+    animateButton(scaleVoice);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    // Close other inputs first
+    if (activeInputMethod !== 'none' && activeInputMethod !== 'voice') {
+      setActiveInputMethod('none');
+      expandAnimation.value = 0;
+      
+      // Add a small delay before opening the new one
+      setTimeout(() => {
+        setActiveInputMethod('voice');
+        expandAnimation.value = 1;
+      }, 300);
+    } else if (activeInputMethod === 'voice') {
+      // Close this input
+      setActiveInputMethod('none');
+      expandAnimation.value = 0;
+    } else {
+      // Open this input
+      setActiveInputMethod('voice');
+      expandAnimation.value = 1;
+    }
+  };
+  
+  // Voice functionality
+  const startVoiceListening = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsVoiceListening(true);
+    setRecognizedText('');
+    
+    try {
+      // In a real app, this would initialize and start the voice recognition
+      // This is just a simulation
+      setTimeout(() => {
+        setRecognizedText('chicken breasts, broccoli, olive oil, garlic, salt, pepper');
+        setIsVoiceListening(false);
+      }, 3000);
+    } catch (error) {
+      console.error('Voice recognition error:', error);
+      setIsVoiceListening(false);
+    }
+  };
+  
+  const stopVoiceListening = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsVoiceListening(false);
   };
   
   const handleAddIngredient = () => {
@@ -305,12 +448,7 @@ export default function HomeScreen() {
             <Animated.View style={voiceButtonStyle}>
               <TouchableOpacity 
                 style={[styles.inputButton, isOffline && styles.disabledInputButton]}
-                onPress={() => {
-                  if (isOffline) return;
-                  animateButton(scaleVoice);
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setVoiceModalVisible(true);
-                }}
+                onPress={handleVoiceToggle}
                 accessibilityLabel="Speak your ingredients"
                 accessibilityHint="Double tap to start voice input for ingredients"
                 disabled={isOffline}
@@ -319,7 +457,7 @@ export default function HomeScreen() {
                   <Ionicons name="mic-outline" size={24} color={colors.textSecondary} />
                 </View>
                 <Text style={styles.inputButtonText}>Speak Your Ingredients</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+                <Ionicons name={activeInputMethod === 'voice' ? "chevron-up" : "chevron-forward"} size={20} color={colors.textTertiary} />
               </TouchableOpacity>
             </Animated.View>
             
@@ -339,79 +477,159 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </Animated.View>
             
-            {/* Expanded Type Input */}
-            {activeInputMethod === 'type' && (
-              <View style={styles.expandedInputContainer}>
-                {/* Text input field */}
-                <View style={styles.textInputContainer}>
-                  <TextInput 
-                    value={inputText}
-                    onChangeText={setInputText}
-                    placeholder="Enter ingredients (separated by commas)"
-                    style={styles.textInput}
-                  />
-                  <TouchableOpacity
-                    style={[styles.addButton, !inputText.trim() && styles.disabledButton]}
-                    onPress={handleAddIngredient}
-                    disabled={!inputText.trim()}
-                  >
-                    <Ionicons name="add" size={24} color={colors.white} />
-                  </TouchableOpacity>
-                </View>
-                
-                {/* Ingredients list */}
-                {ingredients.length > 0 && (
-                  <View style={styles.ingredientsList}>
-                    {ingredients.map((ingredient, index) => (
-                      <View key={index} style={styles.ingredientItem}>
-                        <Text style={styles.ingredientText}>{ingredient}</Text>
-                        <TouchableOpacity onPress={() => handleRemoveIngredient(index)}>
-                          <Ionicons name="close-circle" size={20} color={colors.error} />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </View>
-                )}
-                
-                {/* Generate button */}
-                {ingredients.length > 0 && (
-                  <TouchableOpacity
-                    style={styles.generateButton}
-                    onPress={() => {
-                      router.push({
-                        pathname: '/generate',
-                        params: { ingredients: JSON.stringify(ingredients) }
-                      });
-                      setActiveInputMethod('none');
-                    }}
-                  >
-                    <Text style={styles.generateButtonText}>Generate Recipe ({ingredients.length})</Text>
-                    <Ionicons name="arrow-forward" size={20} color={colors.white} />
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-            
             {/* Camera Input Button */}
             <Animated.View style={cameraButtonStyle}>
-              <TouchableOpacity
+              <TouchableOpacity 
                 style={[styles.inputButton, isOffline && styles.disabledInputButton]}
-                onPress={() => {
-                  if (isOffline) return;
-                  animateButton(scaleCamera);
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setShowCamera(true);
-                }}
+                onPress={handleCameraToggle}
                 accessibilityLabel="Take a photo of ingredients"
-                accessibilityHint="Double tap to use camera to capture your ingredients"
+                accessibilityHint="Double tap to take a photo of ingredients"
                 disabled={isOffline}
               >
                 <View style={[styles.inputIconContainer, isOffline && styles.disabledIconContainer]}>
-                  <Ionicons name="camera-outline" size={24} color={isOffline ? colors.textDisabled : colors.textSecondary} />
+                  <Ionicons name="camera-outline" size={24} color={colors.textSecondary} />
                 </View>
-                <Text style={[styles.inputButtonText, isOffline && styles.disabledButtonText]}>Take a Photo of Ingredients</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+                <Text style={styles.inputButtonText}>Take a Photo of Ingredients</Text>
+                <Ionicons name={activeInputMethod === 'camera' ? "chevron-up" : "chevron-forward"} size={20} color={colors.textTertiary} />
               </TouchableOpacity>
+            </Animated.View>
+            
+            {/* Expanded Input Areas */}
+            <Animated.View style={[styles.expandedContainer, expandedContainerStyle]}>
+              {activeInputMethod === 'type' && (
+                <View style={styles.expandedInputContainer}>
+                  {/* Text input field */}
+                  <View style={styles.textInputContainer}>
+                    <TextInput 
+                      value={inputText}
+                      onChangeText={setInputText}
+                      placeholder="Enter ingredients (separated by commas)"
+                      style={styles.textInput}
+                    />
+                    <TouchableOpacity
+                      style={[styles.addButton, !inputText.trim() && styles.disabledButton]}
+                      onPress={handleAddIngredient}
+                      disabled={!inputText.trim()}
+                    >
+                      <Ionicons name="add" size={24} color={colors.white} />
+                    </TouchableOpacity>
+                  </View>
+                  
+                  {/* Ingredients list */}
+                  {ingredients.length > 0 && (
+                    <View style={styles.ingredientsList}>
+                      {ingredients.map((ingredient, index) => (
+                        <View key={index} style={styles.ingredientItem}>
+                          <Text style={styles.ingredientText}>{ingredient}</Text>
+                          <TouchableOpacity onPress={() => handleRemoveIngredient(index)}>
+                            <Ionicons name="close-circle" size={20} color={colors.error} />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  
+                  {/* Generate button */}
+                  {ingredients.length > 0 && (
+                    <TouchableOpacity 
+                      style={styles.generateButton}
+                      onPress={() => {
+                        router.push({
+                          pathname: '/generate',
+                          params: { ingredients: JSON.stringify(ingredients) }
+                        });
+                      }}
+                    >
+                      <Text style={styles.generateButtonText}>Generate Recipes</Text>
+                      <Ionicons name="arrow-forward" size={18} color={colors.white} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+              
+              {activeInputMethod === 'voice' && (
+                <View style={styles.expandedInputContainer}>
+                  {isVoiceListening ? (
+                    <>
+                      <Text style={styles.listeningText}>Listening...</Text>
+                      <Text style={styles.instructionText}>Speak clearly and list your ingredients</Text>
+                      
+                      {/* Animated Recording Indicator */}
+                      <Animated.View
+                        style={[
+                          styles.recordingIndicator,
+                          voiceRecordingStyle
+                        ]}
+                      >
+                        <Ionicons name="mic" size={32} color="white" />
+                      </Animated.View>
+                      
+                      <TouchableOpacity
+                        style={styles.stopButton}
+                        onPress={stopVoiceListening}
+                      >
+                        <Text style={styles.stopButtonText}>Stop</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : recognizedText ? (
+                    <>
+                      <Text style={styles.resultTitle}>Recognized Ingredients:</Text>
+                      <View style={styles.recognizedTextContainer}>
+                        <Text style={styles.recognizedText}>{recognizedText}</Text>
+                      </View>
+                      
+                      <View style={styles.actionButtonsContainer}>
+                        <TouchableOpacity
+                          style={[styles.actionButton, styles.secondaryButton]}
+                          onPress={startVoiceListening}
+                        >
+                          <Text style={styles.secondaryButtonText}>Try Again</Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity
+                          style={[styles.actionButton, styles.primaryButton]}
+                          onPress={() => handleVoiceInput(recognizedText)}
+                        >
+                          <Text style={styles.primaryButtonText}>Use These</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.instructionText}>
+                        Tap the microphone and start listing your ingredients.
+                        Speak clearly and pause between ingredients.
+                      </Text>
+                      
+                      <TouchableOpacity
+                        style={styles.startButton}
+                        onPress={startVoiceListening}
+                      >
+                        <Ionicons name="mic-outline" size={32} color="white" />
+                        <Text style={styles.startButtonText}>Tap to Start</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              )}
+              
+              {activeInputMethod === 'camera' && (
+                <View style={styles.expandedInputContainer}>
+                  <Text style={styles.instructionText}>
+                    Take a photo of your ingredients and our AI will identify them.
+                  </Text>
+                  
+                  {/* CameraInput is now embedded here */}
+                  <CameraInput
+                    onIngredientsDetected={handleCameraInput}
+                    onClose={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setActiveInputMethod('none');
+                      expandAnimation.value = 0;
+                    }}
+                  />
+                </View>
+              )}
             </Animated.View>
           </View>
           
@@ -530,34 +748,7 @@ export default function HomeScreen() {
         </ScrollView>
       </SafeAreaView>
       
-      {/* Voice Input Modal */}
-      {voiceModalVisible && (
-        <VoiceInputModal
-          visible={voiceModalVisible}
-          onComplete={handleVoiceInput}
-          onClose={() => setVoiceModalVisible(false)}
-        />
-      )}
-
-      {/* Camera Input */}
-      {showCamera && (
-        <View style={styles.cameraOverlay}>
-          <CameraInput
-            onIngredientsDetected={(detectedIngredients) => {
-              setIngredients(prev => [...prev, ...detectedIngredients]);
-              setShowCamera(false);
-              // If we have ingredients, expand the type input to show them
-              setActiveInputMethod('type');
-            }}
-          />
-          <TouchableOpacity 
-            style={styles.closeCameraButton}
-            onPress={() => setShowCamera(false)}
-          >
-            <Ionicons name="close" size={24} color={colors.white} />
-          </TouchableOpacity>
-        </View>
-      )}
+      {/* Camera Input Overlay Removed */}
     </LinearGradient>
   );
 }
@@ -780,17 +971,33 @@ const styles = StyleSheet.create({
     color: colors.text,
     backgroundColor: colors.cardAlt,
   },
+  expandedContainer: {
+    overflow: 'hidden',
+  },
   expandedInputContainer: {
     backgroundColor: colors.white,
     borderRadius: 16,
-    marginHorizontal: 20,
-    marginBottom: 16,
     padding: 16,
+    marginTop: 8,
+    marginBottom: 16,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+  },
+  addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  disabledButton: {
+    backgroundColor: colors.backgroundDisabled,
+    opacity: 0.7,
   },
   ingredientsList: {
     marginBottom: 16,
@@ -811,48 +1018,159 @@ const styles = StyleSheet.create({
     color: colors.text,
     flex: 1,
   },
-  addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  disabledButton: {
-    backgroundColor: colors.backgroundDisabled,
-    opacity: 0.7,
-  },
   generateButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
     borderRadius: 12,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 16,
   },
   generateButtonText: {
-    fontFamily: 'Poppins-Medium',
+    fontFamily: 'Poppins-SemiBold',
     fontSize: 16,
     color: colors.white,
     marginRight: 8,
   },
-  cameraOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 1000,
+  // Voice input styles
+  listeningText: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 18,
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: 8,
   },
-  closeCameraButton: {
-    position: 'absolute',
-    top: 40,
-    right: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  instructionText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 20,
+  },
+  recordingIndicator: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: 24,
+  },
+  stopButton: {
+    backgroundColor: colors.error,
+    borderRadius: 24,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignSelf: 'center',
+  },
+  stopButtonText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 16,
+    color: colors.white,
+  },
+  resultTitle: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 16,
+    color: colors.text,
+    marginBottom: 12,
+  },
+  recognizedTextContainer: {
+    backgroundColor: colors.cardAlt,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+  },
+  recognizedText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 15,
+    color: colors.text,
+    lineHeight: 24,
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  actionButton: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryButton: {
+    backgroundColor: colors.cardAlt,
+    marginRight: 8,
+  },
+  secondaryButtonText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 15,
+    color: colors.text,
+  },
+  primaryButton: {
+    backgroundColor: colors.primary,
+    marginLeft: 8,
+  },
+  primaryButtonText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 15,
+    color: colors.white,
+  },
+  startButton: {
+    backgroundColor: colors.primary,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1001,
+    alignSelf: 'center',
+    marginBottom: 24,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
   },
+  startButtonText: {
+    color: 'white',
+    fontSize: 14,
+    marginTop: 8,
+    fontFamily: 'Poppins-Medium',
+  },
+  // Camera input styles
+  cameraMainButton: {
+    backgroundColor: colors.primary,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 5,
+      },
+    }),
+  },
+  cameraButtonText: {
+    color: 'white',
+    fontSize: 14,
+    marginTop: 8,
+    fontFamily: 'Poppins-Medium',
+  },
+  // cameraOverlay and closeCameraButton styles removed as they are no longer used
 });

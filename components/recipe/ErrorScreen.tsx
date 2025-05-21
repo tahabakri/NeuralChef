@@ -1,7 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import LottieView from 'lottie-react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import colors from '@/constants/colors';
 import typography from '@/constants/typography';
 
@@ -12,6 +14,18 @@ interface ErrorScreenProps {
 }
 
 const ErrorScreen = ({ error, onRetry, onBack }: ErrorScreenProps) => {
+  const scale = useSharedValue(0.8);
+
+  React.useEffect(() => {
+    scale.value = withSpring(1, { damping: 12, stiffness: 100 });
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scale.value }]
+    };
+  });
+
   return (
     <LinearGradient
       colors={[colors.softPeachStart, colors.softPeachEnd]}
@@ -22,22 +36,31 @@ const ErrorScreen = ({ error, onRetry, onBack }: ErrorScreenProps) => {
       </TouchableOpacity>
       
       <View style={styles.contentContainer}>
-        <Image
-          source={require('@/assets/images/error-image.png')}
-          style={styles.errorImage}
-          resizeMode="contain"
-          defaultSource={require('@/assets/images/error-image.png')}
-          // Fallback for when the image doesn't load
-          onError={() => console.log('Error loading image')}
-        />
+        <View style={styles.illustrationContainer}>
+          <Animated.View style={animatedStyle}>
+            <LottieView
+              source={require('@/assets/animations/error.json')}
+              autoPlay
+              loop={true}
+              style={styles.errorAnimation}
+            />
+          </Animated.View>
+        </View>
         
         <Text style={styles.errorTitle}>Oops!</Text>
         <Text style={styles.errorMessage}>{error || 'Something went wrong'}</Text>
         
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
-            <Ionicons name="refresh" size={20} color={colors.white} />
-            <Text style={styles.retryButtonText}>Try Again</Text>
+          <TouchableOpacity onPress={onRetry}>
+            <LinearGradient
+              colors={[colors.sunriseOrange, '#FB8C00']}
+              style={styles.retryButton}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Ionicons name="refresh" size={20} color={colors.white} />
+              <Text style={styles.retryButtonText}>Try Again</Text>
+            </LinearGradient>
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.backHomeButton} onPress={onBack}>
@@ -74,18 +97,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 60,
   },
-  errorImage: {
+  illustrationContainer: {
     width: 200,
     height: 200,
+    borderRadius: 100,
     marginBottom: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'visible',
+  },
+  errorAnimation: {
+    width: 200,
+    height: 200,
   },
   errorTitle: {
-    ...typography.heading1,
+    ...typography.heading2,
     color: colors.text,
     marginBottom: 10,
   },
   errorMessage: {
     ...typography.bodyLarge,
+    lineHeight: typography.bodyLarge.fontSize ? typography.bodyLarge.fontSize * 1.4 : 22,
     color: colors.textSecondary,
     textAlign: 'center',
     maxWidth: 280,
@@ -99,7 +131,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.primary,
     paddingVertical: 14,
     borderRadius: 12,
     marginBottom: 16,
@@ -121,7 +152,7 @@ const styles = StyleSheet.create({
   },
   backHomeButtonText: {
     ...typography.bodyMedium,
-    color: colors.primary,
+    color: colors.success,
   },
 });
 

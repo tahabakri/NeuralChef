@@ -72,7 +72,7 @@ export default function RecipeDetailScreen() {
   const confettiScale = useSharedValue(0);
   
   // Store hooks
-  const { addSavedRecipe, removeSavedRecipe, isSaved } = useSavedRecipesStore();
+  const { saveRecipe, removeSavedRecipe, isSaved } = useSavedRecipesStore();
   
   // Check if recipe is saved
   const [saved, setSaved] = useState(false);
@@ -169,7 +169,7 @@ export default function RecipeDetailScreen() {
     if (saved) {
       removeSavedRecipe(recipe.id);
     } else {
-      addSavedRecipe(recipe);
+      saveRecipe(recipe);
     }
     
     setSaved(!saved);
@@ -194,21 +194,6 @@ export default function RecipeDetailScreen() {
     } catch (error) {
       console.error('Error sharing recipe:', error);
     }
-  };
-  
-  const handleEditIngredients = () => {
-    if (!recipe) return;
-    
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    // Navigate to the edit screen with recipe data
-    router.push({
-      pathname: '/edit',
-      params: { 
-        recipeId: recipe.id,
-        ingredients: JSON.stringify(recipe.ingredients.map(i => i.name))
-      }
-    });
   };
   
   const handleBackPress = () => {
@@ -331,10 +316,6 @@ export default function RecipeDetailScreen() {
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Ingredients</Text>
-            <TouchableOpacity onPress={handleEditIngredients} style={styles.editButton}>
-              <Ionicons name="pencil" size={18} color={colors.primary} />
-              <Text style={styles.editButtonText}>Edit</Text>
-            </TouchableOpacity>
           </View>
           <View style={styles.sectionContent}>
             <IngredientList 
@@ -359,7 +340,21 @@ export default function RecipeDetailScreen() {
         {/* Nutritional Information Section */}
         {recipe.nutritionalInfo && (
           <View style={styles.sectionContainer}>
-            <NutritionalInfo nutritionalInfo={recipe.nutritionalInfo} />
+            <NutritionalInfo 
+              nutritionalInfo={{
+                calories: recipe.nutritionalInfo.calories ?? 0,
+                protein: recipe.nutritionalInfo.protein ?? 0,
+                carbs: recipe.nutritionalInfo.carbs ?? 0,
+                fat: recipe.nutritionalInfo.fat ?? 0,
+                // Spread any other properties, defaulting to 0 if they are undefined
+                ...Object.fromEntries(
+                  Object.entries(recipe.nutritionalInfo).map(([key, value]) => [
+                    key,
+                    value ?? 0,
+                  ])
+                ),
+              }}
+            />
           </View>
         )}
         
@@ -520,19 +515,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: colors.cardAlt,
-  },
-  editButtonText: {
-    ...typography.bodySmall,
-    color: colors.primary,
-    marginLeft: 4,
-  },
   completionContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -583,4 +565,4 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Medium',
     marginLeft: 8,
   },
-}); 
+});

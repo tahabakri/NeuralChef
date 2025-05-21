@@ -10,6 +10,15 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSequence,
+  Easing,
+} from 'react-native-reanimated';
+import LottieView from 'lottie-react-native';
 import colors from '@/constants/colors';
 import typography from '@/constants/typography';
 
@@ -22,6 +31,10 @@ const TimerButton = ({ minutes }: TimerButtonProps) => {
   const [timeLeft, setTimeLeft] = useState(minutes * 60);
   const [showModal, setShowModal] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
+  
+  // Animation values
+  const modalSlide = useSharedValue(100);
+  const bellAnimation = useSharedValue(0);
   
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -40,6 +53,29 @@ const TimerButton = ({ minutes }: TimerButtonProps) => {
       if (interval) clearInterval(interval);
     };
   }, [isTimerActive, timeLeft]);
+  
+  useEffect(() => {
+    if (showModal) {
+      modalSlide.value = withTiming(0, {
+        duration: 300,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      });
+    } else {
+      modalSlide.value = withTiming(100, {
+        duration: 200,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      });
+    }
+  }, [showModal]);
+  
+  useEffect(() => {
+    if (isComplete) {
+      bellAnimation.value = withSequence(
+        withTiming(1, { duration: 300 }),
+        withTiming(0, { duration: 300 })
+      );
+    }
+  }, [isComplete]);
   
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -81,38 +117,80 @@ const TimerButton = ({ minutes }: TimerButtonProps) => {
     setShowModal(false);
   };
   
+  const modalAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: `${modalSlide.value}%` }],
+    };
+  });
+  
+  const bellAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: bellAnimation.value,
+      transform: [
+        { scale: 1 + bellAnimation.value * 0.2 },
+      ],
+    };
+  });
+  
+  // Determine which gradient to use based on state
+  const getGradientColors = () => {
+    if (isComplete) return [colors.success, colors.primaryDark]; // Green for complete
+    if (isTimerActive) return [colors.sunriseOrange, colors.secondaryDark]; // Orange for active
+    return [colors.softPeachEnd, colors.softPeachStart]; // Peach for default
+  };
+  
   return (
     <View>
-      <TouchableOpacity 
-        style={[
-          styles.timerButton,
-          isTimerActive && styles.activeTimerButton,
-          isComplete && styles.completeTimerButton
-        ]}
-        onPress={() => setShowModal(true)}
-      >
-        <Ionicons 
-          name={isTimerActive ? "timer" : "timer-outline"} 
-          size={14} 
-          color={isTimerActive ? colors.white : colors.primary} 
-        />
-        <Text style={[
-          styles.timerText,
-          isTimerActive && styles.activeTimerText
-        ]}>
-          {isTimerActive ? formatTime(timeLeft) : `${minutes} min`}
-        </Text>
+      <TouchableOpacity onPress={() => setShowModal(true)}>
+        <LinearGradient 
+          colors={getGradientColors()}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.timerButton}
+        >
+          <Ionicons 
+            name={isTimerActive ? "timer" : "timer-outline"} 
+            size={14} 
+            color={colors.white} 
+          />
+          <Text style={styles.timerText}>
+            {isTimerActive ? formatTime(timeLeft) : `${minutes} min`}
+          </Text>
+        </LinearGradient>
       </TouchableOpacity>
       
       <Modal
         transparent
         visible={showModal}
-        animationType="fade"
+        animationType="none"
         onRequestClose={() => setShowModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowModal(false)}
+        >
+          <Animated.View 
+            style={[styles.modalContent, modalAnimatedStyle]}
+          >
+            <View style={styles.dragIndicator} />
+            
+            <LinearGradient 
+              colors={getGradientColors()}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.modalHeader}
+            >
+              {isComplete && (
+                <Animated.View style={[styles.bellAnimation, bellAnimatedStyle]}>
+                  <LottieView
+                    source={require('@/assets/animations/bell.json')}
+                    autoPlay
+                    loop={false}
+                    style={styles.bellLottie}
+                  />
+                </Animated.View>
+              )}
               <Text style={styles.modalTitle}>
                 {isComplete ? 'Timer Complete!' : 'Step Timer'}
               </Text>
@@ -121,9 +199,9 @@ const TimerButton = ({ minutes }: TimerButtonProps) => {
                 onPress={() => setShowModal(false)}
                 style={styles.closeButton}
               >
-                <Ionicons name="close" size={24} color={colors.textSecondary} />
+                <Ionicons name="close" size={24} color={colors.white} />
               </TouchableOpacity>
-            </View>
+            </LinearGradient>
             
             <View style={styles.timerDisplay}>
               <Text style={styles.timerDisplayText}>
@@ -153,8 +231,8 @@ const TimerButton = ({ minutes }: TimerButtonProps) => {
                 <Text style={styles.resetButtonText}>Reset</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
+          </Animated.View>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -164,37 +242,25 @@ const styles = StyleSheet.create({
   timerButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.cardAlt,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     borderRadius: 16,
-  },
-  activeTimerButton: {
-    backgroundColor: colors.primary,
-  },
-  completeTimerButton: {
-    backgroundColor: colors.success,
   },
   timerText: {
     ...typography.bodySmall,
-    color: colors.primary,
-    marginLeft: 4,
-  },
-  activeTimerText: {
     color: colors.white,
+    marginLeft: 4,
+    fontFamily: 'Poppins-Medium',
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: colors.card,
-    borderRadius: 16,
-    width: '90%',
-    maxWidth: 320,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     overflow: 'hidden',
     elevation: 5,
     shadowColor: colors.shadow,
@@ -202,17 +268,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
   },
+  dragIndicator: {
+    width: 40,
+    height: 5,
+    backgroundColor: colors.dragHandle,
+    borderRadius: 2.5,
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 10,
+  },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
     padding: 16,
   },
   modalTitle: {
     ...typography.heading3,
-    color: colors.text,
+    color: colors.white,
   },
   closeButton: {
     padding: 4,
@@ -230,7 +303,7 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 16,
+    marginBottom: 30,
   },
   actionButton: {
     flexDirection: 'row',
@@ -239,7 +312,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 16,
     width: '45%',
   },
   actionButtonText: {
@@ -252,10 +325,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.cardAlt,
+    backgroundColor: colors.backgroundAlt,
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 16,
     width: '45%',
   },
   resetButtonText: {
@@ -264,6 +337,19 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Medium',
     marginLeft: 8,
   },
+  bellAnimation: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bellLottie: {
+    width: 60,
+    height: 60,
+  }
 });
 
 export default TimerButton; 
