@@ -12,7 +12,8 @@ import {
   SafeAreaView,
   Platform,
   RefreshControl,
-  ActivityIndicator
+  ActivityIndicator,
+  TextInput
 } from 'react-native';
 import { router } from 'expo-router';
 import { NetworkManager } from '@/components/OfflineBanner';
@@ -28,14 +29,14 @@ import Animated, {
 } from 'react-native-reanimated';
 
 // Components
-import GreetingHeader from '@/components/home/GreetingHeader';
+
 import CameraInput from '@/components/CameraInput';
 import VoiceInputModal from '@/components/VoiceInputModal';
-import SurpriseButton from '@/components/home/SurpriseButton';
-import RecommendedRecipes from '@/components/home/RecommendedRecipes';
 import PopularCombinationCard from '@/components/PopularCombinationCard';
 import RecipeCard, { prepareRecipeForCard } from '@/components/RecipeCard';
 import Card from '@/components/Card';
+import IngredientInput from '@/components/IngredientInput';
+import ExpandableSection from '@/components/ExpandableSection';
 
 // Stores
 import { useUserStore } from '@/stores/userStore';
@@ -44,6 +45,7 @@ import { useSavedRecipesStore } from '@/stores/savedRecipesStore';
 // Constants & Utils
 import colors from '@/constants/colors';
 import typography from '@/constants/typography';
+import { todayRecipes } from '@/constants/sampleRecipes';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -55,6 +57,10 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(NetworkManager.isOffline);
+  const [ingredients, setIngredients] = useState<string[]>([]);
+  const [activeInputMethod, setActiveInputMethod] = useState<'none' | 'type' | 'voice' | 'camera'>('none');
+  const [inputText, setInputText] = useState('');
+  const [showCamera, setShowCamera] = useState(false);
   
   // Animation values for input buttons
   const scaleVoice = useSharedValue(1);
@@ -142,42 +148,18 @@ export default function HomeScreen() {
     }, 1500);
   };
   
-  // Sample data for Today's Picks
-  const todaysPicks = [
-    {
-      id: '4',
-      title: 'Chicken Caesar Salad',
-      description: 'Fresh romaine lettuce with grilled chicken, croutons, and caesar dressing',
-      image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c',
-      cookTime: 20,
-      difficulty: 'Easy' as 'Easy' | 'Medium' | 'Hard',
-      rating: 4.7,
-      servings: 2,
-      tags: ['lunch', 'salad', 'protein']
-    },
-    {
-      id: '5',
-      title: 'Vegetable Stir Fry',
-      description: 'Quick and healthy vegetable stir fry with your favorite veggies',
-      image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19',
-      cookTime: 15,
-      difficulty: 'Easy' as 'Easy' | 'Medium' | 'Hard',
-      rating: 4.5,
-      servings: 2,
-      tags: ['lunch', 'quick', 'vegetarian']
-    },
-    {
-      id: '6',
-      title: 'Margherita Pizza',
-      description: 'Classic pizza with tomato, mozzarella, and fresh basil',
-      image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591',
-      cookTime: 30,
-      difficulty: 'Medium' as 'Easy' | 'Medium' | 'Hard',
-      rating: 4.8,
-      servings: 4,
-      tags: ['lunch', 'dinner', 'italian']
-    }
-  ];
+  // Sample data for Today's Picks - Replace with data from sampleRecipes.ts
+  const todaysPicks = todayRecipes.map(recipe => ({
+    id: recipe.id,
+    title: recipe.title,
+    description: recipe.description,
+    image: recipe.image,
+    cookTime: recipe.cookTime,
+    difficulty: recipe.difficulty,
+    rating: recipe.rating,
+    servings: recipe.servings,
+    tags: recipe.tags
+  }));
   
   // Sample data for Popular Combinations
   const popularCombinations = [
@@ -200,12 +182,11 @@ export default function HomeScreen() {
     setVoiceModalVisible(false);
     if (recognizedText.trim()) {
       try {
-        // Process ingredients and navigate to generate
-        const ingredients = recognizedText.split(/[,.]/).map(i => i.trim()).filter(Boolean);
-        router.push({
-          pathname: '/generate',
-          params: { ingredients: JSON.stringify(ingredients) }
-        });
+        // Process ingredients
+        const newIngredients = recognizedText.split(/[,.]/).map(i => i.trim()).filter(Boolean);
+        setIngredients(prev => [...prev, ...newIngredients]);
+        // Expand the type input to show the ingredients
+        setActiveInputMethod('type');
       } catch (error) {
         console.error('Error processing voice input:', error);
       }
@@ -228,16 +209,35 @@ export default function HomeScreen() {
   const handleTypeInput = () => {
     animateButton(scaleType);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/input');
+    setActiveInputMethod(activeInputMethod === 'type' ? 'none' : 'type');
+  };
+  
+  const handleAddIngredient = () => {
+    if (!inputText.trim()) return;
+    
+    const newIngredients = inputText
+      .split(/[,\n]/)
+      .map(i => i.trim())
+      .filter(Boolean);
+    
+    setIngredients(prev => [...prev, ...newIngredients]);
+    setInputText('');
+  };
+  
+  const handleRemoveIngredient = (index: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const newIngredients = [...ingredients];
+    newIngredients.splice(index, 1);
+    setIngredients(newIngredients);
   };
   
   const handleCombinationPress = (combination: any) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
-    // Map common combinations to specific recipe IDs
+    // Map common combinations to specific recipe IDs from sampleRecipes.ts
     const recipeMapping: Record<string, string> = {
-      'Rice + Chicken': '2', // Map to Spicy Chicken Stir-fry recipe
-      'Pasta + Tomato': '1'  // Map to Classic Tomato Pasta recipe
+      'Rice + Chicken': '2', // Map to Stuffed with chicken recipe
+      'Pasta + Tomato': '1'  // Map to Penne pasta tomato recipe
     };
     
     // Get the recipe ID based on the combination name, or use the first recipe as fallback
@@ -335,20 +335,72 @@ export default function HomeScreen() {
                   <Ionicons name="list-outline" size={24} color={colors.textSecondary} />
                 </View>
                 <Text style={styles.inputButtonText}>Type Your Ingredients</Text>
-                <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
+                <Ionicons name={activeInputMethod === 'type' ? "chevron-up" : "chevron-forward"} size={20} color={colors.textTertiary} />
               </TouchableOpacity>
             </Animated.View>
             
+            {/* Expanded Type Input */}
+            {activeInputMethod === 'type' && (
+              <View style={styles.expandedInputContainer}>
+                {/* Text input field */}
+                <View style={styles.textInputContainer}>
+                  <TextInput 
+                    value={inputText}
+                    onChangeText={setInputText}
+                    placeholder="Enter ingredients (separated by commas)"
+                    style={styles.textInput}
+                  />
+                  <TouchableOpacity
+                    style={[styles.addButton, !inputText.trim() && styles.disabledButton]}
+                    onPress={handleAddIngredient}
+                    disabled={!inputText.trim()}
+                  >
+                    <Ionicons name="add" size={24} color={colors.white} />
+                  </TouchableOpacity>
+                </View>
+                
+                {/* Ingredients list */}
+                {ingredients.length > 0 && (
+                  <View style={styles.ingredientsList}>
+                    {ingredients.map((ingredient, index) => (
+                      <View key={index} style={styles.ingredientItem}>
+                        <Text style={styles.ingredientText}>{ingredient}</Text>
+                        <TouchableOpacity onPress={() => handleRemoveIngredient(index)}>
+                          <Ionicons name="close-circle" size={20} color={colors.error} />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                
+                {/* Generate button */}
+                {ingredients.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.generateButton}
+                    onPress={() => {
+                      router.push({
+                        pathname: '/generate',
+                        params: { ingredients: JSON.stringify(ingredients) }
+                      });
+                      setActiveInputMethod('none');
+                    }}
+                  >
+                    <Text style={styles.generateButtonText}>Generate Recipe ({ingredients.length})</Text>
+                    <Ionicons name="arrow-forward" size={20} color={colors.white} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+            
             {/* Camera Input Button */}
             <Animated.View style={cameraButtonStyle}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.inputButton, isOffline && styles.disabledInputButton]}
                 onPress={() => {
                   if (isOffline) return;
                   animateButton(scaleCamera);
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  // Navigate directly to input screen with camera mode
-                  router.push('/input?mode=camera');
+                  setShowCamera(true);
                 }}
                 accessibilityLabel="Take a photo of ingredients"
                 accessibilityHint="Double tap to use camera to capture your ingredients"
@@ -361,22 +413,7 @@ export default function HomeScreen() {
                 <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
               </TouchableOpacity>
             </Animated.View>
-            
-            {/* Hidden CameraInput component with ref */}
-            <View style={styles.hiddenCamera}>
-              <CameraInput 
-                onIngredientsDetected={handleCameraInput} 
-              />
-            </View>
           </View>
-          
-          {/* Surprise Me Button */}
-          <SurpriseButton 
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              router.push('/generate?random=true&mealType=lunch');
-            }}
-          />
           
           {/* Today's Picks Section - Offline aware */}
           {!isOffline && (
@@ -501,6 +538,26 @@ export default function HomeScreen() {
           onClose={() => setVoiceModalVisible(false)}
         />
       )}
+
+      {/* Camera Input */}
+      {showCamera && (
+        <View style={styles.cameraOverlay}>
+          <CameraInput
+            onIngredientsDetected={(detectedIngredients) => {
+              setIngredients(prev => [...prev, ...detectedIngredients]);
+              setShowCamera(false);
+              // If we have ingredients, expand the type input to show them
+              setActiveInputMethod('type');
+            }}
+          />
+          <TouchableOpacity 
+            style={styles.closeCameraButton}
+            onPress={() => setShowCamera(false)}
+          >
+            <Ionicons name="close" size={24} color={colors.white} />
+          </TouchableOpacity>
+        </View>
+      )}
     </LinearGradient>
   );
 }
@@ -586,11 +643,6 @@ const styles = StyleSheet.create({
   },
   disabledButtonText: {
     color: colors.textDisabled,
-  },
-  hiddenCamera: {
-    height: 0,
-    width: 0,
-    overflow: 'hidden',
   },
   sectionContainer: {
     marginTop: 20,
@@ -693,5 +745,114 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
     textAlign: 'center',
     marginTop: 5,
+  },
+  inputOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    marginBottom: 10,
+    padding: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  hiddenCamera: {
+    height: 0,
+    width: 0,
+    overflow: 'hidden',
+  },
+  textInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  textInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 16,
+    fontFamily: 'Poppins-Regular',
+    color: colors.text,
+    backgroundColor: colors.cardAlt,
+  },
+  expandedInputContainer: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    padding: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  ingredientsList: {
+    marginBottom: 16,
+  },
+  ingredientItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.cardAlt,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  ingredientText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: colors.text,
+    flex: 1,
+  },
+  addButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  disabledButton: {
+    backgroundColor: colors.backgroundDisabled,
+    opacity: 0.7,
+  },
+  generateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  generateButtonText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 16,
+    color: colors.white,
+    marginRight: 8,
+  },
+  cameraOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1000,
+  },
+  closeCameraButton: {
+    position: 'absolute',
+    top: 40,
+    right: 20,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1001,
   },
 });

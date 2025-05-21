@@ -8,9 +8,11 @@ import typography from '@/constants/typography';
 interface TutorialStepProps {
   onNext: () => void;
   onPrevious: () => void;
+  onSkip?: () => void; // Added onSkip
+  isLastStep?: boolean; // Added isLastStep
   stepIndex: number;
   totalSteps: number;
-  step: number; // Tutorial step number (1-4)
+  step?: number; // Tutorial step number (1-4), made optional
 }
 
 const { width } = Dimensions.get('window');
@@ -42,7 +44,18 @@ const tutorials = [
   },
 ];
 
-const TutorialStep = ({ onNext, onPrevious, stepIndex, totalSteps, step }: TutorialStepProps) => {
+const TutorialStep = ({ onNext, onPrevious, onSkip, stepIndex, totalSteps, step }: TutorialStepProps) => { // Added onSkip to destructuring
+  if (step === undefined) {
+    // This case should ideally not be reached if app/onboarding.tsx is correctly configured
+    // to always pass 'step' when the component is TutorialStep.
+    console.error("TutorialStep: 'step' prop is undefined. Check onboarding configuration.");
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Error: Tutorial step not specified.</Text>
+      </View>
+    );
+  }
+
   const tutorial = tutorials[step - 1];
   const isLastTutorial = step === tutorials.length;
 
@@ -99,17 +112,12 @@ const TutorialStep = ({ onNext, onPrevious, stepIndex, totalSteps, step }: Tutor
           </LinearGradient>
         </TouchableOpacity>
         
-        {!isLastTutorial && (
-          <TouchableOpacity 
+        {!isLastTutorial && onSkip && ( // Use onSkip from props
+          <TouchableOpacity
             style={styles.skipButton}
-            onPress={() => {
-              // This will skip to the end of the tutorial steps
-              for (let i = step; i < tutorials.length; i++) {
-                onNext();
-              }
-            }}
+            onPress={onSkip} // Call the main onSkip function
           >
-            <Text style={styles.skipButtonText}>Skip Tutorial</Text>
+            <Text style={styles.skipButtonText}>Skip Onboarding</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -223,4 +231,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TutorialStep; 
+export default TutorialStep;

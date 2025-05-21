@@ -20,26 +20,26 @@ import * as Linking from 'expo-linking';
 import { validateDeepLink, AppRoutes } from './routes';
 
 // Import utilities for handling missing native modules
-import { mockNetInfo, mockCamera, mockMediaLibrary, mockSpeech } from "@/utils/moduleResolvers";
+// import { mockNetInfo, mockCamera, mockMediaLibrary, mockSpeech } from "@/utils/moduleResolvers";
 
 // Set up mocks for native modules
-try {
-  if (typeof global !== 'undefined') {
-    // @ts-ignore
-    global.nativeModules = global.nativeModules || {};
-    // @ts-ignore
-    global.nativeModules.RNCNetInfo = global.nativeModules.RNCNetInfo || mockNetInfo();
-    // @ts-ignore
-    global.ExpoCamera = global.ExpoCamera || mockCamera();
-    // @ts-ignore
-    global.ExpoMediaLibrary = global.ExpoMediaLibrary || mockMediaLibrary();
-    // @ts-ignore
-    global.ExpoSpeech = global.ExpoSpeech || mockSpeech();
-  }
-  console.log('Successfully set up mock modules');
-} catch (e) {
-  console.error('Error setting up mock modules:', e);
-}
+// try {
+//   if (typeof global !== 'undefined') {
+//     // @ts-ignore
+//     global.nativeModules = global.nativeModules || {};
+//     // @ts-ignore
+//     global.nativeModules.RNCNetInfo = global.nativeModules.RNCNetInfo || mockNetInfo();
+//     // @ts-ignore
+//     global.ExpoCamera = global.ExpoCamera || mockCamera();
+//     // @ts-ignore
+//     global.ExpoMediaLibrary = global.ExpoMediaLibrary || mockMediaLibrary();
+//     // @ts-ignore
+//     global.ExpoSpeech = global.ExpoSpeech || mockSpeech();
+//   }
+//   console.log('Successfully set up mock modules');
+// } catch (e) {
+//   console.error('Error setting up mock modules:', e);
+// }
 
 // Import Toast with error handling
 let Toast: any;

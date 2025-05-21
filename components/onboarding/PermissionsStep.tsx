@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
-import * as Permissions from 'expo-permissions';
+// import * as Permissions from 'expo-permissions'; // Deprecated and unused
 import colors from '@/constants/colors';
 import { useOnboardingStore } from '@/stores/onboardingStore';
 import { Camera } from 'expo-camera';
@@ -22,6 +22,7 @@ import typography from '@/constants/typography';
 interface PermissionsStepProps {
   onNext: () => void;
   onBack?: () => void;
+  onSkip?: () => void; // Added onSkip as optional
   isLastStep: boolean;
   stepIndex: number;
   totalSteps: number;
@@ -287,7 +288,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.backgroundLight,
+    backgroundColor: colors.backgroundAlt,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -359,4 +360,4 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '600',
   },
-}); 
+});

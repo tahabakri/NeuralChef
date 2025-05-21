@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Modal
 } from 'react-native';
-import { Camera, CameraType } from 'expo-camera';
+import { CameraView, Camera, CameraType } from 'expo-camera';
 import { Camera as CameraIcon, X, RefreshCw, Check } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
@@ -26,7 +26,7 @@ export default function CameraInput({ onIngredientsDetected }: CameraInputProps)
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [detectedIngredients, setDetectedIngredients] = useState<string[]>([]);
-  const [cameraRef, setCameraRef] = useState<Camera | null>(null);
+  const [cameraRef, setCameraRef] = useState<CameraView | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   
   // Request camera permission
@@ -49,15 +49,19 @@ export default function CameraInput({ onIngredientsDetected }: CameraInputProps)
     
     try {
       const photo = await cameraRef.takePictureAsync({ quality: 0.7 });
-      setCapturedImage(photo.uri);
-      
-      // Provide haptic feedback
-      if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (photo && photo.uri) {
+        setCapturedImage(photo.uri);
+        
+        // Provide haptic feedback
+        if (Platform.OS !== 'web') {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+        
+        // Simulate image processing
+        processImage(photo.uri);
+      } else {
+        console.warn('Failed to capture image or URI is missing.');
       }
-      
-      // Simulate image processing
-      processImage(photo.uri);
     } catch (err) {
       console.error('Failed to take picture:', err);
     }
@@ -138,10 +142,10 @@ export default function CameraInput({ onIngredientsDetected }: CameraInputProps)
           {!capturedImage ? (
             <View style={styles.cameraContainer}>
               {hasPermission ? (
-                <Camera
+                <CameraView
                   style={styles.camera}
-                  type={CameraType.back}
-                  ref={(ref) => setCameraRef(ref)}
+                  facing={'back'}
+                  ref={(ref: CameraView | null) => setCameraRef(ref)}
                 >
                   <View style={styles.captureButtonContainer}>
                     <TouchableOpacity
@@ -151,7 +155,7 @@ export default function CameraInput({ onIngredientsDetected }: CameraInputProps)
                       <View style={styles.captureButtonInner} />
                     </TouchableOpacity>
                   </View>
-                </Camera>
+                </CameraView>
               ) : (
                 <View style={styles.permissionContainer}>
                   <Text style={styles.permissionText}>
@@ -311,4 +315,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginLeft: 8,
   },
-}); 
+});

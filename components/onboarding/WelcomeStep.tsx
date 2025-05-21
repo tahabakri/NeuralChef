@@ -13,6 +13,7 @@ import typography from '@/constants/typography';
 
 export interface WelcomeStepProps {
   onNext: () => void;
+  onSkip?: () => void; // Added onSkip as optional
   stepIndex: number;
   totalSteps: number;
 }
@@ -114,4 +115,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default WelcomeStep; 
+export default WelcomeStep;

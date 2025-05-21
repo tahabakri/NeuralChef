@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import colors from '@/constants/colors';
-import { useOnboardingStore } from '@/stores/onboardingStore';
+import { useOnboardingStore, DietaryPreference, MealPreference } from '@/stores/onboardingStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import typography from '@/constants/typography';
 import BackArrow from '@/components/BackArrow';
@@ -19,6 +19,8 @@ import BackArrow from '@/components/BackArrow';
 interface StylePreferencesStepProps {
   onNext: () => void;
   onPrevious: () => void;
+  onSkip?: () => void; // Added onSkip
+  isLastStep?: boolean; // Added isLastStep
   stepIndex: number;
   totalSteps: number;
 }
@@ -35,7 +37,7 @@ const { width } = Dimensions.get('window');
 const dietaryPreferences: PreferenceOption[] = [
   { id: 'vegetarian', label: 'Vegetarian', icon: 'leaf' },
   { id: 'vegan', label: 'Vegan', icon: 'nutrition' },
-  { id: 'glutenFree', label: 'Gluten Free', icon: 'wheat-off' },
+  { id: 'glutenFree', label: 'Gluten Free', icon: 'ban-outline' }, // Changed icon
   { id: 'dairyFree', label: 'Dairy Free', icon: 'water' },
   { id: 'keto', label: 'Keto', icon: 'flame' },
   { id: 'lowCarb', label: 'Low Carb', icon: 'barbell' },
@@ -84,8 +86,8 @@ const StylePreferencesStep = ({ onNext, onPrevious, stepIndex, totalSteps }: Sty
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     // Save preferences to store
-    setDietaryPreferences(selectedDietaryPrefs);
-    setMealPreferences(selectedMealPrefs);
+    setDietaryPreferences(selectedDietaryPrefs as DietaryPreference[]);
+    setMealPreferences(selectedMealPrefs as MealPreference[]);
     
     onNext();
   };
@@ -93,7 +95,7 @@ const StylePreferencesStep = ({ onNext, onPrevious, stepIndex, totalSteps }: Sty
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <BackArrow onBack={onPrevious} />
+        <BackArrow onClick={onPrevious} />
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
             <View style={[styles.progress, { width: `${((stepIndex + 1) / totalSteps) * 100}%` }]} />
@@ -334,4 +336,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default StylePreferencesStep; 
+export default StylePreferencesStep;

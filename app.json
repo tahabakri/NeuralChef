@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "AI Recipe Helper",
-    "slug": "ai-recipe-helper",
+    "name": "Yumio",
+    "slug": "Yumio",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
