@@ -1,90 +1,91 @@
-// Color palette for the Yumio recipe app
-// Warm, playful design with colors from the Yumio logo
+// Calm, minimalist design inspired by mental wellness apps
 
 const colors = {
     // Primary colors
-    primary: '#4CAF50', // Accent Green
-    primaryLight: "#81C784",
-    primaryDark: "#1B5E20",
-    secondary: '#FF9800', // Sunrise Orange
-    secondaryLight: "#FFD3A5",
-    secondaryDark: "#E67E22",
+    primary: '#FFB38A', // Lighter Warm Orange
+    primaryLight: "#FFD2B8",
+    primaryDark: "#FFA06E",
+    secondary: '#A8CBFF', // Lighter Calm Blue
+    secondaryLight: "#D6E7FF",
+    secondaryDark: "#8AB6FF",
 
-    // Specific UI colors from logo
-    softPeachStart: '#FFE0B2',
-    softPeachEnd: '#FFCC80',
-    sunriseOrangeStart: '#FFA726',
-    sunriseOrangeEnd: '#FB8C00',
-    cancelButtonGray: "#B0BEC5",
+    // Specific UI colors
+    softBlueStart: '#F5F9FB',
+    softBlueEnd: '#F1F5F8',
+    orangeAccentStart: '#FFB38A',
+    orangeAccentEnd: '#FF9560',
+    cancelButtonGray: "#D2DDE3",
     
     // Accent colors for info pills
-    accentBlue: "#2196F3",
-    accentBlueLight: "#90CAF9",
-    accentYellow: "#FFC107",
-    accentYellowLight: "#FFE082",
-    accentOrange: "#F4A261", // Same as secondary for consistency
-    accentOrangeLight: "#FFCC80",
-    accentGreenStart: '#66BB6A',
-    accentGreenEnd: '#43A047',
+    accentBlue: "#A8CBFF",
+    accentBlueLight: "#E6F2FF",
+    accentYellow: "#FFE28A",
+    accentYellowLight: "#FFF3C2",
+    accentOrange: "#FFB38A",
+    accentOrangeLight: "#FFE2D0",
+    accentGreenStart: '#A6E8AC',
+    accentGreenEnd: '#81D98C',
     
     // Semantic colors
-    success: '#4CAF50',
-    error: '#F44336',
-    errorLight: "#FFCDD2",
-    warning: '#FFC107',
-    warningLight: "#FFE0B2",
-    info: '#2196F3',
-    infoLight: "#E3F2FD",
+    success: '#94E79C',
+    error: '#FFA4A0',
+    errorLight: "#FFE5E5",
+    warning: '#FFD580',
+    warningLight: "#FFF0CC",
+    info: '#A8D3FF',
+    infoLight: "#F1FAFF",
     
     // Tag colors
-    tagBackground: "#E8F5E9", // Light green for ingredient tags
+    tagBackground: "#EDF9EF",
     
     // Neutrals
     white: '#FFFFFF',
     black: "#000000",
-    background: '#F9F9F9',
-    backgroundAlt: '#F0F0F0',
-    backgroundGradientStart: "#FFF3E0",
-    backgroundGradientEnd: "#F9E4C6",
+    background: '#F5F9FB',
+    backgroundAlt: '#F1F5F8',
+    backgroundGradientStart: "#F5F9FB",
+    backgroundGradientEnd: "#F1F5F8",
     card: "#FFFFFF",
-    cardAlt: "#FFE8CC", // Lighter peach for cards
-    searchBackground: '#F5F5F5',
+    cardAlt: "#FAFBFC",
+    searchBackground: '#FAFAFA',
     
     // Text colors
-    text: '#333333',
-    textSecondary: '#757575',
-    textTertiary: '#9E9E9E',
+    text: '#444444',
+    textPrimary: '#444444',
+    textInverse: '#FFFFFF',
+    textSecondary: '#888888',
+    textTertiary: '#B0B0B0',
     textLight: "#FFFFFF",
-    textDark: "#5C4033",
-    textDisabled: "#BDBDBD", // Added for disabled text elements
+    textDark: "#444444",
+    textDisabled: "#D0D0D0",
     
     // UI elements
-    backgroundDisabled: "#EEEEEE", // Added for disabled button backgrounds
-    iconDisabledBackground: "#F5F5F5", // Added for disabled icon container backgrounds
-    border: '#E0E0E0',
-    borderActive: "#BBDEFB",
-    divider: "#EEEEEE",
-    dragHandle: "#E0E0E0",
+    backgroundDisabled: "#F5F5F5",
+    iconDisabledBackground: "#FAFAFA",
+    border: '#E8E8E8',
+    borderActive: "#D6EBFF",
+    divider: "#F5F5F5",
+    dragHandle: "#E8E8E8",
     tabBarBackground: "#FFFFFF",
-    tabBarBackgroundGradientStart: "#FFF3E0",
-    tabBarBackgroundGradientEnd: "#F9E4C6",
-    tabBarActiveTint: "#2E7D32", // Changed to primary green
-    tabBarInactiveTint: "#9E9E9E",
-    tabBarActiveIndicator: "#2E7D32", // Changed to primary green
-    tabBarBorder: "#E0E0E0",
+    tabBarBackgroundGradientStart: "#F5F9FB",
+    tabBarBackgroundGradientEnd: "#F1F5F8",
+    tabBarActiveTint: "#FFB38A",
+    tabBarInactiveTint: "#B0B0B0",
+    tabBarActiveIndicator: "#FFB38A",
+    tabBarBorder: "#E8E8E8",
     
     // Misc
-    skeleton: "#E0E0E0",
-    overlay: "rgba(0, 0, 0, 0.5)",
-    overlayLight: "rgba(0, 0, 0, 0.3)",
+    skeleton: "#E8E8E8",
+    overlay: "rgba(0, 0, 0, 0.2)",
+    overlayLight: "rgba(0, 0, 0, 0.1)",
     shadow: '#000000',
-    shadowDark: "rgba(0, 0, 0, 0.2)",
+    shadowDark: "rgba(0, 0, 0, 0.1)",
     
     // Social colors
-    facebook: '#1877F2',
-    google: '#DB4437',
-    twitter: '#1DA1F2',
-    apple: '#000000',
+    facebook: '#B3D1FF',
+    google: '#FFB3AB',
+    twitter: '#A0D6FF',
+    apple: '#444444',
 };
 
 export default colors;

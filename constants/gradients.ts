@@ -1,5 +1,5 @@
 /**
- * Gradient definitions for consistent styling across the Yumio app
+ * Gradient definitions for consistent styling across the app
  * Each gradient includes colors, direction, and optional opacity settings
  */
 
@@ -29,74 +29,74 @@ export const directions = {
 
 const gradients = {
   /**
-   * Soft Peach: Warm welcome gradient for splash screen and recipe cards
-   */
-  softPeach: {
-    colors: ["#FFF3E0", "#F9E4C6"],
-    direction: directions.topToBottom,
-  },
-  
-  /**
-   * Yumio Orange: Vibrant orange gradient for primary CTAs from logo
-   */
-  yumioOrange: {
-    colors: ["#F4A261", "#E67E22"],
-    direction: directions.leftToRight,
-  },
-  
-  /**
-   * Chef Green: Nature-inspired gradient for confirmation actions from logo
-   */
-  chefGreen: {
-    colors: ["#81C784", "#2E7D32"],
-    direction: directions.leftToRight,
-  },
-  
-  /**
-   * Warm Cocoa: Rich brown gradient for headers/footers matching text
-   */
-  warmCocoa: {
-    colors: ["#7D5A50", "#5C4033"],
-    direction: directions.topToBottom,
-  },
-  
-  /**
-   * Citrus Pop: Vibrant gradient for section dividers and highlights
-   */
-  citrusPop: {
-    colors: ["#FFC107", "#F4A261"],
-    direction: directions.leftToRight,
-  },
-  
-  /**
-   * Soft Blue: Calming blue gradient for information sections
+   * Soft Blue: Calm background gradient for app screens
    */
   softBlue: {
-    colors: ["#BBDEFB", "#90CAF9"],
+    colors: ["#EBF0F3", "#E5EAEE"],
     direction: directions.topToBottom,
   },
   
   /**
-   * Warm Sunset: For featured recipes
+   * Warm Orange: Primary CTA gradient for buttons and active states
    */
-  warmSunset: {
-    colors: ["#F4A261", "#FF8A65"],
+  warmOrange: {
+    colors: ["#F8985C", "#F17A3A"],
+    direction: directions.leftToRight,
+  },
+  
+  /**
+   * Calm Blue: Secondary gradient for information sections
+   */
+  calmBlue: {
+    colors: ["#4A9DFF", "#3282E1"],
+    direction: directions.leftToRight,
+  },
+  
+  /**
+   * Neutral Gray: Subtle gradient for inactive states
+   */
+  neutralGray: {
+    colors: ["#ECEFF1", "#CFD8DC"],
+    direction: directions.topToBottom,
+  },
+  
+  /**
+   * Sunny Highlight: Accent gradient for featured items
+   */
+  sunnyHighlight: {
+    colors: ["#FFC107", "#F8985C"],
+    direction: directions.leftToRight,
+  },
+  
+  /**
+   * Soft Green: Success gradient
+   */
+  softGreen: {
+    colors: ["#81C784", "#4CAF50"],
+    direction: directions.topToBottom,
+  },
+  
+  /**
+   * Sunset Orange: For featured content
+   */
+  sunsetOrange: {
+    colors: ["#F8985C", "#F17A3A"],
     direction: directions.topLeftToBottomRight,
   },
 
   /**
-   * Cool Mint: For optional actions
+   * Sky Blue: For calm, passive actions
    */
-  coolMint: {
-    colors: ["#B2DFDB", "#81C784"],
+  skyBlue: {
+    colors: ["#8DC2FF", "#4A9DFF"],
     direction: directions.leftToRight,
   },
 
   /**
-   * Subtle Gray: For disabled states
+   * Light Gray: For disabled states
    */
-  subtleGray: {
-    colors: ["#ECEFF1", "#CFD8DC"],
+  lightGray: {
+    colors: ["#F5F7FA", "#ECEFF1"],
     direction: directions.topToBottom,
   },
   
@@ -104,7 +104,7 @@ const gradients = {
    * App Background: Main app background
    */
   appBackground: {
-    colors: ["#FFF3E0", "#F9E4C6"],
+    colors: ["#EBF0F3", "#E5EAEE"],
     direction: directions.topToBottom,
   },
 };

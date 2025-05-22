@@ -19,11 +19,21 @@ const MEAL_TYPE_ICONS: Record<MealType, keyof typeof Ionicons.glyphMap> = {
   dinner: 'moon-outline'
 };
 
-export default function MealItem({ mealType, meal, onPress, onItemPress, onSetReminderPress }: MealItemProps) {
+export default function MealItem({ 
+  mealType, 
+  meal, 
+  onPress, 
+  onItemPress, 
+  onSetReminderPress,
+  onRemovePress,
+  onSuggestPress,
+  isAiSuggesting = false
+}: MealItemProps) {
   const [isLoading, setIsLoading] = useState(false);
   const btnOpacity = useSharedValue(1);
   const btnScale = useSharedValue(1);
   const reminderBtnAnim = useSharedValue(1);
+  const removeBtnAnim = useSharedValue(1);
   
   const handleAddPress = async () => {
     setIsLoading(true);
@@ -46,6 +56,20 @@ export default function MealItem({ mealType, meal, onPress, onItemPress, onSetRe
     );
     onSetReminderPress?.(meal!);
   };
+
+  const handleRemovePress = () => {
+    removeBtnAnim.value = withSequence(
+      withTiming(1.2, { duration: 150 }),
+      withTiming(1, { duration: 150 })
+    );
+    onRemovePress?.(meal!);
+  };
+
+  const handleSuggestPress = async () => {
+    if (onSuggestPress) {
+      await onSuggestPress();
+    }
+  };
   
   const animatedButtonStyle = useAnimatedStyle(() => {
     return {
@@ -57,6 +81,12 @@ export default function MealItem({ mealType, meal, onPress, onItemPress, onSetRe
   const animatedReminderStyle = useAnimatedStyle(() => {
     return {
       transform: [{ scale: reminderBtnAnim.value }]
+    };
+  });
+
+  const animatedRemoveStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: removeBtnAnim.value }]
     };
   });
   
@@ -90,7 +120,7 @@ export default function MealItem({ mealType, meal, onPress, onItemPress, onSetRe
               <Ionicons 
                 name="notifications" 
                 size={16} 
-                color={colors.white} 
+                color={colors.textInverse} 
               />
             </View>
           </View>
@@ -113,55 +143,102 @@ export default function MealItem({ mealType, meal, onPress, onItemPress, onSetRe
             )}
           </View>
           
-          <Animated.View style={animatedReminderStyle}>
-            <TouchableOpacity 
-              style={[
-                styles.reminderButton,
-                meal.notificationsEnabled && styles.reminderButtonActive
-              ]}
-              onPress={handleReminderPress}
-              accessibilityLabel={
-                meal.notificationsEnabled 
-                  ? `Remove reminder for ${meal.recipe.title}`
-                  : `Set reminder for ${meal.recipe.title}`
-              }
-              accessibilityRole="button"
-            >
-              <Ionicons 
-                name={meal.notificationsEnabled ? "notifications" : "notifications-outline"} 
-                size={20} 
-                color={meal.notificationsEnabled ? colors.white : colors.textSecondary} 
-              />
-            </TouchableOpacity>
-          </Animated.View>
+          <View style={styles.actionButtons}>
+            <Animated.View style={animatedReminderStyle}>
+              <TouchableOpacity 
+                style={[
+                  styles.actionButton,
+                  meal.notificationsEnabled && styles.reminderButtonActive
+                ]}
+                onPress={handleReminderPress}
+                accessibilityLabel={
+                  meal.notificationsEnabled 
+                    ? `Remove reminder for ${meal.recipe.title}`
+                    : `Set reminder for ${meal.recipe.title}`
+                }
+                accessibilityRole="button"
+              >
+                <Ionicons 
+                  name={meal.notificationsEnabled ? "notifications" : "notifications-outline"} 
+                  size={20} 
+                  color={meal.notificationsEnabled ? colors.textInverse : colors.textSecondary} 
+                />
+              </TouchableOpacity>
+            </Animated.View>
+            
+            {onRemovePress && (
+              <Animated.View style={animatedRemoveStyle}>
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={handleRemovePress}
+                  accessibilityLabel={`Remove ${meal.recipe.title} from ${MEAL_TYPE_LABELS[mealType].toLowerCase()}`}
+                  accessibilityRole="button"
+                >
+                  <Ionicons 
+                    name="trash-outline" 
+                    size={20} 
+                    color={colors.error} 
+                  />
+                </TouchableOpacity>
+              </Animated.View>
+            )}
+          </View>
         </TouchableOpacity>
       ) : (
         <Animated.View style={animatedButtonStyle}>
-          <TouchableOpacity 
-            style={styles.addButton}
-            onPress={handleAddPress}
-            onPressIn={handleButtonPressIn}
-            onPressOut={handleButtonPressOut}
-            disabled={isLoading}
-            accessibilityLabel={`Add recipe for ${MEAL_TYPE_LABELS[mealType].toLowerCase()}`}
-            accessibilityRole="button"
-          >
-            {isLoading ? (
+          {isAiSuggesting ? (
+            <View style={styles.aiSuggestingContainer}>
               <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <>
-                <LinearGradient
-                  colors={[colors.primary, colors.primaryDark]}
-                  style={styles.addButtonIcon}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
+              <Text style={styles.aiSuggestingText}>AI is selecting a recipe...</Text>
+            </View>
+          ) : (
+            <View style={styles.emptyMealActions}>
+              <TouchableOpacity 
+                style={styles.addButton}
+                onPress={handleAddPress}
+                onPressIn={handleButtonPressIn}
+                onPressOut={handleButtonPressOut}
+                disabled={isLoading}
+                accessibilityLabel={`Add recipe for ${MEAL_TYPE_LABELS[mealType].toLowerCase()}`}
+                accessibilityRole="button"
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <>
+                    <LinearGradient
+                      colors={[colors.primary, colors.primaryDark]}
+                      style={styles.addButtonIcon}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                    >
+                      <Ionicons name="add" size={20} color={colors.textInverse} />
+                    </LinearGradient>
+                    <Text style={styles.addButtonText}>Add a recipe</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              
+              {onSuggestPress && (
+                <TouchableOpacity
+                  style={styles.suggestButton}
+                  onPress={handleSuggestPress}
+                  accessibilityLabel={`Get AI suggestion for ${MEAL_TYPE_LABELS[mealType].toLowerCase()}`}
+                  accessibilityRole="button"
                 >
-                  <Ionicons name="add" size={20} color={colors.white} />
-                </LinearGradient>
-                <Text style={styles.addButtonText}>Add a recipe</Text>
-              </>
-            )}
-          </TouchableOpacity>
+                  <LinearGradient
+                    colors={[colors.secondary, colors.secondaryDark]}
+                    style={styles.suggestButtonIcon}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    <Ionicons name="sparkles-outline" size={18} color={colors.textInverse} />
+                  </LinearGradient>
+                  <Text style={styles.suggestButtonText}>Surprise me!</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </Animated.View>
       )}
     </View>
@@ -170,7 +247,7 @@ export default function MealItem({ mealType, meal, onPress, onItemPress, onSetRe
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: 16,
     marginBottom: 12,
     shadowColor: colors.shadow,
@@ -208,7 +285,7 @@ const styles = StyleSheet.create({
   },
   mealTypeText: {
     ...typography.subtitle1,
-    color: colors.text,
+    color: colors.textPrimary,
     marginLeft: 8,
   },
   contentContainer: {
@@ -223,12 +300,25 @@ const styles = StyleSheet.create({
   },
   recipeName: {
     ...typography.bodyLarge,
-    color: colors.text,
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   cookTime: {
     ...typography.bodySmall,
     color: colors.textSecondary,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.cardAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   reminderButton: {
     width: 40,
@@ -252,20 +342,58 @@ const styles = StyleSheet.create({
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
+    backgroundColor: colors.cardAlt,
+    padding: 12,
+    borderRadius: 12,
+    flex: 1,
   },
   addButtonIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
+    marginRight: 12,
   },
   addButtonText: {
-    ...typography.bodyLarge,
-    color: colors.primary,
-    marginLeft: 8,
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+  },
+  emptyMealActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  suggestButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.cardAlt,
+    padding: 12,
+    borderRadius: 12,
+    flex: 1,
+  },
+  suggestButtonIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  suggestButtonText: {
+    ...typography.bodyMedium,
+    color: colors.textPrimary,
+  },
+  aiSuggestingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    gap: 12,
+  },
+  aiSuggestingText: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
   },
 });

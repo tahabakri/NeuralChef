@@ -23,6 +23,7 @@ import { format } from 'date-fns';
 import { useSavedRecipesStore } from '@/stores/savedRecipesStore';
 import { Recipe as SavedRecipeType } from '@/services/recipeService'; // Assuming Recipe type is from recipeService
 import { useMealPlannerStore } from '@/stores/mealPlannerStore';
+import { Recipe as ServiceRecipe } from '@/stores/recipeStore'; // Import ServiceRecipe for casting
 
 // Constants & Utils
 import colors from '@/constants/colors';
@@ -140,7 +141,7 @@ export default function HomeScreen() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <LinearGradient colors={[colors.softPeachStart, colors.softPeachEnd]} style={{ flex: 1 }}>
+      <LinearGradient colors={[colors.primaryLight, colors.accentOrangeLight]} style={{ flex: 1 }}>
         <SafeAreaView style={styles.container}>
           <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
           <ScrollView
@@ -176,12 +177,16 @@ export default function HomeScreen() {
               onMarkMealCookedPress={() => setCookedMealsThisWeek(prev => Math.min(prev + 1, weeklyCookingGoal))}
             />
 
-            <SavedRecipesPreview 
-              recipes={currentTodaysPicks.map(p => ({ ...p, saved: savedRecipes.some(s => s.id === p.id) }))} 
-              isLoading={isLoading} 
-              onViewAllPress={handleSavedPress} 
+            <SavedRecipesPreview
+              recipes={currentTodaysPicks.map(p => ({
+                ...p,
+                image: p.imageUrl || (typeof p.image === 'string' ? p.image : ''), // Ensure image is a string
+                saved: savedRecipes.some(s => s.id === p.id)
+              } as ServiceRecipe))}
+              isLoading={isLoading}
+              onViewAllPress={handleSavedPress}
               onRecipePress={handleSavedRecipePress}
-              onSaveToggle={handleSaveToggle} 
+              onSaveToggle={handleSaveToggle}
             />
           </ScrollView>
         </SafeAreaView>

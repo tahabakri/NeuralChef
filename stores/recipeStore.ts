@@ -19,6 +19,7 @@ interface RecipeStore {
   fetchRecipeById: (id: string) => Promise<void>;
   generateRecipe: (ingredients: string[]) => Promise<void>;
   setHasNewRecipe: (value: boolean) => void;
+  toggleSave?: (recipeId: string) => void; // Optional because it's added now
 }
 
 export const useRecipe = () => useRecipeStore((state: RecipeStore) => state.selectedRecipe);
@@ -181,7 +182,26 @@ export const useRecipeStore = create<RecipeStore>()(
             ? Date.now() 
             : get().lastNewRecipeTimestamp
         });
-      }
+      },
+      toggleSave: (recipeId: string) => {
+        set((state) => ({
+          recipes: state.recipes.map(recipe =>
+            recipe.id === recipeId
+              ? { ...recipe, saved: !recipe.saved }
+              : recipe
+          ),
+          // Also update popularRecipes if the toggled recipe is in there
+          popularRecipes: state.popularRecipes.map(recipe =>
+            recipe.id === recipeId
+              ? { ...recipe, saved: !recipe.saved }
+              : recipe
+          ),
+          // And the selectedRecipe if it's the one being toggled
+          selectedRecipe: state.selectedRecipe?.id === recipeId
+            ? { ...state.selectedRecipe, saved: !state.selectedRecipe.saved }
+            : state.selectedRecipe,
+        }));
+      },
     }),
     {
       name: 'recipe-storage',

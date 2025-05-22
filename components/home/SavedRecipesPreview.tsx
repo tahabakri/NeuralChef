@@ -2,7 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import RecipeCard, { Recipe as RecipeCardRecipe, prepareRecipeForCard } from '@/components/RecipeCard';
+import RecipeCard, { prepareRecipeForCard } from '@/components/RecipeCard';
+import { Recipe as ServiceRecipe } from '@/stores/recipeStore'; // Import ServiceRecipe
 import colors from '@/constants/colors';
 import typography from '@/constants/typography';
 
@@ -23,7 +24,7 @@ const spacing = {
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface SavedRecipesPreviewProps {
-  recipes: RecipeCardRecipe[];
+  recipes: ServiceRecipe[]; // Use ServiceRecipe[]
   isLoading: boolean;
   onViewAllPress: () => void;
   onRecipePress: (id: string) => void;
@@ -162,4 +163,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SavedRecipesPreview; 
+export default SavedRecipesPreview;

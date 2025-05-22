@@ -4,6 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { format, addDays, parseISO } from 'date-fns';
 import { MealType, ScheduledMeal } from '@/components/MealPlanner/types';
 
+export type { MealType, ScheduledMeal }; // Re-export MealType and ScheduledMeal
+
 interface MealPlannerState {
   selectedDate: string;
   scheduledMeals: ScheduledMeal[];

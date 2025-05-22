@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Text, Pressable, FlatList, ViewStyle } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { View, StyleSheet, Text, Pressable, FlatList, ViewStyle, Image, Alert, TextInput, ListRenderItemInfo } from 'react-native';
 import { useRouter } from 'expo-router';
 import colors from '@/constants/colors';
 import typography from '@/constants/typography';
-import RecipeCard, { prepareRecipeForCard, Recipe } from '@/components/RecipeCard';
-import { useRecipeStore } from '@/stores/recipeStore';
+import RecipeCard, { prepareRecipeForCard } from '@/components/RecipeCard';
+import { useRecipeStore, Recipe as ServiceRecipe } from '@/stores/recipeStore'; // ServiceRecipe is the base Recipe type
+import { useSavedRecipesStore } from '@/stores/savedRecipesStore'; // Import the saved recipes store
+import { useMealPlannerStore, ScheduledMeal, MealType } from '@/stores/mealPlannerStore';
 import SearchBar from '@/components/SearchBar';
 import TagFilter from '@/components/TagFilter';
 import BulkActionBar from '@/components/BulkActionBar';
@@ -14,15 +17,27 @@ import { FontAwesome } from '@expo/vector-icons';
 // Time threshold for new recipes (24 hours = 86400000ms)
 const NEW_RECIPE_THRESHOLD = 86400000; // 24 hours in milliseconds
 
-// Extend Recipe type to include createdAt
-interface RecipeWithTimestamp extends Recipe {
-  createdAt?: string; // Changed to string to match expected type
+// Extend ServiceRecipe for local use if needed, ensuring compatibility
+interface RecipeWithTimestamp extends ServiceRecipe {
+  // All properties from ServiceRecipe are inherited.
+  // Add any additional local-specific properties here if necessary,
+  // but for now, we aim for direct compatibility with ServiceRecipe.
 }
+
+// Category type for filter buttons
+type CategoryType = 'All' | 'Breakfast' | 'Lunch' | 'Dinner';
 
 export default function SavedScreen() {
   const router = useRouter();
-  const { recipes, hasNewRecipe, setHasNewRecipe, lastNewRecipeTimestamp } = useRecipeStore();
+  const recipeStore = useRecipeStore(); // For hasNewRecipe, lastNewRecipeTimestamp
+  const { hasNewRecipe, setHasNewRecipe, lastNewRecipeTimestamp } = recipeStore; // Rename to avoid conflict
   
+  const savedRecipesStore = useSavedRecipesStore(); // Use the saved recipes store
+  const mealPlannerStore = useMealPlannerStore();
+
+  // Get saved recipes from the dedicated store
+  const actualSavedRecipes = savedRecipesStore.savedRecipes;
+
   // Clear the new recipe notification when this screen is viewed
   useEffect(() => {
     if (hasNewRecipe) {
@@ -33,59 +48,54 @@ export default function SavedScreen() {
   
   // State variables
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<CategoryType>('All');
   const [selectedRecipes, setSelectedRecipes] = useState<string[]>([]);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [viewType, setViewType] = useState<'grid' | 'list'>('list');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'alphabetical'>('newest');
+  const [sortByOpen, setSortByOpen] = useState(false);
+  type SortByType = 'newest' | 'oldest' | 'alphabetical' | 'rating' | 'prepTime';
+  const [sortBy, setSortBy] = useState<SortByType>('newest');
   
-  // Mock saved recipes for now - in a real app, you would have a "saved" flag or collection
-  const savedRecipes = recipes.filter(recipe => recipe.id.startsWith('1')) as RecipeWithTimestamp[];
-  
-  // Check if a recipe is new (added in the last 24 hours)
-  const isRecipeNew = (recipe: RecipeWithTimestamp): boolean => {
-    if (!lastNewRecipeTimestamp) return false;
-    
-    const recipeTimestamp = recipe.createdAt 
-      ? parseInt(recipe.createdAt, 10) 
-      : 0;
-    
-    // If the recipe has no timestamp or the timestamp is older than our notification,
-    // it's not new
-    if (recipeTimestamp === 0 || recipeTimestamp < lastNewRecipeTimestamp) {
-      return false;
-    }
-    
-    // Check if the recipe was added in the last 24 hours
-    const now = Date.now();
-    return (now - recipeTimestamp) < NEW_RECIPE_THRESHOLD;
-  };
-  
-  // Get all unique tags from saved recipes
-  const allTags = Array.from(
-    new Set(savedRecipes.flatMap(recipe => recipe.tags || []))
+  // Use actual saved recipes from the store
+  // The RecipeWithTimestamp interface should be compatible with ServiceRecipe from the store
+  // as savedRecipesStore uses Recipe from services/recipeService which should be the same base.
+  // The store ensures createdAt is present.
+  const recipesToDisplayFromStore = actualSavedRecipes.filter(
+    (recipe): recipe is RecipeWithTimestamp => recipe.createdAt !== undefined
   );
 
-  // Filter recipes based on search query and selected tags
-  const filteredRecipes = savedRecipes
-    .filter(recipe => {
-      const matchesSearch = searchQuery === '' || 
-        recipe.title.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesTags = selectedTags.length === 0 || 
-        selectedTags.every(tag => recipe.tags?.includes(tag));
-      return matchesSearch && matchesTags;
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'alphabetical':
-          return a.title.localeCompare(b.title);
-        case 'oldest':
-          // Parse string to number for comparison, fallback to current time
-          return (parseInt(a.createdAt || `${Date.now()}`, 10)) - (parseInt(b.createdAt || `${Date.now()}`, 10));
-        case 'newest':
-        default:
-          return (parseInt(b.createdAt || `${Date.now()}`, 10)) - (parseInt(a.createdAt || `${Date.now()}`, 10));
+  const isRecipeNew = useMemo(() => {
+    const now = Date.now();
+    return (recipe: RecipeWithTimestamp): boolean => {
+      if (!lastNewRecipeTimestamp) return false; // No notification timestamp to compare against
+      const recipeTimestamp = recipe.createdAt ? parseInt(recipe.createdAt, 10) : 0;
+      if (isNaN(recipeTimestamp) || recipeTimestamp === 0) return false; // Invalid or missing createdAt
+
+      // If the recipe's save/creation timestamp is older than the last new recipe notification, it's not "new" in this context
+      if (recipeTimestamp < lastNewRecipeTimestamp) {
+        return false;
       }
+
+      // Check if the recipe was actually saved/created recently (e.g., within NEW_RECIPE_THRESHOLD)
+      return (now - recipeTimestamp) < NEW_RECIPE_THRESHOLD;
+    };
+  }, [lastNewRecipeTimestamp]);
+  
+  // Get all unique tags from the actual saved recipes
+  const allTags = Array.from(
+    new Set(recipesToDisplayFromStore.flatMap((recipe: RecipeWithTimestamp) => recipe.tags || []))
+  );
+
+  // Filter recipes based on search query and selected category
+  const filteredRecipes = recipesToDisplayFromStore // Use the initially filtered list
+    .filter((recipe: RecipeWithTimestamp) => { // Add type for recipe
+      const matchesSearch = searchQuery === '' || 
+        (recipe.title && recipe.title.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      const matchesCategory = selectedCategory === 'All' || 
+        (recipe.tags && recipe.tags.includes(selectedCategory));
+      
+      return matchesSearch && matchesCategory;
     });
 
   // Handle recipe press - either view or select
@@ -99,9 +109,9 @@ export default function SavedScreen() {
 
   // Toggle recipe selection
   const handleRecipeSelection = (recipeId: string) => {
-    setSelectedRecipes(prev => {
+    setSelectedRecipes((prev: string[]) => {
       if (prev.includes(recipeId)) {
-        return prev.filter(id => id !== recipeId);
+        return prev.filter((id: string) => id !== recipeId);
       } else {
         return [...prev, recipeId];
       }
@@ -110,8 +120,9 @@ export default function SavedScreen() {
 
   // Toggle selection mode
   const toggleSelectionMode = () => {
-    setIsSelectionMode(prev => !prev);
-    if (isSelectionMode) {
+    const wasSelectionMode = isSelectionMode;
+    setIsSelectionMode((prev: boolean) => !prev);
+    if (wasSelectionMode) { // Check previous state for reset logic
       setSelectedRecipes([]);
     }
   };
@@ -124,23 +135,84 @@ export default function SavedScreen() {
 
   // Toggle view type (list or grid)
   const toggleViewType = () => {
-    setViewType(prev => prev === 'list' ? 'grid' : 'list');
+    setViewType((prev: 'grid' | 'list') => (prev === 'list' ? 'grid' : 'list'));
   };
 
   // Handle sort change
-  const handleSortChange = (sort: 'newest' | 'oldest' | 'alphabetical') => {
+  const handleSortChange = (sort: SortByType) => {
     setSortBy(sort);
+  };
+
+  // Handle unsave recipe
+  const handleToggleSave = (recipeTitle: string, recipeId?: string) => {
+      console.log(`Removing saved recipe: ${recipeTitle}`);
+      savedRecipesStore.removeSavedRecipe(recipeTitle);
+  
+      // Ensure recipeId is handled properly
+      if (!recipeId) {
+        console.warn(`Recipe ID is missing for recipe: ${recipeTitle}`);
+        return;
+      }
+  
+      // If in selection mode and the unsaved recipe was selected, remove it
+      if (isSelectionMode && selectedRecipes.includes(recipeId)) {
+        setSelectedRecipes((prev: string[]) => prev.filter((id: string) => id !== recipeId));
+      }
+    };
+  
+  // Handle add to meal plan
+  const handleAddToMealPlan = (recipeId: string) => {
+    const recipeToAdd = recipesToDisplayFromStore.find((r: RecipeWithTimestamp) => r.id === recipeId);
+    if (!recipeToAdd) {
+      Alert.alert("Error", "Recipe not found.");
+      return;
+    }
+    const today = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
+    // For simplicity, adding to 'lunch'. This could be made more dynamic.
+    const mealType: MealType = 'lunch'; 
+    
+    const newScheduledMeal: ScheduledMeal = {
+      id: `${today}-${mealType}-${recipeId}-${uuidv4()}`, // Unique ID using uuid
+      date: today,
+      mealType: mealType,
+      recipeId: recipeId,
+      recipe: recipeToAdd, // Pass the full recipe object
+      notificationsEnabled: false, // Default or from user settings
+    };
+
+    mealPlannerStore.scheduleMeal(newScheduledMeal);
+    Alert.alert("Success", `${recipeToAdd.title} added to your meal plan for ${mealType} on ${today}!`);
   };
 
   // Reset all filters
   const resetFilters = () => {
     setSearchQuery('');
-    setSelectedTags([]);
+    setSelectedCategory('All');
     setSortBy('newest');
   };
 
+  // Render category filter button
+  const renderCategoryButton = (category: CategoryType) => (
+    <Pressable
+      style={[
+        styles.categoryButton,
+        selectedCategory === category && styles.categoryButtonActive
+      ]}
+      onPress={() => setSelectedCategory(category)}
+    >
+      <Text 
+        style={[
+          styles.categoryButtonText,
+          selectedCategory === category && styles.categoryButtonTextActive
+        ]}
+      >
+        {category}
+      </Text>
+    </Pressable>
+  );
+
   // If no saved recipes
-  if (savedRecipes.length === 0) {
+  if (recipesToDisplayFromStore.length === 0) { // Use recipesToDisplayFromStore for the initial check
     return (
       <View style={styles.emptyContainer}>
         <EmptyStateAnimation style={styles.emptyAnimation} />
@@ -154,72 +226,69 @@ export default function SavedScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header with search and actions */}
+      {/* Header with emoji and search */}
       <View style={styles.header}>
-        <View style={styles.searchBar}>
-          <SearchBar 
-            placeholder="Search saved recipes..." 
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+        <View style={styles.headerTitleContainer}>
+          <Text style={styles.emoji}>😋</Text>
+          <Text style={styles.headerTitle}>Saved Recipes</Text>
         </View>
-        <View style={styles.headerActions}>
-          <Pressable 
-            style={styles.iconButton} 
-            onPress={toggleSelectionMode}
-          >
-            <FontAwesome 
-              name={isSelectionMode ? "check-square-o" : "square-o"} 
-              size={22} 
-              color={colors.primary} 
-            />
-          </Pressable>
-          <Pressable 
-            style={styles.iconButton} 
-            onPress={toggleViewType}
-          >
-            <FontAwesome 
-              name={viewType === 'grid' ? "list" : "th-large"} 
-              size={22} 
-              color={colors.primary} 
-            />
-          </Pressable>
-        </View>
+        <Pressable style={styles.searchIcon}>
+          <FontAwesome name="search" size={20} color={colors.textPrimary} />
+        </Pressable>
       </View>
       
-      {/* Tag filters */}
-      <TagFilter
-        selectedTags={selectedTags}
-        onTagsChange={setSelectedTags}
-      />
+      {/* Search bar */}
+      <View style={styles.searchBarContainer}>
+        <FontAwesome name="search" size={16} color={colors.textSecondary} style={styles.searchBarIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search saved recipes"
+          placeholderTextColor={colors.textSecondary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
       
-      {/* Sort options */}
-      <View style={styles.sortContainer}>
-        <Text style={styles.sortLabel}>Sort by:</Text>
-        <Pressable
-          style={[styles.sortOption, sortBy === 'newest' && styles.sortOptionActive]}
-          onPress={() => handleSortChange('newest')}
+      {/* Category filters */}
+      <View style={styles.filtersContainer}>
+        <View style={styles.categoryFilters}>
+          {renderCategoryButton('All')}
+          {renderCategoryButton('Breakfast')}
+          {renderCategoryButton('Dinner')}
+          {renderCategoryButton('Lunch')}
+        </View>
+        
+        <Pressable 
+          style={styles.sortByButton}
+          onPress={() => setSortByOpen(!sortByOpen)}
         >
-          <Text style={[styles.sortText, sortBy === 'newest' && styles.sortTextActive]}>
-            Newest
-          </Text>
+          <Text style={styles.sortByText}>Sort by</Text>
+          <FontAwesome 
+            name={sortByOpen ? "chevron-up" : "chevron-down"} 
+            size={12} 
+            color={colors.textSecondary} 
+            style={styles.sortByIcon} 
+          />
         </Pressable>
-        <Pressable
-          style={[styles.sortOption, sortBy === 'oldest' && styles.sortOptionActive]}
-          onPress={() => handleSortChange('oldest')}
-        >
-          <Text style={[styles.sortText, sortBy === 'oldest' && styles.sortTextActive]}>
-            Oldest
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.sortOption, sortBy === 'alphabetical' && styles.sortOptionActive]}
-          onPress={() => handleSortChange('alphabetical')}
-        >
-          <Text style={[styles.sortText, sortBy === 'alphabetical' && styles.sortTextActive]}>
-            A-Z
-          </Text>
-        </Pressable>
+      </View>
+      
+      {/* Recipe count and view type toggle */}
+      <View style={styles.recipeCountContainer}>
+        <Text style={styles.recipeCount}>{filteredRecipes.length} Recipes</Text>
+        <View style={styles.viewTypeToggle}>
+          <Pressable
+            style={[styles.viewTypeButton, viewType === 'list' && styles.viewTypeButtonActive]}
+            onPress={() => setViewType('list')}
+          >
+            <FontAwesome name="list" size={16} color={viewType === 'list' ? colors.primary : colors.textSecondary} />
+          </Pressable>
+          <Pressable
+            style={[styles.viewTypeButton, viewType === 'grid' && styles.viewTypeButtonActive]}
+            onPress={() => setViewType('grid')}
+          >
+            <FontAwesome name="th-large" size={16} color={viewType === 'grid' ? colors.primary : colors.textSecondary} />
+          </Pressable>
+        </View>
       </View>
 
       {/* Recipe list */}
@@ -235,14 +304,16 @@ export default function SavedScreen() {
           data={filteredRecipes}
           keyExtractor={(item) => item.id}
           numColumns={viewType === 'grid' ? 2 : 1}
-          renderItem={({ item }) => {
+          renderItem={({ item }: ListRenderItemInfo<RecipeWithTimestamp>) => {
             const cardStyle: ViewStyle = viewType === 'grid' ? styles.gridCard : styles.listCard;
             const isNew = isRecipeNew(item);
             
+            // The `prepareRecipeForCard` function processes a recipe object to format it for display in the RecipeCard component.
+            // Expected input: A recipe object with properties like title, tags, and createdAt.
+            // Expected output: A formatted recipe object suitable for the RecipeCard component.
             return (
               <RecipeCard
-                recipe={prepareRecipeForCard(item)}
-                type={viewType === 'grid' ? 'vertical' : 'horizontal'}
+                recipe={prepareRecipeForCard(item)} // item should be RecipeWithTimestamp
                 style={selectedRecipes.includes(item.id) ? {...cardStyle, ...styles.selectedCard} : cardStyle}
                 onPress={() => handleRecipePress(item.id)}
                 onLongPress={() => {
@@ -254,6 +325,10 @@ export default function SavedScreen() {
                 selected={selectedRecipes.includes(item.id)}
                 selectable={isSelectionMode}
                 isNew={isNew}
+                onSaveToggle={() => handleToggleSave(item.title, item.id)} // Pass title and id
+                onAddToMealPlan={() => handleAddToMealPlan(item.id)}
+                // Removed redundant rating, cookTime, servings props as they are in `prepareRecipeForCard(item)`
+                // onCookNow is covered by the main onPress if it navigates to recipe details
               />
             );
           }}
@@ -264,17 +339,23 @@ export default function SavedScreen() {
       {/* Bulk action bar */}
       {isSelectionMode && (
         <BulkActionBar
-          visible={isSelectionMode}
-          selectedCount={selectedRecipes.length}
-          onCancel={toggleSelectionMode}
+          visible={isSelectionMode} // Add the visible prop
           onDelete={() => {
-            // Handle delete logic here
-            handleBulkActionComplete();
+            selectedRecipes.forEach((recipeId: string) => { // Add type for recipeId
+              const recipe = recipesToDisplayFromStore.find((r: RecipeWithTimestamp) => r.id === recipeId); // Use recipesToDisplayFromStore
+              if (recipe) {
+                savedRecipesStore.removeSavedRecipe(recipe.title);
+              }
+            });
+            handleBulkActionComplete(); // Call only once
           }}
           onShare={() => {
             // Handle share logic here
+            // Example: console.log("Sharing:", selectedRecipes);
             handleBulkActionComplete();
           }}
+          onCancel={toggleSelectionMode} // Add onCancel to exit selection mode
+          selectedCount={selectedRecipes.length}
         />
       )}
     </View>
@@ -289,70 +370,128 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 16,
-  },
-  searchBar: {
-    flex: 1,
-    marginRight: 8,
-  },
-  headerActions: {
-    flexDirection: 'row',
-  },
-  iconButton: {
-    padding: 8,
-    marginLeft: 4,
-  },
-  tagFilter: {
-    paddingHorizontal: 16,
-    marginVertical: 8,
-  },
-  sortContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
     paddingBottom: 8,
   },
-  sortLabel: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
+  headerTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  emoji: {
+    fontSize: 24,
+    marginRight: 10,
+  },
+  headerTitle: {
+    ...typography.titleLarge,
+    color: colors.textPrimary,
+  },
+  searchIcon: {
+    padding: 4,
+  },
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEEEEE', // Consider using colors.inputBackground or similar from your constants
+    borderRadius: 12,
+    marginHorizontal: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 16,
+  },
+  searchBarIcon: {
     marginRight: 8,
   },
-  sortOption: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.textPrimary,
+    padding: 0, 
+  },
+  filtersContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  categoryFilters: {
+    flexDirection: 'row',
+  },
+  categoryButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#EEEEEE', // Consider using colors.surface or similar
     marginRight: 8,
-    borderRadius: 16,
-    backgroundColor: colors.backgroundAlt,
   },
-  sortOptionActive: {
-    backgroundColor: colors.primaryLight,
+  categoryButtonActive: {
+    backgroundColor: colors.primary, 
   },
-  sortText: {
-    ...typography.labelSmall,
+  categoryButtonText: {
+    fontSize: 14, // Consider using typography constants
     color: colors.textSecondary,
   },
-  sortTextActive: {
-    color: colors.primary,
+  categoryButtonTextActive: {
+    color: colors.textInverse, // Assuming primary button text is white
+  },
+  sortByButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sortByText: {
+    fontSize: 14, // Consider using typography constants
+    color: colors.textSecondary,
+    marginRight: 4,
+  },
+  sortByIcon: {
+    marginTop: 2, // Adjust as needed for alignment
+  },
+  recipeCountContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  recipeCount: {
+    fontSize: 16, // Consider using typography constants
+    fontWeight: '600', // Consider using typography constants
+    color: colors.textPrimary,
+  },
+  viewTypeToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  viewTypeButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  viewTypeButtonActive: {
+    // backgroundColor: colors.primaryLight, // Example active style
+    // borderRadius: 8, // Example active style
   },
   listContent: {
-    padding: 16,
+    paddingHorizontal: 16, // Add horizontal padding for list view
+    paddingBottom: 100, // Ensure space for bulk action bar
   },
   gridContent: {
-    padding: 8,
+    paddingHorizontal: 8, // Adjust for grid view
+    paddingBottom: 100, // Ensure space for bulk action bar
   },
-  listCard: {
-    marginBottom: 12,
+  listCard: { // Added for clarity, can be empty if no specific list styles
+    marginBottom: 16, // Add margin for list items
   },
   gridCard: {
     margin: 8,
     flex: 1,
-    maxWidth: '50%',
+    // maxWidth: '48%', // Ensure two columns with a small gap
   },
   selectedCard: {
     borderWidth: 2,
     borderColor: colors.primary,
-    borderRadius: 12,
+    borderRadius: 12, // Match card's border radius if it has one
   },
   emptyContainer: {
     flex: 1,
@@ -368,8 +507,9 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...typography.titleMedium,
-    color: colors.text,
+    color: colors.textPrimary,
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptySubText: {
     ...typography.bodyMedium,
@@ -386,15 +526,17 @@ const styles = StyleSheet.create({
     ...typography.bodyLarge,
     color: colors.textSecondary,
     marginBottom: 16,
+    textAlign: 'center',
   },
   resetButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingVertical: 10, // Increased padding
+    paddingHorizontal: 20, // Increased padding
     backgroundColor: colors.primaryLight,
     borderRadius: 8,
   },
   resetButtonText: {
-    ...typography.labelMedium,
+    ...typography.labelMedium, // Ensure this is defined in typography
     color: colors.primary,
-  },
+    fontWeight: '600', // Make text bolder
+  }
 });

@@ -240,11 +240,11 @@ export default function PreferencesScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <StatusBar style="dark" backgroundColor={colors.softPeachStart} />
+      <StatusBar style="dark" backgroundColor={colors.backgroundGradientStart} />
       <Stack.Screen options={{ headerShown: false }} />
 
       <LinearGradient
-        colors={[colors.softPeachStart, colors.softPeachEnd]}
+        colors={[colors.softBlueStart, colors.softBlueEnd]}
         style={styles.gradientBackground}
         locations={[0, 0.6]} // Adjust gradient spread
       >
@@ -253,7 +253,7 @@ export default function PreferencesScreen() {
 
         <View style={styles.headerContainer}>
           <AnimatedHeaderChefIcon />
-          <Text style={styles.headerTitle}>Hey Chef, Let's Set Your Lunch Preferences! 🥪</Text>
+          <Text style={styles.headerTitle}>Hey Chef, Let's Set Your Preferences! 🍽️</Text>
         </View>
 
         <ScrollView
@@ -318,7 +318,7 @@ export default function PreferencesScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.softPeachEnd, // Match bottom of gradient
+    backgroundColor: colors.backgroundGradientEnd, // Match bottom of gradient
   },
   gradientBackground: {
     flex: 1,
@@ -339,11 +339,11 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   headerTitle: {
-    fontSize: 20, // Playful font size
-    fontWeight: 'bold', // Playful font weight
-    color: colors.textDark, // Or a playful color from theme
-    flexShrink: 1, // Allow text to wrap if needed
-    fontFamily: 'PlayfulFont-Bold', // Replace with actual playful font
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
+    flexShrink: 1,
+    marginLeft: 10,
   },
   scrollView: {
     flex: 1,
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 25 : 15, // Avoid system navigation
     paddingHorizontal: 20,
     paddingTop: 10,
-    backgroundColor: colors.softPeachEnd, // Match screen bottom to blend
+    backgroundColor: colors.backgroundGradientEnd, // Match screen bottom to blend
     // borderTopWidth: 1, // Optional: subtle separator
     // borderTopColor: 'rgba(0,0,0,0.05)',
   },
@@ -368,15 +368,13 @@ const styles = StyleSheet.create({
     // Allows shadow to be visible if button has shadow
   },
   saveButton: {
-    backgroundColor: colors.primary, // Use primary green color
+    backgroundColor: colors.primary, // Warm orange color
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 15,
     borderRadius: 15, // Rounded like Home screen buttons
-    borderWidth: 2,
-    borderColor: colors.secondary, // Use secondary orange color for border
-    shadowColor: colors.secondary,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -389,7 +387,6 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 18,
     fontWeight: 'bold',
-    fontFamily: 'PlayfulFont-Bold', // Replace with actual playful font
   },
   lottieConfetti: {
     position: 'absolute',

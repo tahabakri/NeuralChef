@@ -18,6 +18,9 @@ export interface MealItemProps {
   onPress: () => void;
   onItemPress?: (meal: ScheduledMeal) => void;
   onSetReminderPress?: (meal: ScheduledMeal) => void;
+  onRemovePress?: (meal: ScheduledMeal) => void;
+  onSuggestPress?: () => void;
+  isAiSuggesting?: boolean;
 }
 
 export interface RecipeSelectorProps {

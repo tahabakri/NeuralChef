@@ -17,31 +17,71 @@ import colors from '@/constants/colors';
 import { LinearGradient } from 'expo-linear-gradient';
 import typography from '@/constants/typography';
 
-import { Recipe as ServiceRecipe } from '@/services/recipeService';
+import { Recipe as ServiceRecipe, Ingredient, Step } from '@/services/recipeService'; // Import Ingredient and Step
 
-// Define recipe interface extending the service Recipe type
-export interface Recipe extends Omit<ServiceRecipe, 'cookTime' | 'rating' | 'steps' | 'ingredients'> {
-  image?: string | ImageSourcePropType;
-  cookTime: number; // Required for display
-  rating: number; // Required for display
+// Define the shape of the recipe data that RecipeCard component expects internally.
+export interface Recipe {
+  id: string;
+  title: string;
+  description: string;
+  image: string | ImageSourcePropType; // Main image property, can be URI string or require()
+  imageUrl?: string; // Optional secondary image URL string (used by getImageSource if image is not set)
+  cookTime: number;    // Always a number for display
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  rating: number;      // Always a number for display (defaulted if not provided)
+  servings: number;    // Always a number for display (defaulted if not provided)
+  tags: string[];
   saved?: boolean;
-  imageUrl?: string;
-  servings?: number;
-  steps?: ServiceRecipe['steps']; // Make steps optional
-  ingredients?: ServiceRecipe['ingredients']; // Make ingredients optional
+  // Optional properties from ServiceRecipe that might be passed through or used
+  prepTime?: number;
+  totalTime?: number;
+  author?: string;
+  ingredients?: Ingredient[]; // Use imported Ingredient type
+  steps?: Step[];           // Use imported Step type
+  nutritionalInfo?: ServiceRecipe['nutritionalInfo']; // Keep full type from ServiceRecipe
+  notes?: string[];
+  source?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  heroImage?: string;
 }
 
-// Helper function to ensure required display properties
-export const prepareRecipeForCard = (recipe: Partial<Recipe> & Pick<Recipe, 'id' | 'title' | 'difficulty' | 'tags'>): Recipe => ({
-  ...recipe,
-  cookTime: recipe.cookTime || 0,
-  rating: recipe.rating || 0,
-  ingredients: recipe.ingredients || [],
-  steps: recipe.steps || [],
-});
+// Helper function to prepare recipe data for display in a card.
+// Input can be a partial ServiceRecipe, but must have id, title, difficulty, tags.
+export const prepareRecipeForCard = (
+  recipe: Partial<ServiceRecipe> & Pick<ServiceRecipe, 'id' | 'title' | 'difficulty' | 'tags'>
+): Recipe => {
+  return {
+    // Required fields for RecipeCard's internal Recipe type
+    id: recipe.id,
+    title: recipe.title,
+    description: recipe.description || 'No description available.',
+    image: recipe.image || PLACEHOLDER_IMAGE, // recipe.image from ServiceRecipe is string. PLACEHOLDER_IMAGE is ImageSourcePropType.
+    cookTime: recipe.cookTime || 0,
+    difficulty: recipe.difficulty,
+    rating: recipe.rating || 0, // Default to 0 if undefined
+    servings: recipe.servings || 0, // Default to 0 if input servings is undefined (ServiceRecipe.servings is required number)
+    tags: recipe.tags,
+
+    // Optional fields, pass them if they exist on the input
+    imageUrl: (recipe as any).imageUrl, // If input happens to have imageUrl (not in ServiceRecipe by default)
+    saved: recipe.saved,
+    prepTime: recipe.prepTime,
+    totalTime: recipe.totalTime,
+    author: recipe.author,
+    ingredients: recipe.ingredients,
+    steps: recipe.steps,
+    nutritionalInfo: recipe.nutritionalInfo,
+    notes: recipe.notes, // Assuming notes is string[] in ServiceRecipe
+    source: recipe.source,
+    createdAt: recipe.createdAt,
+    updatedAt: recipe.updatedAt,
+    heroImage: recipe.heroImage,
+  };
+};
 
 interface RecipeCardProps {
-  recipe: Recipe;
+  recipe: Recipe; // RecipeCard now expects the locally defined Recipe type
   type?: 'featured' | 'horizontal' | 'vertical'; // Different display types
   onSaveToggle?: (id: string) => void;
   onPress?: (id: string) => void; // Add onPress handler
@@ -52,6 +92,7 @@ interface RecipeCardProps {
   selected?: boolean; // Whether the card is currently selected
   onLongPress?: (id: string) => void; // Handle long press for selection
   isNew?: boolean; // Add this property
+  onAddToMealPlan?: (recipeId: string) => void; // Action to add to meal plan
 }
 
 // Placeholder image when no image is available
@@ -591,7 +632,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.primary, // Changed from colors.accent
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,

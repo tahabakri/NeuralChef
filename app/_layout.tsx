@@ -210,8 +210,8 @@ export default function RootLayout() {
 
   if (!fontsLoaded || !appReady) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#FFA726" />
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -229,20 +229,34 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
+  const segments = useSegments();
+  const pathname = usePathname();
+  
+  // Determine if we're on a screen that should have the dotted background
+  const shouldShowDottedBackground = !pathname.includes("error");
+
   return (
     <View style={styles.container}>
+      {shouldShowDottedBackground && (
+        <View style={styles.dottedBackground}>
+          {/* Dotted background pattern */}
+          {Array.from({ length: 30 }).map((_, rowIndex) => (
+            <View key={`row-${rowIndex}`} style={styles.dotRow}>
+              {Array.from({ length: 30 }).map((_, colIndex) => (
+                <View key={`dot-${rowIndex}-${colIndex}`} style={styles.dot} />
+              ))}
+            </View>
+          ))}
+        </View>
+      )}
+      
       <LinearGradient
-        colors={["#FFF3E0", "#FFE0B2"]}
-        start={gradients.softPeach.direction.start}
-        end={gradients.softPeach.direction.end}
+        colors={[colors.backgroundGradientStart, colors.backgroundGradientEnd]}
         style={styles.background}
       />
+      
       <OfflineBanner />
-      
-      {/* This is the critical part - we need to render a Slot as the main content */}
       <Slot />
-      
-      {/* Add Toast component only if available */}
       {Toast && <Toast />}
     </View>
   );
@@ -259,79 +273,25 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.backgroundGradientStart,
+  },
+  dottedBackground: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  dotRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginVertical: 16,
+  },
+  dot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+  },
 });
-
-export function AppLayout() {
-  const [fontsLoaded] = useFonts({
-    'Inter-Regular': require('@/assets/fonts/Inter-Regular.ttf'),
-    'Inter-Medium': require('@/assets/fonts/Inter-Medium.ttf'),
-    'Inter-SemiBold': require('@/assets/fonts/Inter-SemiBold.ttf'),
-    'Inter-Bold': require('@/assets/fonts/Inter-Bold.ttf'),
-  });
-
-  useEffect(() => {
-    if (fontsLoaded) {
-      // Hide splash screen once fonts are loaded
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded]);
-
-  if (!fontsLoaded) {
-    return null;
-  }
-
-  return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textTertiary,
-        tabBarStyle: {
-          height: Platform.OS === 'ios' ? 90 : 70,
-          paddingTop: 5,
-          paddingBottom: Platform.OS === 'ios' ? 25 : 10,
-          backgroundColor: colors.white,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-        },
-        headerShown: false,
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="saved"
-        options={{
-          title: 'Saved',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bookmark-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="history"
-        options={{
-          title: 'History',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="time-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
-          ),
-        }}
-      />
-    </Tabs>
-  );
-}
