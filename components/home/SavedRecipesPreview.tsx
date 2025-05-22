@@ -12,7 +12,7 @@ const spacing = {
   sm: 8,
   md: 16,
   lg: 24,
-  xl: 32,
+  xl: 22,
   borderRadius: {
     sm: 8,
     md: 12,
@@ -90,9 +90,6 @@ const SavedRecipesPreview: React.FC<SavedRecipesPreviewProps> = ({
               <RecipeCard
                 recipe={prepareRecipeForCard(recipe)}
                 onPress={() => onRecipePress(recipe.id)}
-                onSaveToggle={onSaveToggle ? () => onSaveToggle(recipe.id) : undefined} // Pass onSaveToggle to RecipeCard
-                style={styles.recipeCardItem}
-                type="featured"
               />
             </View>
           ))}
@@ -165,4 +162,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SavedRecipesPreview;
+export default SavedRecipesPreview; 

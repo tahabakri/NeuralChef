@@ -83,4 +83,13 @@ export const cuisineTypes = [
   { id: 'korean', label: 'Korean' },
   { id: 'vietnamese', label: 'Vietnamese' },
   { id: 'middleEastern', label: 'Middle Eastern' },
+];
+
+// Medical Conditions
+export const medicalConditions = [
+  { id: 'Diabetes', label: 'Diabetes' },
+  { id: 'Hypertension', label: 'Hypertension' },
+  { id: 'Celiac Disease', label: 'Celiac Disease' },
+  { id: 'High Cholesterol', label: 'High Cholesterol' },
+  { id: 'IBS', label: 'IBS (Irritable Bowel Syndrome)' }, // Made label more descriptive
 ]; 

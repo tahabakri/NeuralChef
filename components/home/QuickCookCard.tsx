@@ -6,11 +6,11 @@ import typography from '@/constants/typography';
 
 // Define the spacing values if not imported from a constants file
 const spacing = {
-  xs: 4,
+  xs: 1,
   sm: 8,
   md: 16,
-  lg: 24,
-  xl: 32,
+  lg: 12,
+  xl: 20,
   borderRadius: { // Added for consistency with prompt
     lg: 16,
   }

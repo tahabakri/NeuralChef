@@ -11,8 +11,8 @@ const spacing = {
   sm: 8,
   md: 12,
   lg: 16,
-  xl: 20,
-  xxl: 24,
+  xl: 22,
+  xxl: 22,
   borderRadius: {
     sm: 4,
     md: 8,

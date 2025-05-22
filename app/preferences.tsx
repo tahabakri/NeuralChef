@@ -11,7 +11,7 @@ import {
   Platform,
   Image, // For placeholder chef icon
 } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +25,7 @@ import {
   PortionSize,    // Equivalent to PortionSizeId
   MicroPreference,
   CookingGoal,
+  MedicalCondition, // Added MedicalCondition
 } from '@/stores/preferencesStore';
 
 // Import the specific string literal union types for props
@@ -46,52 +47,28 @@ import {
   MicroPreferencesSection,
   CookingGoalsSection,
   MoreOptionsSection, // Import the new MoreOptionsSection
+  MedicalConditionsSelector, // Added MedicalConditionsSelector
 } from '@/components/preferences';
 
-// Theme colors from the prompt
-const theme = {
-  orange: '#FF9B54',
-  lightOrange: 'rgba(255, 155, 84, 0.1)',
-  green: '#4CAF50',
-  lightGreen: 'rgba(76, 175, 80, 0.1)',
-  white: '#FFFFFF',
-  textDark: '#333333',
-  textLight: '#555555',
-  // Add other colors if needed from individual component styling
-};
+// Import app colors and gradients
+import colors from '@/constants/colors';
+import gradients, { directions } from '@/constants/gradients';
 
-// Placeholder for animated header chef icon
-const HeaderChefIcon: React.FC = () => {
-  const rotateAnim = useRef(new Animated.Value(0)).current;
+const CONFETTI_LOTTIE = require('@/assets/animations/confetti.json'); // Placeholder path
 
-  useEffect(() => {
-    Animated.loop(
-      Animated.timing(rotateAnim, {
-        toValue: 1,
-        duration: 600, // 300ms for half flip, 600ms for full flip-flop
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    ).start();
-  }, [rotateAnim]);
-
-  const rotation = rotateAnim.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: ['0deg', '180deg', '0deg'], // Simple flip animation
-  });
-
-  // TODO: Replace with actual sandwich flipping animation/Lottie
+// Animated Winking Chef Icon for Header
+const AnimatedHeaderChefIcon: React.FC = () => {
   return (
-    <Animated.View style={{ transform: [{ rotateY: rotation }] }}>
-      <Ionicons name="restaurant-outline" size={36} color={theme.green} />
-      {/* <Image source={require('@/assets/images/chef-flipping-sandwich.png')} style={{ width: 40, height: 40 }} /> */}
-    </Animated.View>
+    <Image
+      source={require('@/assets/images/winking-chef.png')}
+      style={styles.headerChefIconImage}
+    />
   );
 };
 
 
 export default function PreferencesScreen() {
-  // Preferences state from Zustand store
+  const router = useRouter();
   const prefs = usePreferencesStore(state => state);
   const updatePreferences = usePreferencesStore(state => state.updatePreferences);
 
@@ -126,13 +103,30 @@ export default function PreferencesScreen() {
   const [portionSize, setPortionSize] = useState<PortionSizeType>(prefs.portionSize);
   const [microPreferences, setMicroPreferences] = useState<MicroPreference[]>(prefs.microPreferences);
   const [cookingGoals, setCookingGoals] = useState<CookingGoal[]>(prefs.cookingGoals);
+  
+  // Define predefined medical conditions for consistent filtering
+  const predefinedMedicalConditionsList: MedicalCondition[] = ['Diabetes', 'Hypertension', 'Celiac Disease', 'High Cholesterol', 'IBS'];
+  
+  // Split medicalConditions from store into predefined and custom
+  const [selectedPredefinedMedicalConditions, setSelectedPredefinedMedicalConditions] = useState<MedicalCondition[]>(
+    (prefs.medicalConditions || [])
+      .filter((condition): condition is MedicalCondition => 
+        predefinedMedicalConditionsList.includes(condition as any)
+      )
+  );
+  
+  const [customMedicalConditions, setCustomMedicalConditions] = useState<string[]>(
+    (prefs.medicalConditions || [])
+      .filter(condition => 
+        !predefinedMedicalConditionsList.includes(condition as any)
+      ) as string[]
+  );
 
-  // Effect to sync local state if store changes (e.g., after a reset elsewhere or initial load)
+  // Effect to sync local state if store changes
   useEffect(() => {
     setDietaryProfile(prefs.dietaryProfile);
     setAllStoredAllergies(prefs.allergies || []);
-    // customAllergies are managed locally, not directly synced from a store field `prefs.customAllergies`
-    setCustomAllergies([]); // Reset local custom allergies when store changes, or load them if they were persisted differently
+    setCustomAllergies([]);
     setDislikedIngredients(prefs.dislikedIngredients);
     setSpiceLevel(prefs.spiceLevel);
     setSelectedCuisines(prefs.cuisineTypes);
@@ -141,13 +135,27 @@ export default function PreferencesScreen() {
     setPortionSize(prefs.portionSize);
     setMicroPreferences(prefs.microPreferences);
     setCookingGoals(prefs.cookingGoals);
+    
+    // Split medicalConditions from store into predefined and custom
+    setSelectedPredefinedMedicalConditions(
+      (prefs.medicalConditions || [])
+        .filter((condition): condition is MedicalCondition => 
+          predefinedMedicalConditionsList.includes(condition as any)
+        )
+    );
+    setCustomMedicalConditions(
+      (prefs.medicalConditions || [])
+        .filter(condition => 
+          !predefinedMedicalConditionsList.includes(condition as any)
+        ) as string[]
+    );
   }, [
-    prefs.dietaryProfile, prefs.allergies, /* removed prefs.customAllergies */ prefs.dislikedIngredients,
+    prefs.dietaryProfile, prefs.allergies, prefs.dislikedIngredients,
     prefs.spiceLevel, prefs.cuisineTypes, prefs.cookingTimeLimit, prefs.maxCalories,
-    prefs.portionSize, prefs.microPreferences, prefs.cookingGoals
+    prefs.portionSize, prefs.microPreferences, prefs.cookingGoals, prefs.medicalConditions
   ]);
 
-  const saveButtonAnim = useRef(new Animated.Value(0)).current; // For spin animation
+  const saveButtonScaleAnim = useRef(new Animated.Value(1)).current;
   const confettiRef = useRef<LottieView>(null);
 
   // Handlers for preference changes
@@ -159,16 +167,18 @@ export default function PreferencesScreen() {
     );
   };
   const handleAddCustomAllergy = (allergy: string) => {
-    if (!customAllergies.includes(allergy.trim()) && allergy.trim() !== "") {
-      setCustomAllergies(prev => [...prev, allergy.trim()]);
+    const trimmedAllergy = allergy.trim();
+    if (trimmedAllergy && !customAllergies.includes(trimmedAllergy) && !allStoredAllergies.includes(trimmedAllergy)) {
+      setCustomAllergies(prev => [...prev, trimmedAllergy]);
     }
   };
   const handleRemoveCustomAllergy = (allergy: string) => {
     setCustomAllergies(prev => prev.filter(item => item !== allergy));
   };
   const handleAddDislikedIngredient = (ingredient: string) => {
-    if (!dislikedIngredients.includes(ingredient.trim()) && ingredient.trim() !== "") {
-      setDislikedIngredients(prev => [...prev, ingredient.trim()]);
+    const trimmed = ingredient.trim();
+    if (trimmed && !dislikedIngredients.includes(trimmed)) {
+      setDislikedIngredients(prev => [...prev, trimmed]);
     }
   };
   const handleRemoveDislikedIngredient = (ingredient: string) => {
@@ -183,26 +193,34 @@ export default function PreferencesScreen() {
   const handleToggleCookingGoal = (id: CookingGoal) => {
     setCookingGoals(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
   };
+  const handleTogglePredefinedMedicalCondition = (condition: MedicalCondition) => {
+    setSelectedPredefinedMedicalConditions(prev => 
+      prev.includes(condition) 
+        ? prev.filter(item => item !== condition) 
+        : [...prev, condition]
+    );
+  };
+  const handleAddCustomMedicalCondition = (condition: string) => {
+    if (condition.trim() && !customMedicalConditions.includes(condition.trim())) {
+      setCustomMedicalConditions(prev => [...prev, condition.trim()]);
+    }
+  };
+  const handleRemoveCustomMedicalCondition = (condition: string) => {
+    setCustomMedicalConditions(prev => prev.filter(item => item !== condition));
+  };
 
   const handleSave = () => {
-    // Spin animation for the button
-    saveButtonAnim.setValue(0); // Reset animation
-    Animated.timing(saveButtonAnim, {
-      toValue: 1,
-      duration: 300,
-      easing: Easing.linear,
-      useNativeDriver: true,
-    }).start();
+    Animated.sequence([
+      Animated.timing(saveButtonScaleAnim, { toValue: 1.2, duration: 100, useNativeDriver: true }),
+      Animated.timing(saveButtonScaleAnim, { toValue: 1, duration: 100, useNativeDriver: true }),
+    ]).start();
 
-    // TODO: Trigger confetti animation
-    // confettiRef.current?.play();
+    confettiRef.current?.reset();
+    confettiRef.current?.play();
     
-    // TODO: Trigger chef clapping animation
-
     updatePreferences({
       dietaryProfile,
-      allergies: [...commonSelectedAllergies, ...customAllergies], // Combine effectively selected common and new custom
-      // No 'customAllergies' field in the store's updatePreferences payload
+      allergies: [...commonSelectedAllergies, ...customAllergies],
       dislikedIngredients,
       spiceLevel,
       cuisineTypes: selectedCuisines,
@@ -211,29 +229,31 @@ export default function PreferencesScreen() {
       portionSize,
       microPreferences,
       cookingGoals,
+      medicalConditions: [
+        ...selectedPredefinedMedicalConditions,
+        ...customMedicalConditions
+      ] as MedicalCondition[], // Cast to satisfy TypeScript
     });
-    Alert.alert('Preferences Saved!', 'Your lunch preferences have been updated.');
+    // Consider a custom toast/modal instead of Alert for better UX matching the theme
+    Alert.alert('Preferences Saved!', 'Your lunch preferences are all set!', [{ text: 'Awesome!', onPress: () => router.back() }]);
   };
 
-  const saveButtonSpin = saveButtonAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar style="dark" backgroundColor={theme.orange} />
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+      <StatusBar style="dark" backgroundColor={colors.softPeachStart} />
       <Stack.Screen options={{ headerShown: false }} />
 
       <LinearGradient
-        colors={[theme.orange, theme.white, theme.lightGreen]} // Orange top, fading to white, then light green bottom
+        colors={[colors.softPeachStart, colors.softPeachEnd]}
         style={styles.gradientBackground}
-        locations={[0, 0.4, 1]} // Orange dominant, then white, then green
+        locations={[0, 0.6]} // Adjust gradient spread
       >
-        {/* Header */}
+        {/* TODO: Subtle lunch icons overlay view here */}
+        {/* <View style={styles.lunchIconsOverlay}> ... </View> */}
+
         <View style={styles.headerContainer}>
-          <HeaderChefIcon />
-          <Text style={styles.headerTitle}>Your Lunch Preferences! 🥪</Text>
+          <AnimatedHeaderChefIcon />
+          <Text style={styles.headerTitle}>Hey Chef, Let's Set Your Lunch Preferences! 🥪</Text>
         </View>
 
         <ScrollView
@@ -241,49 +261,30 @@ export default function PreferencesScreen() {
           contentContainerStyle={styles.scrollContentContainer}
           showsVerticalScrollIndicator={false}
         >
-          {/* Main Preferences */}
-          <DietaryProfileSelector
-            selectedProfile={dietaryProfile}
-            onSelectProfile={setDietaryProfile}
-          />
+          <DietaryProfileSelector selectedProfile={dietaryProfile} onSelectProfile={setDietaryProfile} />
           <AllergiesSection
-            selectedAllergies={commonSelectedAllergies} // Pass the filtered common allergies
-            customAllergies={customAllergies} // Pass the local custom allergies
+            selectedAllergies={commonSelectedAllergies}
+            customAllergies={customAllergies}
             onToggleAllergy={handleToggleAllergy}
             onAddCustomAllergy={handleAddCustomAllergy}
             onRemoveCustomAllergy={handleRemoveCustomAllergy}
           />
-          <CookingTimeSelector
-            selectedTime={cookingTime}
-            onSelectTime={setCookingTime}
+          <MedicalConditionsSelector
+            selectedPredefinedConditions={selectedPredefinedMedicalConditions}
+            customMedicalConditions={customMedicalConditions}
+            onTogglePredefinedCondition={handleTogglePredefinedMedicalCondition}
+            onAddCustomCondition={handleAddCustomMedicalCondition}
+            onRemoveCustomCondition={handleRemoveCustomMedicalCondition}
           />
-          <PortionSizeSelector
-            selectedSize={portionSize}
-            onSelectSize={setPortionSize}
-          />
+          <CookingTimeSelector selectedTime={cookingTime} onSelectTime={setCookingTime} />
+          <PortionSizeSelector selectedSize={portionSize} onSelectSize={setPortionSize} />
 
-          {/* More Options Section */}
           <MoreOptionsSection title="More Lunch Options">
-            <SpiceLevelSelector
-              selectedLevel={spiceLevel}
-              onSelectLevel={setSpiceLevel}
-            />
-            <CuisineTypeSelector
-              selectedCuisines={selectedCuisines}
-              onToggleCuisine={handleToggleCuisine}
-            />
-            <CalorieSelector
-              maxCalories={maxCalories}
-              onChangeCalories={setMaxCalories}
-            />
-            <MicroPreferencesSection
-              selectedPreferences={microPreferences}
-              onTogglePreference={handleToggleMicroPreference}
-            />
-            <CookingGoalsSection
-              selectedGoals={cookingGoals}
-              onToggleGoal={handleToggleCookingGoal}
-            />
+            <SpiceLevelSelector selectedLevel={spiceLevel} onSelectLevel={setSpiceLevel} />
+            <CuisineTypeSelector selectedCuisines={selectedCuisines} onToggleCuisine={handleToggleCuisine} />
+            <CalorieSelector maxCalories={maxCalories} onChangeCalories={setMaxCalories} />
+            <MicroPreferencesSection selectedPreferences={microPreferences} onTogglePreference={handleToggleMicroPreference} />
+            <CookingGoalsSection selectedGoals={cookingGoals} onToggleGoal={handleToggleCookingGoal} />
             <DislikedIngredientsSection
               dislikedIngredients={dislikedIngredients}
               onAddIngredient={handleAddDislikedIngredient}
@@ -292,25 +293,23 @@ export default function PreferencesScreen() {
           </MoreOptionsSection>
         </ScrollView>
 
-        {/* Sticky Save Button */}
-        <View style={styles.stickyButtonContainer}>
-          <TouchableOpacity onPress={handleSave} activeOpacity={0.8}>
-            <Animated.View style={[styles.saveButton, { transform: [{ rotate: saveButtonSpin }] }]}>
-              <Ionicons name="restaurant-outline" size={28} color={theme.white} /> 
-              {/* Placeholder for chef's spoon, using restaurant icon for now */}
+        <View style={styles.stickyButtonOuterContainer}>
+          <TouchableOpacity onPress={handleSave} activeOpacity={0.8} style={styles.saveButtonTouch}>
+            <Animated.View style={[styles.saveButton, { transform: [{ scale: saveButtonScaleAnim }] }]}>
+              <Ionicons name="checkmark-circle-outline" size={26} color={colors.white} style={styles.saveButtonIcon} />
+              <Text style={styles.saveButtonText}>Save Preferences!</Text>
             </Animated.View>
           </TouchableOpacity>
-          <Text style={styles.saveButtonLabel}>Save for Lunch!</Text>
         </View>
         
-        {/* TODO: Confetti Animation Layer */}
-        {/* <LottieView
+        <LottieView
           ref={confettiRef}
-          source={require('@/assets/animations/confetti.json')} // Replace with actual path
+          source={CONFETTI_LOTTIE} 
           loop={false}
           autoPlay={false}
           style={styles.lottieConfetti}
-        /> */}
+          resizeMode="cover"
+        />
       </LinearGradient>
     </SafeAreaView>
   );
@@ -319,61 +318,78 @@ export default function PreferencesScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.orange, // Fallback for notch area
+    backgroundColor: colors.softPeachEnd, // Match bottom of gradient
   },
   gradientBackground: {
     flex: 1,
+    // position: 'relative', // For absolute positioned overlays like lunch icons
   },
+  // lunchIconsOverlay: { StyleSheet.absoluteFillObject, zIndex: -1, opacity: 0.1 /* Add lunch icons here */ },
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Platform.OS === 'android' ? 20 : 15, // Adjust padding for platform
     paddingHorizontal: 20,
-    backgroundColor: 'transparent', // Handled by gradient
+    paddingTop: Platform.OS === 'android' ? 20 : 10, // Adjust for status bar
+    paddingBottom: 15,
+    // backgroundColor: 'transparent', // Over gradient
+  },
+  headerChefIconImage: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: theme.white, // White or light color for contrast on orange
-    marginLeft: 10,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium', // Example rounded-ish font
+    fontSize: 20, // Playful font size
+    fontWeight: 'bold', // Playful font weight
+    color: colors.textDark, // Or a playful color from theme
+    flexShrink: 1, // Allow text to wrap if needed
+    fontFamily: 'PlayfulFont-Bold', // Replace with actual playful font
   },
   scrollView: {
     flex: 1,
   },
   scrollContentContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 120, // Space for the sticky save button
+    paddingHorizontal: 15,
+    paddingBottom: 100, // Ensure space for sticky button not to overlap content
   },
-  // Individual section components are expected to style themselves as per the prompt
-  // (e.g., background colors, borders, titles within their own component files)
-
-  stickyButtonContainer: {
+  stickyButtonOuterContainer: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 30 : 20, // Adjust for safe area / navbar
-    alignSelf: 'center',
-    alignItems: 'center',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingBottom: Platform.OS === 'ios' ? 25 : 15, // Avoid system navigation
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    backgroundColor: colors.softPeachEnd, // Match screen bottom to blend
+    // borderTopWidth: 1, // Optional: subtle separator
+    // borderTopColor: 'rgba(0,0,0,0.05)',
+  },
+  saveButtonTouch: {
+    // Allows shadow to be visible if button has shadow
   },
   saveButton: {
-    backgroundColor: theme.green,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    backgroundColor: colors.primary, // Use primary green color
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    paddingVertical: 15,
+    borderRadius: 15, // Rounded like Home screen buttons
+    borderWidth: 2,
+    borderColor: colors.secondary, // Use secondary orange color for border
+    shadowColor: colors.secondary,
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
-    elevation: 8,
+    elevation: 5,
   },
-  saveButtonLabel: {
-    color: theme.green, // Or theme.white if on a contrasting background
-    fontWeight: '600',
-    fontSize: 14,
-    marginTop: 8,
+  saveButtonIcon: {
+    marginRight: 8,
+  },
+  saveButtonText: {
+    color: colors.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+    fontFamily: 'PlayfulFont-Bold', // Replace with actual playful font
   },
   lottieConfetti: {
     position: 'absolute',

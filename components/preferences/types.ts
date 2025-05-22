@@ -1,4 +1,4 @@
-import { MicroPreference, CookingGoal } from '@/stores/preferencesStore';
+import { MicroPreference, CookingGoal, MedicalCondition } from '@/stores/preferencesStore';
 
 // Common Types
 
@@ -74,4 +74,13 @@ export interface MicroPreferencesSectionProps {
 export interface CookingGoalsSectionProps {
   selectedGoals: CookingGoal[];
   onToggleGoal: (id: CookingGoal) => void;
+}
+
+// Updated Props for MedicalConditionsSelector
+export interface MedicalConditionsSelectorProps {
+  selectedPredefinedConditions: MedicalCondition[]; // Stores IDs of selected predefined conditions
+  customMedicalConditions: string[]; // Stores user-added custom condition strings
+  onTogglePredefinedCondition: (conditionId: MedicalCondition) => void;
+  onAddCustomCondition: (condition: string) => void;
+  onRemoveCustomCondition: (condition: string) => void;
 }

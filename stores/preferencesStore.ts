@@ -18,6 +18,7 @@ export type SpiceLevel = 'none' | 'mild' | 'medium' | 'spicy' | 'extraSpicy';
 export type PortionSize = 'single' | 'couple' | 'family' | 'large';
 export type MicroPreference = 'highProtein' | 'lowFat' | 'lowSodium' | 'highFiber' | 'lowSugar';
 export type CookingGoal = 'mealPrep' | 'quickWeeknight' | 'weightLoss' | 'newTechniques' | 'impressGuests';
+export type MedicalCondition = 'Diabetes' | 'Hypertension' | 'Celiac Disease' | 'High Cholesterol' | 'IBS';
 
 export interface PreferencesState {
   dietaryProfile: DietaryProfile;
@@ -30,6 +31,7 @@ export interface PreferencesState {
   portionSize: PortionSize;
   microPreferences: MicroPreference[];
   cookingGoals: CookingGoal[];
+  medicalConditions: MedicalCondition[];
   mealTimePreference: string;
 
   updatePreferences: (preferences: Partial<Omit<PreferencesState, 'updatePreferences' | 'resetPreferences'>>) => void;
@@ -48,6 +50,7 @@ const defaultPreferences = {
   portionSize: 'family' as PortionSize,
   microPreferences: [],
   cookingGoals: [],
+  medicalConditions: [],
   mealTimePreference: '',
 };
 
@@ -80,6 +83,7 @@ export const usePreferencesStore = create<PreferencesState>()(
             storedPortionSize,
             storedMicroPreferences,
             storedCookingGoals,
+            storedMedicalConditions,
             storedMealTimePreference
           ] = await AsyncStorage.multiGet([
             'dietaryProfile',
@@ -92,6 +96,7 @@ export const usePreferencesStore = create<PreferencesState>()(
             'portionSize',
             'microPreferences',
             'cookingGoals',
+            'medicalConditions',
             'mealTimePreference'
           ]);
           
@@ -106,6 +111,7 @@ export const usePreferencesStore = create<PreferencesState>()(
             portionSize: (storedPortionSize[1] as PortionSize) || 'family',
             microPreferences: storedMicroPreferences[1] ? JSON.parse(storedMicroPreferences[1]) : [],
             cookingGoals: storedCookingGoals[1] ? JSON.parse(storedCookingGoals[1]) : [],
+            medicalConditions: storedMedicalConditions[1] ? JSON.parse(storedMedicalConditions[1]) : [],
             mealTimePreference: storedMealTimePreference[1] || ''
           });
         } catch (error) {
@@ -212,4 +218,12 @@ export const getPopularCuisines = (): string[] => [
   'Greek',
   'Vietnamese', 
   'Spanish'
+];
+
+export const getMedicalConditions = (): MedicalCondition[] => [
+  'Diabetes',
+  'Hypertension',
+  'Celiac Disease',
+  'High Cholesterol',
+  'IBS',
 ];
