@@ -1,101 +1,72 @@
 import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle, View } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import colors from '@/constants/colors';
-import { Moon } from 'lucide-react-native';
+import typography from '@/constants/typography';
 
 interface CategoryTagProps {
   label: string;
-  onPress?: () => void;
-  selected?: boolean;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
+  isSelected: boolean;
+  onPress: () => void;
+  disabled?: boolean;
 }
 
-export default function CategoryTag({
-  label,
-  onPress,
-  selected = false,
-  style,
-  textStyle
-}: CategoryTagProps) {
-  const isLateNightTag = label.toLowerCase().includes('late-night');
-  
+const CategoryTag = ({ label, isSelected, onPress, disabled = false }: CategoryTagProps) => {
+  const handlePress = () => {
+    if (!disabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onPress();
+    }
+  };
+
   return (
     <TouchableOpacity
       style={[
         styles.container,
-        selected ? styles.selectedContainer : styles.unselectedContainer,
-        isLateNightTag && styles.lateNightContainer,
-        isLateNightTag && selected && styles.selectedLateNightContainer,
-        style
+        isSelected && styles.selectedContainer,
+        disabled && styles.disabled,
       ]}
-      onPress={onPress}
+      onPress={handlePress}
       activeOpacity={0.7}
-      accessibilityLabel={`${label} category ${selected ? 'selected' : ''}`}
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
+      disabled={disabled}
     >
-      {isLateNightTag && (
-        <Moon 
-          size={14} 
-          color={selected ? colors.white : colors.textSecondary} 
-          style={styles.icon} 
-        />
-      )}
       <Text
         style={[
-          styles.text,
-          selected ? styles.selectedText : styles.unselectedText,
-          isLateNightTag && !selected && styles.lateNightText,
-          textStyle
+          styles.label,
+          isSelected && styles.selectedLabel,
         ]}
+        numberOfLines={1}
       >
         {label}
       </Text>
     </TouchableOpacity>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 16,
     paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 20,
-    marginRight: 10,
-    marginBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginRight: 8,
   },
   selectedContainer: {
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
-  unselectedContainer: {
-    backgroundColor: colors.backgroundAlt,
+  disabled: {
+    opacity: 0.5,
   },
-  lateNightContainer: {
-    backgroundColor: colors.backgroundAlt,
-    borderWidth: 1,
-    borderColor: colors.textSecondary,
+  label: {
+    ...typography.subtitle2,
+    color: colors.text,
   },
-  selectedLateNightContainer: {
-    backgroundColor: colors.secondary,
-    borderWidth: 0,
-  },
-  text: {
-    fontFamily: 'Poppins-Medium',
-    fontSize: 14,
-  },
-  selectedText: {
+  selectedLabel: {
     color: colors.white,
   },
-  unselectedText: {
-    color: colors.textSecondary,
-  },
-  lateNightText: {
-    color: colors.textSecondary,
-  },
-  icon: {
-    marginRight: 6,
-  }
-}); 
+});
+
+export default CategoryTag; 

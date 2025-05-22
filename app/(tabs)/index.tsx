@@ -21,6 +21,7 @@ import { format } from 'date-fns';
 
 // Stores
 import { useSavedRecipesStore } from '@/stores/savedRecipesStore';
+import { Recipe as SavedRecipeType } from '@/services/recipeService'; // Assuming Recipe type is from recipeService
 import { useMealPlannerStore } from '@/stores/mealPlannerStore';
 
 // Constants & Utils
@@ -39,7 +40,7 @@ import { prepareRecipeForCard, Recipe as RecipeCardRecipe } from '@/components/R
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { getMealsForDateAndType } = useMealPlannerStore();
-  const { savedRecipes } = useSavedRecipesStore();
+  const { savedRecipes, saveRecipe, removeSavedRecipe, isSaved } = useSavedRecipesStore();
 
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -76,6 +77,41 @@ export default function HomeScreen() {
   const handleSavedPress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push('/saved');
+  };
+
+  const handleSaveToggle = (recipeId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const recipeToToggle = currentTodaysPicks.find(r => r.id === recipeId) || todayRecipes.find(r => r.id === recipeId);
+    if (recipeToToggle) {
+      const currentlySaved = isSaved(recipeToToggle.title); // Use title as per store logic
+      if (currentlySaved) {
+        removeSavedRecipe(recipeToToggle.title);
+      } else {
+        // The recipeToToggle can be either RecipeCardRecipe or a Recipe from sampleRecipes
+        // We need to map it to SavedRecipeType
+        const recipeToSave: SavedRecipeType = {
+          id: recipeToToggle.id,
+          title: recipeToToggle.title,
+          description: recipeToToggle.description || '',
+          image: (recipeToToggle as RecipeCardRecipe).imageUrl || (recipeToToggle.image as string) || '', // Handle both imageUrl and image
+          cookTime: recipeToToggle.cookTime,
+          prepTime: recipeToToggle.prepTime || 0, // Default to 0 if undefined
+          totalTime: recipeToToggle.totalTime,
+          difficulty: recipeToToggle.difficulty,
+          servings: recipeToToggle.servings || 1, // Default to 1 if undefined
+          rating: recipeToToggle.rating,
+          ingredients: recipeToToggle.ingredients || [],
+          steps: recipeToToggle.steps || [],
+          tags: recipeToToggle.tags || [],
+          notes: (recipeToToggle as any).notes, // Cast to any if notes is not in all types
+          source: (recipeToToggle as any).source,
+          author: (recipeToToggle as any).author,
+          createdAt: (recipeToToggle as any).createdAt || new Date().toISOString(),
+        };
+        saveRecipe(recipeToSave);
+      }
+      // No local flag juggling needed – rely on store-driven re-render
+    }
   };
 
   const getGreeting = () => {
@@ -118,7 +154,7 @@ export default function HomeScreen() {
                 style={[styles.headerGradient, { paddingTop: insets.top }]}
               >
                 <GreetingHeader greeting={getGreeting()} subTitle="What would you like to cook?" timestamp={getFormattedTimestamp()} />
-                <PrimaryActions onAddIngredientsPress={() => {}} onSurpriseMePress={() => router.push('/generate')} />
+                <PrimaryActions onAddIngredientsPress={() => router.push('/input')} onSurpriseMePress={() => router.push('/generate')} />
               </LinearGradient>
             </View>
 
@@ -140,7 +176,13 @@ export default function HomeScreen() {
               onMarkMealCookedPress={() => setCookedMealsThisWeek(prev => Math.min(prev + 1, weeklyCookingGoal))}
             />
 
-            <SavedRecipesPreview recipes={currentTodaysPicks} isLoading={isLoading} onViewAllPress={handleSavedPress} onRecipePress={handleSavedRecipePress} />
+            <SavedRecipesPreview 
+              recipes={currentTodaysPicks.map(p => ({ ...p, saved: savedRecipes.some(s => s.id === p.id) }))} 
+              isLoading={isLoading} 
+              onViewAllPress={handleSavedPress} 
+              onRecipePress={handleSavedRecipePress}
+              onSaveToggle={handleSaveToggle} 
+            />
           </ScrollView>
         </SafeAreaView>
       </LinearGradient>

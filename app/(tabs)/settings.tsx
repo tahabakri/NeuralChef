@@ -45,7 +45,7 @@ export default function SettingsScreen() {
   
   // Handle edit preferences
   const handleEditPreferences = () => {
-    router.push('/preferences');
+    router.push('/preferences' as any); // Cast to any as a temporary workaround for typed routes issue
   };
   
   // Handle logout

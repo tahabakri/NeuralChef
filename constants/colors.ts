@@ -3,17 +3,18 @@
 
 const colors = {
     // Primary colors
-    primary: "#2E7D32", // Green from spoon/scarf - primary action color
+    primary: '#4CAF50', // Accent Green
     primaryLight: "#81C784",
     primaryDark: "#1B5E20",
-    secondary: "#F4A261", // Orange from logo background - secondary action color
+    secondary: '#FF9800', // Sunrise Orange
     secondaryLight: "#FFD3A5",
     secondaryDark: "#E67E22",
 
     // Specific UI colors from logo
-    softPeachStart: "#FFF3E0",
-    softPeachEnd: "#FFE0B2", // Also used as warningLight
-    sunriseOrange: "#FFA726",
+    softPeachStart: '#FFE0B2',
+    softPeachEnd: '#FFCC80',
+    sunriseOrangeStart: '#FFA726',
+    sunriseOrangeEnd: '#FB8C00',
     cancelButtonGray: "#B0BEC5",
     
     // Accent colors for info pills
@@ -23,26 +24,26 @@ const colors = {
     accentYellowLight: "#FFE082",
     accentOrange: "#F4A261", // Same as secondary for consistency
     accentOrangeLight: "#FFCC80",
-    accentGreen: "#2E7D32", // Same as primary for consistency
-    accentGreenLight: "#A5D6A7",
+    accentGreenStart: '#66BB6A',
+    accentGreenEnd: '#43A047',
     
     // Semantic colors
-    success: "#2E7D32", // Same as primary
-    error: "#F44336",
+    success: '#4CAF50',
+    error: '#F44336',
     errorLight: "#FFCDD2",
-    warning: "#F4A261", // Same as secondary
+    warning: '#FFC107',
     warningLight: "#FFE0B2",
-    info: "#2196F3",
+    info: '#2196F3',
     infoLight: "#E3F2FD",
     
     // Tag colors
     tagBackground: "#E8F5E9", // Light green for ingredient tags
     
     // Neutrals
-    white: "#FFFFFF",
+    white: '#FFFFFF',
     black: "#000000",
-    background: "#F9E4C6", // Soft peach background
-    backgroundAlt: "#FFF3E0",
+    background: '#F9F9F9',
+    backgroundAlt: '#F0F0F0',
     backgroundGradientStart: "#FFF3E0",
     backgroundGradientEnd: "#F9E4C6",
     card: "#FFFFFF",
@@ -50,9 +51,9 @@ const colors = {
     searchBackground: '#F5F5F5',
     
     // Text colors
-    text: "#5C4033", // Deep brown for text
-    textSecondary: "#7D5A50",
-    textTertiary: "#9E9E9E",
+    text: '#333333',
+    textSecondary: '#757575',
+    textTertiary: '#9E9E9E',
     textLight: "#FFFFFF",
     textDark: "#5C4033",
     textDisabled: "#BDBDBD", // Added for disabled text elements
@@ -60,7 +61,7 @@ const colors = {
     // UI elements
     backgroundDisabled: "#EEEEEE", // Added for disabled button backgrounds
     iconDisabledBackground: "#F5F5F5", // Added for disabled icon container backgrounds
-    border: "#E0E0E0",
+    border: '#E0E0E0',
     borderActive: "#BBDEFB",
     divider: "#EEEEEE",
     dragHandle: "#E0E0E0",
@@ -76,8 +77,14 @@ const colors = {
     skeleton: "#E0E0E0",
     overlay: "rgba(0, 0, 0, 0.5)",
     overlayLight: "rgba(0, 0, 0, 0.3)",
-    shadow: "rgba(0, 0, 0, 0.1)",
+    shadow: '#000000',
     shadowDark: "rgba(0, 0, 0, 0.2)",
-  };
-  
-  export default colors;
+    
+    // Social colors
+    facebook: '#1877F2',
+    google: '#DB4437',
+    twitter: '#1DA1F2',
+    apple: '#000000',
+};
+
+export default colors;

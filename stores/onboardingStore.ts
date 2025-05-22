@@ -1,6 +1,7 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { DietaryProfile, SpiceLevel } from './preferencesStore';
 
 // Keys for AsyncStorage
 const ONBOARDING_COMPLETED_KEY = 'onboarding_completed';
@@ -17,66 +18,111 @@ export type DietaryPreference =
   | 'paleo'
   | 'lowFat';
 
-export type MealPreference = 
-  | 'quickMeals' 
-  | 'familyFriendly' 
-  | 'budgetFriendly' 
-  | 'singleServing';
+export type MealPreference = 'quickMeals' | 'familyFriendly' | 'budgetFriendly' | 'singleServing';
 
 interface OnboardingState {
-  // Onboarding status
-  onboardingComplete: boolean;
+  // User personal info
+  name: string;
+  email: string;
   
-  // User preferences
-  dietaryPreferences: DietaryPreference[];
+  // Onboarding navigation
+  currentStep: number;
+  hasCompletedOnboarding: boolean;
+  
+  // Dietary preferences from onboarding
+  dietaryPreferences: DietaryProfile[];
   mealPreferences: MealPreference[];
-  
-  // Camera/Microphone permissions
-  cameraPermission: boolean;
-  microphonePermission: boolean;
+  spicePreference: SpiceLevel;
   
   // Actions
-  setOnboardingComplete: (complete: boolean) => void;
-  setDietaryPreferences: (preferences: DietaryPreference[]) => void;
-  setMealPreferences: (preferences: MealPreference[]) => void;
-  setCameraPermission: (granted: boolean) => void;
-  setMicrophonePermission: (granted: boolean) => void;
-  
-  // For testing/debugging
+  setName: (name: string) => void;
+  setEmail: (email: string) => void;
+  nextStep: () => void;
+  previousStep: () => void;
+  goToStep: (step: number) => void;
+  completeOnboarding: () => void;
   resetOnboarding: () => void;
+  setDietaryPreferences: (prefs: DietaryProfile[]) => void;
+  setMealPreferences: (prefs: MealPreference[]) => void;
+  setSpicePreference: (pref: SpiceLevel) => void;
+
+  // Permissions
+  cameraPermissionGranted: boolean;
+  microphonePermissionGranted: boolean;
+  setCameraPermissionGranted: (granted: boolean) => void;
+  setMicrophonePermissionGranted: (granted: boolean) => void;
 }
 
+// Create the store
 export const useOnboardingStore = create<OnboardingState>()(
   persist(
     (set) => ({
-      // Initial state
-      onboardingComplete: false,
+      // Default values
+      name: '',
+      email: '',
+      currentStep: 0,
+      hasCompletedOnboarding: false,
       dietaryPreferences: [],
       mealPreferences: [],
-      cameraPermission: false,
-      microphonePermission: false,
+      spicePreference: 'medium',
+      cameraPermissionGranted: false,
+      microphonePermissionGranted: false,
       
       // Actions
-      setOnboardingComplete: (complete) => set({ onboardingComplete: complete }),
+      setName: (name) => set({ name }),
+      setEmail: (email) => set({ email }),
       
-      setDietaryPreferences: (preferences) => set({ dietaryPreferences: preferences }),
+      nextStep: () => set((state) => ({ 
+        currentStep: state.currentStep + 1 
+      })),
       
-      setMealPreferences: (preferences) => set({ mealPreferences: preferences }),
+      previousStep: () => set((state) => ({ 
+        currentStep: Math.max(0, state.currentStep - 1) 
+      })),
       
-      setCameraPermission: (granted) => set({ cameraPermission: granted }),
-      
-      setMicrophonePermission: (granted) => set({ microphonePermission: granted }),
-      
-      resetOnboarding: () => set({
-        onboardingComplete: false,
-        dietaryPreferences: [],
-        mealPreferences: [],
-        cameraPermission: false,
-        microphonePermission: false,
+      goToStep: (step) => set({ 
+        currentStep: step 
       }),
+// inside completeOnboarding
+      completeOnboarding: async () => {
+        // 1. update zustand state
+        set({ hasCompletedOnboarding: true });
+        // 2. keep the helper in sync for legacy callers
+        try {
+          await AsyncStorage.setItem(ONBOARDING_COMPLETED_KEY, 'true');
+        } catch (err) {
+          console.warn('[onboardingStore] Failed to persist ONBOARDING_COMPLETED_KEY', err);
+        }
+      },
+      
+resetOnboarding: () => set({ 
+         currentStep: 0,
+         hasCompletedOnboarding: false,
+        name: '',
+        email: '',
+         dietaryPreferences: [],
+         mealPreferences: [],
+         spicePreference: 'medium',
+        cameraPermissionGranted: false,
+        microphonePermissionGranted: false,
+       }),
+      
+      setDietaryPreferences: (prefs) => set({ 
+        dietaryPreferences: prefs 
+      }),
+      
+      setMealPreferences: (prefs) => set({ 
+        mealPreferences: prefs 
+      }),
+      
+      setSpicePreference: (pref) => set({ 
+        spicePreference: pref 
+      }),
+      setCameraPermissionGranted: (granted) => set({ cameraPermissionGranted: granted }),
+      setMicrophonePermissionGranted: (granted) => set({ microphonePermissionGranted: granted }),
     }),
     {
-      name: 'reciptai-onboarding-storage',
+      name: 'onboarding-storage',
       storage: createJSONStorage(() => AsyncStorage),
     }
   )
@@ -91,4 +137,4 @@ export const checkOnboardingStatus = async (): Promise<boolean> => {
     console.error('Error checking onboarding status:', error);
     return false;
   }
-}; 
+};

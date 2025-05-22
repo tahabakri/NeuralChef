@@ -94,7 +94,7 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [appReady, setAppReady] = useState(false);
-  const { onboardingComplete, setOnboardingComplete } = useOnboardingStore();
+  const { hasCompletedOnboarding, completeOnboarding } = useOnboardingStore();
   const router = useRouter();
   const initialURLRef = useRef<string | null>(null);
 
@@ -168,11 +168,11 @@ export default function RootLayout() {
     async function prepare() {
       try {
         // Check if user has completed onboarding
-        const onboardingStatus = await AsyncStorage.getItem('onboardingComplete');
+        const onboardingStatus = await AsyncStorage.getItem('onboardingComplete'); // This AsyncStorage key might also need an update if it's tied to the store's state name
         
         // If onboarding was completed in a previous session
-        if (onboardingStatus === 'true' && !onboardingComplete) {
-          setOnboardingComplete(true);
+        if (onboardingStatus === 'true' && !hasCompletedOnboarding) {
+          completeOnboarding();
         }
         
         // Artificial timeout for demonstration purposes, can be removed
@@ -187,7 +187,7 @@ export default function RootLayout() {
     }
 
     prepare();
-  }, [onboardingComplete, setOnboardingComplete]);
+  }, [hasCompletedOnboarding, completeOnboarding]);
 
   useEffect(() => {
     if (appReady && fontsLoaded) { // Added fontsLoaded here
@@ -199,13 +199,13 @@ export default function RootLayout() {
       }
       
       // Navigate based on onboarding status
-      if (!onboardingComplete) {
+      if (!hasCompletedOnboarding) {
         router.replace('/onboarding');
       } else {
         router.replace('/(tabs)');
       }
     }
-  }, [appReady, fontsLoaded, onboardingComplete, router]); // Added fontsLoaded to dependency array
+  }, [appReady, fontsLoaded, hasCompletedOnboarding, router]); // Added fontsLoaded to dependency array
 
   if (!fontsLoaded || !appReady) {
     return (

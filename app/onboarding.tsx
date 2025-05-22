@@ -11,7 +11,7 @@ import colors from '@/constants/colors';
 
 const OnboardingScreen = () => {
   const router = useRouter();
-  const { setOnboardingComplete } = useOnboardingStore();
+  const { completeOnboarding } = useOnboardingStore();
   const [currentStep, setCurrentStep] = useState(0);
 
   // Define base steps
@@ -46,7 +46,7 @@ const OnboardingScreen = () => {
       setCurrentStep(currentStep + 1);
     } else {
       // Onboarding complete
-      setOnboardingComplete(true);
+      completeOnboarding(); // Corrected function name
       router.replace('/(tabs)');
     }
   };
@@ -59,7 +59,7 @@ const OnboardingScreen = () => {
 
   const handleSkip = () => {
     // Onboarding complete (skipped)
-    setOnboardingComplete(true);
+    completeOnboarding(); // Corrected function name
     router.replace('/(tabs)');
   };
 

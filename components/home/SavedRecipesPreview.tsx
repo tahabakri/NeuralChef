@@ -27,13 +27,15 @@ interface SavedRecipesPreviewProps {
   isLoading: boolean;
   onViewAllPress: () => void;
   onRecipePress: (id: string) => void;
+  onSaveToggle?: (id: string) => void; // Added onSaveToggle
 }
 
 const SavedRecipesPreview: React.FC<SavedRecipesPreviewProps> = ({
   recipes,
   isLoading,
   onViewAllPress,
-  onRecipePress
+  onRecipePress,
+  onSaveToggle // Added onSaveToggle
 }) => {
   // Maximum number of recipes to show in preview
   const MAX_PREVIEW_COUNT = 5;
@@ -88,6 +90,7 @@ const SavedRecipesPreview: React.FC<SavedRecipesPreviewProps> = ({
               <RecipeCard
                 recipe={prepareRecipeForCard(recipe)}
                 onPress={() => onRecipePress(recipe.id)}
+                onSaveToggle={onSaveToggle ? () => onSaveToggle(recipe.id) : undefined} // Pass onSaveToggle to RecipeCard
                 style={styles.recipeCardItem}
                 type="featured"
               />
@@ -162,4 +165,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SavedRecipesPreview; 
+export default SavedRecipesPreview;

@@ -22,7 +22,8 @@ import {
   WeekCalendar, 
   MealItem, 
   RecipeSelector, 
-  ReminderSelector 
+  ReminderSelector,
+  WeekOverviewChart
 } from '@/components/MealPlanner';
 import { MealType, ScheduledMeal } from '@/components/MealPlanner/types';
 
@@ -38,7 +39,8 @@ export default function MealPlannerScreen() {
     getMealsForDateAndType,
     scheduleMeal,
     toggleMealNotification,
-    setMealReminderTime
+    setMealReminderTime,
+    scheduledMeals
   } = useMealPlannerStore();
 
   const [recipeSelectorVisible, setRecipeSelectorVisible] = useState(false);
@@ -170,10 +172,30 @@ export default function MealPlannerScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView style={styles.mealsContainer}>
+        <ScrollView style={styles.mealsContainer} showsVerticalScrollIndicator={false}>
           {renderMealItem('breakfast')}
           {renderMealItem('lunch')}
           {renderMealItem('dinner')}
+          
+          {/* Weekly Overview Section */}
+          <View style={styles.weeklyOverviewContainer}>
+            <Text style={styles.weeklyOverviewTitle}>Weekly Overview</Text>
+            <View style={styles.chartContainer}>
+              {weekDates.length > 0 ? (
+                <WeekOverviewChart 
+                  dates={weekDates} 
+                  scheduledMeals={scheduledMeals} 
+                />
+              ) : (
+                <View style={styles.emptyChartContainer}>
+                  <Text style={styles.emptyChartText}>Chart will be displayed here</Text>
+                </View>
+              )}
+            </View>
+          </View>
+          
+          {/* Bottom spacing */}
+          <View style={{height: 24}} />
         </ScrollView>
       )}
 
@@ -269,5 +291,40 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 10,
+  },
+  weeklyOverviewContainer: {
+    marginTop: 16,
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: colors.shadow,
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  weeklyOverviewTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 12,
+  },
+  chartContainer: {
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: colors.cardAlt,
+  },
+  emptyChartContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.cardAlt,
+  },
+  emptyChartText: {
+    color: colors.textSecondary,
+    fontSize: 16,
   },
 });

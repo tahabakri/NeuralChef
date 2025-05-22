@@ -3,53 +3,49 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect } from 'react';
 
-export type DietaryPreference = 'No Restrictions' | 'Vegetarian' | 'Vegan' | 'Gluten-Free' | 'Dairy-Free' | 'Keto' | 'Paleo' | 'Low-Carb';
+export type DietaryProfile = 
+  | 'noRestrictions' 
+  | 'vegetarian' 
+  | 'vegan' 
+  | 'pescatarian' 
+  | 'paleo' 
+  | 'keto' 
+  | 'lowCarb' 
+  | 'glutenFree' 
+  | 'dairyFree';
 
-export type SpiceLevel = 'Mild' | 'Medium' | 'Spicy' | 'Extra Spicy';
-
-export type PortionSize = 'Small' | 'Medium' | 'Large' | 'Extra Large';
-
-export type MicroPreference = 'High Protein' | 'Low Fat' | 'Low Sodium' | 'Low Sugar' | 'High Fiber';
-
-export type CookingGoal = 'Meal Prep' | 'Quick Meals' | 'Weight Loss' | 'Building Muscle' | 'Energy Boost';
+export type SpiceLevel = 'none' | 'mild' | 'medium' | 'spicy' | 'extraSpicy';
+export type PortionSize = 'single' | 'couple' | 'family' | 'large';
+export type MicroPreference = 'highProtein' | 'lowFat' | 'lowSodium' | 'highFiber' | 'lowSugar';
+export type CookingGoal = 'mealPrep' | 'quickWeeknight' | 'weightLoss' | 'newTechniques' | 'impressGuests';
 
 export interface PreferencesState {
-  dietaryPreferences: DietaryPreference[]; // Changed from singular to plural
+  dietaryProfile: DietaryProfile;
   allergies: string[];
   dislikedIngredients: string[];
   spiceLevel: SpiceLevel;
   cuisineTypes: string[];
-  cookingTimeLimit: number; // in minutes, 0 means no limit
-  maxCalories: number; // per serving, 0 means no limit
+  cookingTimeLimit: number; // In minutes, 0 for no limit
+  maxCalories: number; // 0 for no limit
   portionSize: PortionSize;
   microPreferences: MicroPreference[];
   cookingGoals: CookingGoal[];
   mealTimePreference: string;
 
-  setDietaryPreferences: (preferences: DietaryPreference[]) => void; // Changed from singular to plural
-  setAllergies: (allergies: string[]) => void;
-  setDislikedIngredients: (ingredients: string[]) => void;
-  setSpiceLevel: (level: SpiceLevel) => void;
-  setCuisineTypes: (cuisines: string[]) => void;
-  setCookingTimeLimit: (limit: number) => void;
-  setMaxCalories: (calories: number) => void;
-  setPortionSize: (size: PortionSize) => void;
-  setMicroPreferences: (preferences: MicroPreference[]) => void;
-  setCookingGoals: (goals: CookingGoal[]) => void;
-  setMealTimePreference: (preference: string) => void;
+  updatePreferences: (preferences: Partial<Omit<PreferencesState, 'updatePreferences' | 'resetPreferences'>>) => void;
   resetPreferences: () => void;
   loadPreferences: () => Promise<void>;
 }
 
 const defaultPreferences = {
-  dietaryPreferences: ['No Restrictions'] as DietaryPreference[], // Changed to array
+  dietaryProfile: 'noRestrictions' as DietaryProfile,
   allergies: [],
   dislikedIngredients: [],
-  spiceLevel: 'Medium' as SpiceLevel,
+  spiceLevel: 'medium' as SpiceLevel,
   cuisineTypes: [],
-  cookingTimeLimit: 30, // 30 minutes by default
-  maxCalories: 0, // No limit by default
-  portionSize: 'Medium' as PortionSize,
+  cookingTimeLimit: 0,
+  maxCalories: 0,
+  portionSize: 'family' as PortionSize,
   microPreferences: [],
   cookingGoals: [],
   mealTimePreference: '',
@@ -60,24 +56,21 @@ export const usePreferencesStore = create<PreferencesState>()(
     (set) => ({
       ...defaultPreferences,
       
-      setDietaryPreferences: (preferences) => set({ dietaryPreferences: preferences }), // Changed from singular to plural
-      setAllergies: (allergies) => set({ allergies }),
-      setDislikedIngredients: (ingredients) => set({ dislikedIngredients: ingredients }),
-      setSpiceLevel: (level) => set({ spiceLevel: level }),
-      setCuisineTypes: (cuisines) => set({ cuisineTypes: cuisines }),
-      setCookingTimeLimit: (limit) => set({ cookingTimeLimit: limit }),
-      setMaxCalories: (calories) => set({ maxCalories: calories }),
-      setPortionSize: (size) => set({ portionSize: size }),
-      setMicroPreferences: (preferences) => set({ microPreferences: preferences }),
-      setCookingGoals: (goals) => set({ cookingGoals: goals }),
-      setMealTimePreference: (preference) => set({ mealTimePreference: preference }),
+      updatePreferences: (preferences) =>
+        set((state) => ({
+          ...state,
+          ...preferences,
+        })),
       
-      resetPreferences: () => set({ ...defaultPreferences }),
+      resetPreferences: () =>
+        set(() => ({
+          ...defaultPreferences,
+        })),
       
       loadPreferences: async () => {
         try {
           const [
-            storedPreferences, // Changed from singular
+            storedPreferences,
             storedAllergies,
             storedDislikedIngredients,
             storedSpiceLevel,
@@ -89,7 +82,7 @@ export const usePreferencesStore = create<PreferencesState>()(
             storedCookingGoals,
             storedMealTimePreference
           ] = await AsyncStorage.multiGet([
-            'dietaryPreference',
+            'dietaryProfile',
             'allergies',
             'dislikedIngredients',
             'spiceLevel',
@@ -103,14 +96,14 @@ export const usePreferencesStore = create<PreferencesState>()(
           ]);
           
           set({
-            dietaryPreferences: storedPreferences[1] ? JSON.parse(storedPreferences[1]) : ['No Restrictions'], // Changed from singular
+            dietaryProfile: storedPreferences[1] as DietaryProfile || 'noRestrictions',
             allergies: storedAllergies[1] ? JSON.parse(storedAllergies[1]) : [],
             dislikedIngredients: storedDislikedIngredients[1] ? JSON.parse(storedDislikedIngredients[1]) : [],
-            spiceLevel: (storedSpiceLevel[1] as SpiceLevel) || 'Medium',
+            spiceLevel: (storedSpiceLevel[1] as SpiceLevel) || 'medium',
             cuisineTypes: storedCuisineTypes[1] ? JSON.parse(storedCuisineTypes[1]) : [],
             cookingTimeLimit: storedCookingTimeLimit[1] ? parseInt(storedCookingTimeLimit[1], 10) : 0,
             maxCalories: storedMaxCalories[1] ? parseInt(storedMaxCalories[1], 10) : 0,
-            portionSize: (storedPortionSize[1] as PortionSize) || 'Medium',
+            portionSize: (storedPortionSize[1] as PortionSize) || 'family',
             microPreferences: storedMicroPreferences[1] ? JSON.parse(storedMicroPreferences[1]) : [],
             cookingGoals: storedCookingGoals[1] ? JSON.parse(storedCookingGoals[1]) : [],
             mealTimePreference: storedMealTimePreference[1] || ''
@@ -121,7 +114,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       },
     }),
     {
-      name: 'recipe-preferences-storage',
+      name: 'preferences-storage',
       storage: createJSONStorage(() => AsyncStorage),
     }
   )
@@ -135,7 +128,7 @@ export const useLoadPreferences = () => {
   }, [loadPreferences]);
   
   return usePreferencesStore(state => ({
-    dietaryPreferences: state.dietaryPreferences, // Changed from singular
+    dietaryProfile: state.dietaryProfile,
     allergies: state.allergies,
     dislikedIngredients: state.dislikedIngredients,
     spiceLevel: state.spiceLevel,
@@ -149,45 +142,47 @@ export const useLoadPreferences = () => {
   }));
 };
 
-export const getDietaryPreferences = (): DietaryPreference[] => [
-  'No Restrictions',
-  'Vegetarian',
-  'Vegan',
-  'Gluten-Free',
-  'Dairy-Free',
-  'Keto',
-  'Paleo',
-  'Low-Carb',
+export const getDietaryProfiles = (): DietaryProfile[] => [
+  'noRestrictions',
+  'vegetarian',
+  'vegan',
+  'pescatarian',
+  'paleo',
+  'keto',
+  'lowCarb',
+  'glutenFree',
+  'dairyFree',
 ];
 
 export const getSpiceLevels = (): SpiceLevel[] => [
-  'Mild',
-  'Medium',
-  'Spicy',
-  'Extra Spicy'
+  'none',
+  'mild',
+  'medium',
+  'spicy',
+  'extraSpicy',
 ];
 
 export const getPortionSizes = (): PortionSize[] => [
-  'Small',
-  'Medium',
-  'Large',
-  'Extra Large'
+  'single',
+  'couple',
+  'family',
+  'large',
 ];
 
 export const getMicroPreferences = (): MicroPreference[] => [
-  'High Protein',
-  'Low Fat',
-  'Low Sodium',
-  'Low Sugar',
-  'High Fiber'
+  'highProtein',
+  'lowFat',
+  'lowSodium',
+  'highFiber',
+  'lowSugar',
 ];
 
 export const getCookingGoals = (): CookingGoal[] => [
-  'Meal Prep',
-  'Quick Meals',
-  'Weight Loss',
-  'Building Muscle',
-  'Energy Boost'
+  'mealPrep',
+  'quickWeeknight',
+  'weightLoss',
+  'newTechniques',
+  'impressGuests',
 ];
 
 export const getCommonAllergies = (): string[] => [

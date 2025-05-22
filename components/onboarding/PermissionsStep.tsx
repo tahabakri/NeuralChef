@@ -31,7 +31,7 @@ interface PermissionsStepProps {
 const { width } = Dimensions.get('window');
 
 export default function PermissionsStep({ onNext, onBack, isLastStep, stepIndex, totalSteps }: PermissionsStepProps) {
-  const { setCameraPermission, setMicrophonePermission } = useOnboardingStore();
+  const { setCameraPermissionGranted, setMicrophonePermissionGranted } = useOnboardingStore();
   const [cameraStatus, setCameraStatus] = useState<'pending' | 'granted' | 'denied'>('pending');
   const [microphoneStatus, setMicrophoneStatus] = useState<'pending' | 'granted' | 'denied'>('pending');
 
@@ -45,12 +45,12 @@ export default function PermissionsStep({ onNext, onBack, isLastStep, stepIndex,
     // Check camera permission
     const cameraPermission = await Camera.getCameraPermissionsAsync();
     setCameraStatus(cameraPermission.status === 'granted' ? 'granted' : 'pending');
-    setCameraPermission(cameraPermission.status === 'granted');
+    setCameraPermissionGranted(cameraPermission.status === 'granted');
 
     // Check microphone permission
     const micPermissionResponse = await Camera.getMicrophonePermissionsAsync();
     setMicrophoneStatus(micPermissionResponse.status === 'granted' ? 'granted' : 'pending');
-    setMicrophonePermission(micPermissionResponse.status === 'granted');
+    setMicrophonePermissionGranted(micPermissionResponse.status === 'granted');
   };
 
   // Request camera permission
@@ -59,7 +59,7 @@ export default function PermissionsStep({ onNext, onBack, isLastStep, stepIndex,
     
     const { status } = await Camera.requestCameraPermissionsAsync();
     setCameraStatus(status === 'granted' ? 'granted' : 'denied');
-    setCameraPermission(status === 'granted');
+    setCameraPermissionGranted(status === 'granted');
     
     if (status !== 'granted') {
       showPermissionDeniedAlert('camera');
@@ -72,7 +72,7 @@ export default function PermissionsStep({ onNext, onBack, isLastStep, stepIndex,
     
     const { status } = await Camera.requestMicrophonePermissionsAsync();
     setMicrophoneStatus(status === 'granted' ? 'granted' : 'denied');
-    setMicrophonePermission(status === 'granted');
+    setMicrophonePermissionGranted(status === 'granted');
     
     if (status !== 'granted') {
       showPermissionDeniedAlert('microphone');

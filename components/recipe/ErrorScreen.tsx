@@ -53,7 +53,7 @@ const ErrorScreen = ({ error, onRetry, onBack }: ErrorScreenProps) => {
         <View style={styles.buttonContainer}>
           <TouchableOpacity onPress={onRetry}>
             <LinearGradient
-              colors={[colors.sunriseOrange, '#FB8C00']}
+              colors={[colors.sunriseOrangeStart, colors.sunriseOrangeEnd]}
               style={styles.retryButton}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -156,4 +156,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ErrorScreen; 
+export default ErrorScreen;

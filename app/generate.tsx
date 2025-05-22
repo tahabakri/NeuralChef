@@ -227,9 +227,9 @@ function GenerateScreen() {
         title: params.random === 'true' ? 'Surprise Me!' : 'Creating Your Recipe',
         headerShown: true,
         headerLeft: () => (
-          <TouchableOpacity onPress={handleCancel} style={{ marginLeft: Platform.OS === 'ios' ? 16 : 0 }}>
-            <BackArrow />
-          </TouchableOpacity>
+          <View style={{ marginLeft: Platform.OS === 'ios' ? 16 : 0 }}>
+            <BackArrow onClick={handleCancel} />
+          </View>
         ),
         headerBackVisible: false,
       }} />

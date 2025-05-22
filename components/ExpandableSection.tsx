@@ -9,6 +9,8 @@ import {
   UIManager 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import colors from '@/constants/colors';
 import typography from '@/constants/typography';
 
@@ -20,22 +22,23 @@ if (Platform.OS === 'android') {
 
 interface ExpandableSectionProps {
   title: string;
-  icon?: keyof typeof Ionicons.glyphMap;
-  iconColor?: string;
+  iconName?: keyof typeof Ionicons.glyphMap;
+  iconColors?: [string, string];
   children: React.ReactNode;
   initiallyExpanded?: boolean;
 }
 
 const ExpandableSection = ({ 
   title, 
-  icon, 
-  iconColor = colors.primary,
-  children, 
-  initiallyExpanded = false 
+  iconName, 
+  iconColors = ['#4CAF50', '#81C784'], 
+  children,
+  initiallyExpanded = false
 }: ExpandableSectionProps) => {
   const [expanded, setExpanded] = useState(initiallyExpanded);
   
-  const toggleExpand = () => {
+  const toggleExpanded = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpanded(!expanded);
   };
@@ -43,22 +46,27 @@ const ExpandableSection = ({
   return (
     <View style={styles.container}>
       <TouchableOpacity 
-        style={styles.header} 
-        onPress={toggleExpand}
+        style={styles.header}
+        onPress={toggleExpanded}
         activeOpacity={0.7}
       >
-        <View style={styles.titleContainer}>
-          {icon && (
-            <View style={[styles.iconContainer, { backgroundColor: `${iconColor}20` }]}>
-              <Ionicons name={icon} size={20} color={iconColor} />
-            </View>
-          )}
-          <Text style={styles.title}>{title}</Text>
-        </View>
+        {iconName && (
+          <View style={styles.iconContainer}>
+            <LinearGradient
+              colors={iconColors}
+              style={styles.iconGradient}
+            >
+              <Ionicons name={iconName} size={20} color="white" />
+            </LinearGradient>
+          </View>
+        )}
+        
+        <Text style={styles.title}>{title}</Text>
+        
         <Ionicons 
           name={expanded ? 'chevron-up' : 'chevron-down'} 
           size={20} 
-          color={colors.text} 
+          color={colors.textTertiary} 
         />
       </TouchableOpacity>
       
@@ -73,9 +81,9 @@ const ExpandableSection = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
-    borderRadius: 12,
     backgroundColor: colors.white,
+    borderRadius: 12,
+    margin: 16,
     overflow: 'hidden',
     ...Platform.select({
       ios: {
@@ -92,28 +100,30 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     padding: 16,
+    borderBottomWidth: expanded => expanded ? 1 : 0,
+    borderBottomColor: colors.border,
   },
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  title: {
+    ...typography.subtitle1,
+    flex: 1,
+    color: colors.text,
+    marginLeft: 12,
   },
   iconContainer: {
     width: 36,
     height: 36,
     borderRadius: 18,
+    overflow: 'hidden',
+  },
+  iconGradient: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
-  },
-  title: {
-    ...typography.subtitle1,
-    color: colors.text,
   },
   content: {
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    // No specific styling needed here as each child component will define its own padding
   },
 });
 
