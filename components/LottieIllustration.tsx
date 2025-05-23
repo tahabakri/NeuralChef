@@ -9,7 +9,9 @@ export type LottieType =
   | 'welcome'
   | 'error'
   | 'cooking'
-  | 'magic-wand'; // Added new type
+  | 'magic-wand'
+  | 'sun' // Added sun type
+  | 'moon'; // Added moon type
 
 interface LottieIllustrationProps {
   type: LottieType;
@@ -44,7 +46,11 @@ const LottieIllustration = ({
       case 'cooking':
         return require('../assets/animations/cooking.json');
       case 'magic-wand':
-        return require('../assets/animations/magic-wand.json'); // Added magic-wand animation
+        return require('../assets/animations/magic-wand.json');
+      case 'sun':
+        return require('../assets/animations/sun.json'); // Added sun animation
+      case 'moon':
+        return require('../assets/animations/moon.json'); // Added moon animation (assuming file exists)
       default:
         return require('../assets/animations/empty-state.json');
     }

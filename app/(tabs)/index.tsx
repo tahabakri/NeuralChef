@@ -160,14 +160,24 @@ export default function HomeScreen() {
             </View>
 
             <QuickCookCard
-              title="Quick Cook"
               recipeName="Try this Creamy Broccoli Pasta"
               durationText="Ready in 20 minutes"
               imageUrl="https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9"
               onNavigate={() => router.push('/recipe/1')}
+              onSaveRecipe={() => handleSaveToggle('1')} // Assuming '1' is the ID for "Creamy Broccoli Pasta"
+              isSaved={isSaved("Creamy Broccoli Pasta")}
+              urgencyLevel="high" // Example urgency
             />
 
-            <TodaysPlanSummary meals={meals} isLoading={isLoading} onViewAllPress={() => router.push('/meal-planner')} onAddMealPress={() => router.push('/meal-planner')} onMealPress={handleRecipePress} />
+            <TodaysPlanSummary
+              meals={meals}
+              isLoading={isLoading}
+              onViewAllPress={() => router.push('/meal-planner')}
+              onAddMealPress={() => router.push('/meal-planner')}
+              onMealPress={handleRecipePress}
+              onEditMealPress={(mealId) => console.log('Edit meal:', mealId)} // Placeholder
+              onDeleteMealPress={(mealId) => console.log('Delete meal:', mealId)} // Placeholder
+            />
 
             <WeeklyCookingGoal
               goal={weeklyCookingGoal}
@@ -175,6 +185,7 @@ export default function HomeScreen() {
               motivationalText="Keep it up! You're making great progress toward your goal."
               onEditGoalPress={() => {}}
               onMarkMealCookedPress={() => setCookedMealsThisWeek(prev => Math.min(prev + 1, weeklyCookingGoal))}
+              onViewHistoryPress={() => console.log('View history pressed')} // Placeholder
             />
 
             <SavedRecipesPreview

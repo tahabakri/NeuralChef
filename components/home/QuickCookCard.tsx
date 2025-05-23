@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import colors from '@/constants/colors';
@@ -17,29 +17,72 @@ const spacing = {
 };
 
 interface QuickCookCardProps {
-  title: string; // e.g., "Quick Cook"
-  recipeName: string; // e.g., "Try this Creamy Broccoli Pasta"
+  recipeName: string; // e.g., "Creamy Broccoli Pasta"
   durationText: string; // e.g., "Ready in 20 minutes"
   imageUrl: string;
   onNavigate: () => void;
+  onSaveRecipe?: (recipeName: string) => void;
+  isSaved?: boolean;
+  urgencyLevel?: 'low' | 'medium' | 'high'; // For progress ring intensity
 }
 
 const QuickCookCard: React.FC<QuickCookCardProps> = ({
-  title,
   recipeName,
   durationText,
   imageUrl,
   onNavigate,
+  onSaveRecipe,
+  isSaved = false,
+  urgencyLevel = 'medium',
 }) => {
+  const [saved, setSaved] = useState(isSaved);
+
+  const handleSavePress = () => {
+    setSaved(!saved);
+    onSaveRecipe?.(recipeName);
+  };
+
+  const getUrgencyIcon = () => {
+    switch (urgencyLevel) {
+      case 'high':
+        return { name: 'flame' as const, color: '#FF6B6B' };
+      case 'low':
+        return { name: 'time-outline' as const, color: colors.white };
+      default:
+        return { name: 'flash' as const, color: '#FFD93D' };
+    }
+  };
+
+  const urgencyIcon = getUrgencyIcon();
+
   return (
     <TouchableOpacity 
       style={styles.card}
       onPress={onNavigate}
-      accessibilityLabel={`${title}: ${recipeName}, ${durationText}`}
+      accessibilityLabel={`Quick recipe: ${recipeName}, ${durationText}`}
     >
+      {/* Urgency Progress Ring */}
+      <View style={styles.urgencyRing}>
+        <View style={[styles.progressRing, styles[`${urgencyLevel}Urgency`]]} />
+      </View>
+
       <View style={styles.leftContent}>
-        <Ionicons name="flash-outline" size={24} color={colors.white} style={styles.icon} />
-        <Text style={styles.titleText}>{title}</Text>
+        <View style={styles.headerRow}>
+          <Ionicons 
+            name={urgencyIcon.name} 
+            size={24} 
+            color={urgencyIcon.color} 
+            style={styles.icon} 
+          />
+          <TouchableOpacity 
+            style={styles.saveButton}
+            onPress={handleSavePress}
+            accessibilityLabel={saved ? 'Remove from saved recipes' : 'Save recipe'}
+          >
+
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.titleText}>Need food fast? Try this!</Text>
         <Text style={styles.recipeNameText}>{recipeName}</Text>
         <Text style={styles.durationText}>{durationText}</Text>
       </View>
@@ -47,8 +90,9 @@ const QuickCookCard: React.FC<QuickCookCardProps> = ({
         <Image 
           source={{ uri: imageUrl }} 
           style={styles.image} 
+          accessibilityLabel={`${recipeName} recipe image`}
         />
-        <Ionicons name="arrow-forward-circle-outline" size={24} color={colors.white} style={styles.arrowIcon} />
+        <Ionicons name="arrow-forward-circle" size={28} color={colors.white} style={styles.arrowIcon} />
       </View>
     </TouchableOpacity>
   );
@@ -56,7 +100,7 @@ const QuickCookCard: React.FC<QuickCookCardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.accentOrange, // Using consistent accent color from colors.ts
+    backgroundColor: colors.accentOrange,
     borderRadius: spacing.borderRadius.lg,
     padding: spacing.lg,
     flexDirection: 'row',
@@ -65,36 +109,78 @@ const styles = StyleSheet.create({
     marginVertical: spacing.xl,
     marginHorizontal: spacing.lg,
     shadowColor: colors.shadow || '#000',
-    shadowOffset: { width: 0, height: 2 }, // Subtle shadow
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3, // Android shadow
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  urgencyRing: {
+    position: 'absolute',
+    top: -20,
+    right: -20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    opacity: 0.3,
+  },
+  progressRing: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 30,
+    borderWidth: 3,
+  },
+  lowUrgency: {
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  mediumUrgency: {
+    borderColor: '#FFD93D',
+    borderTopColor: 'transparent',
+    borderRightColor: 'transparent',
+  },
+  highUrgency: {
+    borderColor: '#FF6B6B',
+    borderBottomColor: 'transparent',
+    borderLeftColor: 'transparent',
   },
   leftContent: {
     flex: 1, 
     marginRight: spacing.md, 
   },
-  icon: {
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  titleText: { // For "Quick Cook"
-    ...(typography.bodyMedium || typography.subtitle1), // As per prompt: bodyMedium or new subtitle
-    color: colors.white,
-    fontWeight: 'bold',
-    marginBottom: spacing.xs,
+  icon: {
+    // No additional margin needed since it's in a row
   },
-  recipeNameText: { // For "Try this Creamy Broccoli Pasta"
-    ...(typography.title3 || typography.heading2), // As per prompt: title3 or heading2
+  saveButton: {
+    padding: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  titleText: {
+    ...(typography.bodyMedium || typography.subtitle1),
+    color: colors.white,
+    fontWeight: '700',
+    marginBottom: spacing.xs,
+    fontSize: 16,
+  },
+  recipeNameText: {
+    ...(typography.title3 || typography.heading2),
     color: colors.white,
     fontWeight: 'bold',
     marginBottom: spacing.xs,
-    // Assuming typography.title3 or heading2 handles line height appropriately for 2 lines.
-    // If not, add lineHeight: (typography.title3?.fontSize || 20) * 1.2,
+    lineHeight: 22,
   },
   durationText: {
     ...typography.bodySmall,
     color: colors.white,
-    opacity: 0.8,
+    opacity: 0.9,
+    fontWeight: '500',
   },
   rightContent: {
     flexDirection: 'row',
@@ -103,11 +189,14 @@ const styles = StyleSheet.create({
   image: {
     width: 70,
     height: 70,
-    borderRadius: 35, // Circular image
-    backgroundColor: 'rgba(255, 255, 255, 0.1)', // Optional: slight tint if image is transparent
+    borderRadius: 35,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   arrowIcon: {
-    marginLeft: spacing.md, // Adjusted from sm to md for a bit more space
+    marginLeft: spacing.md,
+    opacity: 0.9,
   },
 });
 

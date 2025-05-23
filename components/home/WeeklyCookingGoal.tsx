@@ -1,22 +1,24 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import colors from '@/constants/colors';
 import typography from '@/constants/typography';
+import LottieView from 'lottie-react-native'; // For potential badge animation
 
-// Define spacing values if not imported from a constants file
+// Define spacing values
 const spacing = {
   xs: 4,
   sm: 8,
   md: 12,
   lg: 16,
-  xl: 22,
+  xl: 20, // Adjusted for slightly more padding
   xxl: 22,
   borderRadius: {
     sm: 4,
     md: 8,
     lg: 12,
+    xl: 16,
     pill: 48,
   },
 };
@@ -24,83 +26,150 @@ const spacing = {
 interface WeeklyCookingGoalProps {
   goal: number;
   completedCount: number;
-  motivationalText: string;
+  motivationalText?: string; // Made optional, will use dynamic messages
   onEditGoalPress: () => void;
   onMarkMealCookedPress: () => void;
+  onViewHistoryPress: () => void; // New prop
 }
+
+const motivationalQuotes = [
+  "Cooking is love made visible.",
+  "The secret ingredient is always cheese... or love.",
+  "A recipe has no soul. You, as the cook, must bring soul to the recipe.",
+  "Chop it like it's hot!",
+  "Life is what you bake it."
+];
 
 const WeeklyCookingGoal: React.FC<WeeklyCookingGoalProps> = ({
   goal,
   completedCount,
-  motivationalText,
+  motivationalText: initialMotivationalText,
   onEditGoalPress,
-  onMarkMealCookedPress
+  onMarkMealCookedPress,
+  onViewHistoryPress,
 }) => {
-  // Calculate progress percentage
-  const progressPercentage = (completedCount / goal) * 100;
-  
-  // Determine if the goal is completed
-  const isGoalCompleted = completedCount >= goal;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const [currentMotivationalText, setCurrentMotivationalText] = useState(initialMotivationalText || '');
+  const [showHalfwayBadge, setShowHalfwayBadge] = useState(false);
+
+  useEffect(() => {
+    const newProgress = goal > 0 ? (completedCount / goal) * 100 : 0;
+    Animated.timing(progressAnim, {
+      toValue: Math.min(newProgress, 100),
+      duration: 750, // Slower, smoother animation
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1), // Custom easing curve
+      useNativeDriver: false, // width is not supported by native driver
+    }).start();
+
+    // Update motivational text and badge
+    const isGoalCompleted = completedCount >= goal && goal > 0;
+    const isHalfway = completedCount >= goal / 2 && completedCount < goal && goal > 0;
+
+    setShowHalfwayBadge(isHalfway && !isGoalCompleted);
+
+    if (isGoalCompleted) {
+      setCurrentMotivationalText("Goal Achieved! Fantastic work, chef! 🎉");
+    } else if (isHalfway) {
+      setCurrentMotivationalText("You're halfway there! Keep up the amazing effort! 🔥");
+    } else if (completedCount > 0 && completedCount < goal / 2) {
+      setCurrentMotivationalText(initialMotivationalText || motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)]);
+    } else if (goal > 0) {
+       setCurrentMotivationalText(initialMotivationalText || "Let's get cooking towards your goal!");
+    } else {
+      setCurrentMotivationalText("Set a goal to start tracking!");
+    }
+
+  }, [completedCount, goal, progressAnim, initialMotivationalText]);
+
+  const progressPercentage = goal > 0 ? (completedCount / goal) * 100 : 0;
+  const isGoalCompleted = completedCount >= goal && goal > 0;
+
+  const animatedWidth = progressAnim.interpolate({
+    inputRange: [0, 100],
+    outputRange: ['0%', '100%'],
+    extrapolate: 'clamp',
+  });
 
   return (
     <View style={styles.container}>
-      {/* Header View with title and edit icon */}
       <View style={styles.header}>
         <Text style={styles.title}>Your Weekly Cooking Goal</Text>
-        <TouchableOpacity 
-          style={styles.editButton} 
-          onPress={onEditGoalPress}
-          accessibilityLabel="Edit weekly cooking goal"
-          accessibilityRole="button"
-        >
-          <Ionicons name="pencil-outline" size={20} color={colors.textTertiary} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={onViewHistoryPress}
+            accessibilityLabel="View cooking history"
+            accessibilityRole="button"
+          >
+            <Ionicons name="time-outline" size={22} color={colors.textTertiary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={onEditGoalPress}
+            accessibilityLabel="Edit weekly cooking goal"
+            accessibilityRole="button"
+          >
+            <Ionicons name="pencil-outline" size={22} color={colors.textTertiary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Goal Text */}
       <Text style={styles.goalText}>
-        Cook {goal} meals this week
+        Cook {goal > 0 ? `${goal} meal${goal === 1 ? '' : 's'}` : 'any number of meals'} this week
       </Text>
 
-      {/* Progress Bar Container */}
       <View style={styles.progressBarContainer}>
-        <LinearGradient
-          colors={[colors.primary, colors.primaryDark]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={[styles.progressBar, { width: `${Math.min(progressPercentage, 100)}%` }]}
-        />
+        <Animated.View style={[styles.progressBar, { width: animatedWidth }]}>
+          <LinearGradient
+            colors={isGoalCompleted ? [colors.success, colors.accentGreenEnd] : [colors.primary, colors.primaryDark]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={{ flex: 1 }}
+          />
+        </Animated.View>
       </View>
 
-      {/* Status Text */}
       <Text style={styles.statusText}>
         {completedCount}/{goal} meals cooked
       </Text>
 
-      {/* Mark Meal Cooked Button */}
-      <TouchableOpacity 
+      {showHalfwayBadge && !isGoalCompleted && (
+        <View style={styles.badgeContainer}>
+          <LottieView
+            source={require('@/assets/animations/confetti.json')} // Replace with a suitable badge/celebration Lottie
+            autoPlay
+            loop={false}
+            style={styles.badgeLottie}
+          />
+          <Text style={styles.badgeText}>Halfway Hero! 🌟</Text>
+        </View>
+      )}
+
+      <TouchableOpacity
         style={[
           styles.markMealButton,
-          isGoalCompleted && styles.disabledButton
+          (isGoalCompleted || goal === 0) && styles.disabledButton
         ]}
         onPress={onMarkMealCookedPress}
-        disabled={isGoalCompleted}
+        disabled={isGoalCompleted || goal === 0}
         accessibilityLabel="Mark meal as cooked"
         accessibilityRole="button"
-        accessibilityState={{ disabled: isGoalCompleted }}
+        accessibilityState={{ disabled: isGoalCompleted || goal === 0 }}
       >
+        <Ionicons name="checkmark-circle-outline" size={20} color={isGoalCompleted || goal === 0 ? colors.textDisabled : colors.white} style={{marginRight: spacing.sm}}/>
         <Text style={[
           styles.markMealButtonText,
-          isGoalCompleted && styles.disabledButtonText
+          (isGoalCompleted || goal === 0) && styles.disabledButtonText
         ]}>
-          ✔️ Mark Meal Cooked
+          Mark Meal Cooked
         </Text>
       </TouchableOpacity>
 
-      {/* Motivational Text */}
-      <Text style={styles.motivationalText}>
-        {motivationalText}
-      </Text>
+      {currentMotivationalText && (
+        <Text style={styles.motivationalText}>
+          {currentMotivationalText}
+        </Text>
+      )}
     </View>
   );
 };
@@ -108,19 +177,19 @@ const WeeklyCookingGoal: React.FC<WeeklyCookingGoalProps> = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.white,
-    borderRadius: spacing.borderRadius.lg,
+    borderRadius: spacing.borderRadius.xl,
     padding: spacing.lg,
     marginHorizontal: spacing.lg,
     marginTop: spacing.xxl,
     ...Platform.select({
       ios: {
         shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
       },
       android: {
-        elevation: 3,
+        elevation: 4,
       },
     }),
   },
@@ -131,50 +200,82 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   title: {
-    ...typography.title3,
-    color: colors.text,
+    ...typography.title2, // Slightly larger title
+    color: colors.textPrimary,
   },
-  editButton: {
-    padding: spacing.xs,
-    borderRadius: spacing.borderRadius.sm,
+  headerActions: {
+    flexDirection: 'row',
+  },
+  iconButton: {
+    padding: spacing.sm,
+    marginLeft: spacing.xs, // Space between icons
+    borderRadius: spacing.borderRadius.pill,
   },
   goalText: {
-    ...typography.bodyMedium,
+    ...typography.body1, // Adjusted typography
     color: colors.text,
-    fontWeight: 'bold',
+    fontWeight: '600', // Bolder
     marginBottom: spacing.md,
   },
   progressBarContainer: {
-    height: 8,
-    backgroundColor: colors.border,
-    borderRadius: 4,
+    height: 10, // Slightly thicker bar
+    backgroundColor: colors.backgroundAlt, // Softer background
+    borderRadius: spacing.borderRadius.pill, // Pill shape
     overflow: 'hidden',
     marginBottom: spacing.md,
   },
   progressBar: {
     height: '100%',
-    borderRadius: 4,
   },
   statusText: {
-    ...typography.bodySmall,
+    ...typography.body2, // Adjusted typography
     color: colors.textSecondary,
     marginBottom: spacing.md,
+    textAlign: 'right', // Align to right
+  },
+  badgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.accentYellowLight,
+    borderRadius: spacing.borderRadius.md,
+    marginBottom: spacing.md,
+  },
+  badgeLottie: {
+    width: 30,
+    height: 30,
+    marginRight: spacing.sm,
+  },
+  badgeText: {
+    ...typography.body2,
+    color: colors.accentYellow, // Darker yellow for text
+    fontWeight: 'bold',
   },
   markMealButton: {
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.primary, // Changed to primary color
     borderRadius: spacing.borderRadius.pill,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md, // Increased padding
     paddingHorizontal: spacing.lg,
+    flexDirection: 'row', // Icon and text side-by-side
     alignItems: 'center',
-    alignSelf: 'flex-start',
+    justifyContent: 'center', // Center content
+    alignSelf: 'stretch', // Stretch to full width
     marginBottom: spacing.md,
+    shadowColor: colors.primaryDark,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 2,
   },
   markMealButtonText: {
     ...typography.button,
     color: colors.white,
+    fontWeight: '600',
   },
   motivationalText: {
-    ...typography.bodySmall,
+    ...typography.body2, // Adjusted typography
     color: colors.textSecondary,
     fontStyle: 'italic',
     marginTop: spacing.sm,
@@ -182,10 +283,12 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     backgroundColor: colors.backgroundDisabled,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   disabledButtonText: {
     color: colors.textDisabled,
   },
 });
 
-export default WeeklyCookingGoal; 
+export default WeeklyCookingGoal;
