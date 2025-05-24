@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -6,7 +6,6 @@ import {
   SafeAreaView,
   TouchableOpacity,
   ScrollView,
-  Modal,
   Alert,
   Platform,
 } from 'react-native';
@@ -14,11 +13,13 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Toast from 'react-native-toast-message';
 import colors from '@/constants/colors';
-import ThemeSwitch from '@/components/ThemeSwitch';
 import NotificationSwitch from '@/components/NotificationSwitch';
-import VoiceSwitch from '@/components/VoiceSwitch';
 import ConfirmModal from '@/components/ConfirmModal';
+import { usePreferenceSelector } from '@/stores/preferencesStore';
+import { useUserStore, Language } from '@/stores/userStore';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -26,61 +27,219 @@ export default function SettingsScreen() {
   // State for modals
   const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
   const [deleteDataConfirmVisible, setDeleteDataConfirmVisible] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   
-  // Handle theme change
-  const handleThemeChange = (isDarkMode: boolean) => {
-    // In a real app, you would apply the theme change to the entire app
-    console.log('Theme changed to:', isDarkMode ? 'dark' : 'light');
+  // Get dietary preferences from the store
+  const dietaryProfile = usePreferenceSelector(state => state.dietaryProfile);
+  const allergies = usePreferenceSelector(state => state.allergies || []);
+  const spiceLevel = usePreferenceSelector(state => state.spiceLevel);
+  const medicalConditions = usePreferenceSelector(state => state.medicalConditions || []);
+  
+  // Get language from user store
+  const currentLanguage = useUserStore(state => state.language);
+  
+  // Get display name for dietary profile
+  const getDietaryProfileDisplayName = (profile: string): string => {
+    switch (profile) {
+      case 'noRestrictions': return 'No Restrictions';
+      case 'vegetarian': return 'Vegetarian';
+      case 'vegan': return 'Vegan';
+      case 'pescatarian': return 'Pescatarian';
+      case 'paleo': return 'Paleo';
+      case 'keto': return 'Keto';
+      case 'lowCarb': return 'Low Carb';
+      case 'glutenFree': return 'Gluten Free';
+      case 'dairyFree': return 'Dairy Free';
+      default: return 'No Restrictions';
+    }
   };
+  
+  // Get display name for spice level
+  const getSpiceLevelDisplayName = (level: string): string => {
+    switch (level) {
+      case 'none': return 'No Spice';
+      case 'mild': return 'Mild Spice';
+      case 'medium': return 'Medium Spice';
+      case 'spicy': return 'Spicy';
+      case 'extraSpicy': return 'Extra Spicy';
+      default: return 'Medium Spice';
+    }
+  };
+  
+  // Get display name for language
+  const getLanguageDisplayName = (lang: Language): string => {
+    switch (lang) {
+      case 'en': return 'English';
+      case 'ar': return 'Arabic';
+      case 'es': return 'Spanish';
+      case 'fr': return 'French';
+      case 'de': return 'German';
+      case 'it': return 'Italian';
+      case 'pt': return 'Portuguese';
+      case 'ru': return 'Russian';
+      case 'zh': return 'Chinese';
+      case 'ja': return 'Japanese';
+      case 'ko': return 'Korean';
+      case 'hi': return 'Hindi';
+      case 'tr': return 'Turkish';
+      case 'nl': return 'Dutch';
+      case 'sv': return 'Swedish';
+      default: return 'English';
+    }
+  };
+  
+  // Create a summarized preferences display
+  const dietaryPreferencesSummary = useMemo(() => {
+    let summary = getDietaryProfileDisplayName(dietaryProfile);
+    
+    // Add allergies if present (up to 2 for UI clarity)
+    if (allergies.length > 0) {
+      const allergyText = allergies.length === 1 
+        ? allergies[0] 
+        : allergies.length === 2 
+          ? `${allergies[0]}, ${allergies[1]}` 
+          : `${allergies[0]} + ${allergies.length - 1} more`;
+      
+      summary += `, ${allergyText}`;
+    }
+    
+    // Add medical conditions if present (just indicate them rather than listing)
+    if (medicalConditions.length > 0) {
+      summary += ", Health-conscious";
+    }
+    
+    // Add spice preference if it's not medium (medium is default)
+    if (spiceLevel && spiceLevel !== 'medium') {
+      summary += `, ${getSpiceLevelDisplayName(spiceLevel)}`;
+    }
+    
+    return summary;
+  }, [dietaryProfile, allergies, medicalConditions, spiceLevel]);
+  
+  // Load notification settings on component mount
+  useEffect(() => {
+    const loadNotificationSettings = async () => {
+      try {
+        const savedPreference = await AsyncStorage.getItem('notificationsEnabled');
+        if (savedPreference !== null) {
+          setNotificationsEnabled(savedPreference === 'true');
+        }
+      } catch (error) {
+        console.error('Error loading notification settings:', error);
+      }
+    };
+    
+    loadNotificationSettings();
+  }, []);
   
   // Handle notifications change
-  const handleNotificationsChange = (enabled: boolean) => {
-    console.log('Notifications:', enabled ? 'enabled' : 'disabled');
-  };
-  
-  // Handle voice assistant change
-  const handleVoiceAssistantChange = (enabled: boolean) => {
-    console.log('Voice Assistant:', enabled ? 'enabled' : 'disabled');
+  const handleNotificationsChange = async (enabled: boolean) => {
+    // Provide haptic feedback
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
+    // Update local state
+    setNotificationsEnabled(enabled);
+    
+    // Save to AsyncStorage
+    try {
+      await AsyncStorage.setItem('notificationsEnabled', enabled.toString());
+      console.log('Notifications:', enabled ? 'enabled' : 'disabled');
+      
+      // You could also update a global state here if using a state management solution
+      // Example: useUserStore.setState({ notificationsEnabled: enabled });
+    } catch (error) {
+      console.error('Error saving notification settings:', error);
+    }
   };
   
   // Handle edit preferences
   const handleEditPreferences = () => {
-    router.push('/preferences' as any); // Cast to any as a temporary workaround for typed routes issue
+    // Provide haptic feedback for good UX
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
+    // Navigate to the preferences screen
+    router.push('/preferences');
+  };
+  
+  // Handle language settings
+  const handleLanguageSettings = () => {
+    // Provide haptic feedback for good UX
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
+    // Navigate to the language settings screen
+    router.push('/language-settings');
   };
   
   // Handle logout
   const handleLogout = () => {
+    // Close the confirmation modal
+    setLogoutConfirmVisible(false);
+    
+    // Provide haptic feedback
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-    // In a real app, you would clear auth tokens and navigate to login
-    setLogoutConfirmVisible(false);
-    Alert.alert('Success', 'You have been logged out');
+    
+    // Clear user session
+    useUserStore.getState().signOut();
+    
+    // Show toast message
+    Toast.show({
+      type: 'success',
+      text1: 'Logged out',
+      text2: 'You have been logged out successfully',
+      position: 'bottom',
+      visibilityTime: 2000,
+    });
+    
+    // Navigate to onboarding screen
+    router.replace('/onboarding');
   };
   
-  // Handle delete data - MODIFIED
-  const handleDeleteData = () => {
+  // Handle manage data (formerly delete data)
+  const handleManageData = () => {
     if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning); // Changed to Warning for this flow
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+    
+    // Close the confirmation modal if open
     setDeleteDataConfirmVisible(false);
-
-    // IMPORTANT: Add your actual data deletion logic here if this action should also delete data.
-    // This could be an API call that happens before or after navigating to onboarding.
-    console.log("IMPORTANT: Implement actual user data deletion via API if required.");
-
-    // 1. Reset onboarding completion flag (e.g., in AsyncStorage or Zustand store)
-    // Example: AsyncStorage.setItem('hasCompletedOnboarding', 'false');
-    // Example: useOnboardingStore.setState({ hasCompletedOnboarding: false });
-    console.log("Redirecting to onboarding. Ensure onboarding completion flag is reset.");
-
-    // 2. Navigate to the onboarding route
-    // Replace '/onboarding' with your actual onboarding route if different
-    // Using router.replace to ensure the user cannot navigate back to the settings screen from onboarding
-    router.replace('/onboarding'); 
-
-    // Alert.alert('Success', 'Your data has been deleted'); // This might be confusing if user is just sent to onboarding
-    // Optionally, you could show a different message before navigating, or no message.
+    
+    // Navigate to the manage data screen
+    router.push('/manage-data');
+  };
+  
+  // Handle navigation to profile screen
+  const handleProfile = () => {
+    router.push('/profile');
+  };
+  
+  // Handle navigation to help & support screen
+  const handleHelpSupport = () => {
+    // Provide haptic feedback for good UX
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
+    // Navigate to the help & support screen
+    router.push('/help-support');
+  };
+  
+  // Handle navigation to about screen
+  const handleAbout = () => {
+    // Provide haptic feedback for good UX
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
+    // Navigate to the dedicated about screen
+    router.push('/about');
   };
   
   return (
@@ -93,28 +252,21 @@ export default function SettingsScreen() {
       <ScrollView style={styles.content}>
         {/* App Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>App Settings</Text>
-          
-          <View style={styles.settingsItem}>
-            <ThemeSwitch onThemeChange={handleThemeChange} />
-          </View>
+          <Text style={styles.sectionTitle}>🔧 App Settings</Text>
           
           <View style={styles.settingsItem}>
             <NotificationSwitch onNotificationChange={handleNotificationsChange} />
           </View>
-          
-          <View style={styles.settingsItem}>
-            <VoiceSwitch onVoiceAssistantChange={handleVoiceAssistantChange} />
-          </View>
         </View>
         
-        {/* Profile & Preferences */}
+        {/* Preferences */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Profile & Preferences</Text>
+          <Text style={styles.sectionTitle}>🍽️ Preferences</Text>
           
           <SettingsItem
             icon="restaurant-outline"
             title="Dietary Preferences"
+            rightText={dietaryPreferencesSummary}
             rightIcon="chevron-forward"
             onPress={handleEditPreferences}
           />
@@ -122,25 +274,21 @@ export default function SettingsScreen() {
           <SettingsItem
             icon="language-outline"
             title="Language"
-            rightText="English"
+            rightText={getLanguageDisplayName(currentLanguage)}
             rightIcon="chevron-forward"
-          />
-          
-          <SettingsItem
-            icon="color-palette-outline"
-            title="Appearance"
-            rightIcon="chevron-forward"
+            onPress={handleLanguageSettings}
           />
         </View>
         
         {/* Account */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
+          <Text style={styles.sectionTitle}>👤 Account</Text>
           
           <SettingsItem
             icon="person-outline"
             title="Profile"
             rightIcon="chevron-forward"
+            onPress={handleProfile}
           />
           
           <SettingsItem
@@ -151,9 +299,8 @@ export default function SettingsScreen() {
           />
           
           <SettingsItem
-            icon="trash-outline"
-            title="Delete My Data"
-            titleStyle={{ color: colors.error }}
+            icon="settings-outline"
+            title="Manage My Data"
             rightIcon="chevron-forward"
             onPress={() => setDeleteDataConfirmVisible(true)}
           />
@@ -161,18 +308,20 @@ export default function SettingsScreen() {
         
         {/* Support */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Support</Text>
+          <Text style={styles.sectionTitle}>❓ Support</Text>
           
           <SettingsItem
             icon="help-circle-outline"
             title="Help & Support"
             rightIcon="chevron-forward"
+            onPress={handleHelpSupport}
           />
           
           <SettingsItem
             icon="information-circle-outline"
             title="About"
             rightIcon="chevron-forward"
+            onPress={handleAbout}
           />
         </View>
       </ScrollView>
@@ -186,16 +335,17 @@ export default function SettingsScreen() {
         cancelText="Cancel"
         onConfirm={handleLogout}
         onCancel={() => setLogoutConfirmVisible(false)}
+        confirmButtonColor={colors.primary}
       />
       
-      {/* Delete Data Confirmation Modal */}
+      {/* Manage Data Confirmation Modal */}
       <ConfirmModal
         visible={deleteDataConfirmVisible}
-        title="Delete Data"
-        message="Are you sure you want to delete all your data? This action cannot be undone."
-        confirmText="Delete"
+        title="Manage My Data"
+        message="This will reset your preferences and remove your stored data. Are you sure you want to continue?"
+        confirmText="Continue"
         cancelText="Cancel"
-        onConfirm={handleDeleteData}
+        onConfirm={handleManageData}
         onCancel={() => setDeleteDataConfirmVisible(false)}
         isDestructive={true}
       />
@@ -221,7 +371,9 @@ function SettingsItem({ icon, title, rightText, rightIcon, onPress, titleStyle }
       </View>
       <View style={styles.settingsItemRight}>
         {rightText && (
-          <Text style={styles.settingsItemRightText}>{rightText}</Text>
+          <Text style={styles.settingsItemRightText} numberOfLines={1} ellipsizeMode="tail">
+            {rightText}
+          </Text>
         )}
         {rightIcon && (
           <Ionicons name={rightIcon as any} size={18} color={colors.textTertiary} />
@@ -237,12 +389,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    padding: 16,
+    padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   title: {
-    fontSize: 24,
+    fontSize: 27,
     fontWeight: 'bold',
     color: colors.text,
     fontFamily: 'Poppins-Bold',
@@ -251,8 +403,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   section: {
-    marginTop: 24,
-    marginBottom: 8,
+    marginTop: 21,
+    marginBottom: 4,
   },
   sectionTitle: {
     fontSize: 16,
@@ -287,12 +439,15 @@ const styles = StyleSheet.create({
   settingsItemRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1, 
+    justifyContent: 'flex-end',
   },
   settingsItemRightText: {
     fontSize: 14,
     color: colors.textTertiary,
     marginRight: 8,
     fontFamily: 'Poppins-Regular',
+    maxWidth: '80%',
   },
   modalContainer: {
     flex: 1,

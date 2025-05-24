@@ -13,20 +13,42 @@ import typography from '@/constants/typography';
 interface BackHeaderProps {
   title: string;
   rightContent?: React.ReactNode;
+  transparent?: boolean;
+  onBackPress?: () => void;
 }
 
-const BackHeader = ({ title, rightContent }: BackHeaderProps) => {
+const BackHeader = ({ 
+  title, 
+  rightContent, 
+  transparent = false,
+  onBackPress,
+}: BackHeaderProps) => {
   const router = useRouter();
   
   const handleGoBack = () => {
-    router.back();
+    if (onBackPress) {
+      onBackPress();
+    } else {
+      router.back();
+    }
   };
   
   return (
-    <View style={styles.container}>
+    <View style={[
+      styles.container, 
+      transparent && styles.transparentContainer
+    ]}>
       <View style={styles.leftSection}>
-        <BackArrow onClick={handleGoBack} />
-        <Text style={styles.title}>{title}</Text>
+        <BackArrow 
+          onClick={handleGoBack} 
+          color={transparent ? colors.white : colors.text}
+        />
+        <Text style={[
+          styles.title,
+          transparent && styles.transparentTitle
+        ]}>
+          {title}
+        </Text>
       </View>
       
       {rightContent && (
@@ -50,6 +72,15 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     backgroundColor: colors.white,
   },
+  transparentContainer: {
+    backgroundColor: 'transparent',
+    borderBottomWidth: 0,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
   leftSection: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -57,6 +88,9 @@ const styles = StyleSheet.create({
   title: {
     ...typography.heading3,
     color: colors.text,
+  },
+  transparentTitle: {
+    color: colors.white,
   },
   rightSection: {
     justifyContent: 'center',

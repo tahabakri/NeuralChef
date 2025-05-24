@@ -18,6 +18,58 @@ import { LinearGradient } from 'expo-linear-gradient';
 import colors from '@/constants/colors';
 import BackHeader from '@/components/BackHeader';
 import { useUserStore, User } from '@/stores/userStore';
+import typography from '@/constants/typography';
+import ConfirmModal from '@/components/ConfirmModal';
+import Toast from 'react-native-toast-message';
+
+// Update User type to include phone
+declare module '@/stores/userStore' {
+  interface User {
+    phone?: string;
+  }
+}
+
+// Define spacing constants for consistent layout
+const spacing = {
+  xs: 8,
+  sm: 12,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
+  borderRadius: {
+    sm: 4,
+    md: 8,
+    lg: 12,
+    pill: 24
+  }
+};
+
+// Mock dietary profile data - replace with actual data from your preferences store
+const mockDietaryProfile = {
+  dietType: 'Vegetarian',
+  allergies: ['Peanuts', 'Gluten'],
+  dislikedIngredients: ['Mushrooms', 'Onion'],
+  preferredCuisines: ['Indian', 'Italian'],
+  maxCookingTime: '30 minutes',
+  spiceTolerance: 'Medium',
+  cookingGoals: ['Healthy weight loss', 'Low carb'],
+};
+
+// Mock activity stats - replace with actual data from your analytics/stats store
+const mockActivityStats = {
+  recipeCooked: 32,
+  favoritesSaved: 14,
+  weeklyGoal: {
+    current: 4,
+    target: 5
+  },
+  streak: 5,
+  lastRecipe: {
+    name: 'Chickpea Stir-fry',
+    id: 'recipe-123'
+  }
+};
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -26,7 +78,13 @@ export default function ProfileScreen() {
   // Local state for form fields
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
+  const [phone, setPhone] = useState(user?.phone || '');
   const [isEditing, setIsEditing] = useState(false);
+  
+  // State for confirm modals
+  const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
+  const [deleteAccountConfirmVisible, setDeleteAccountConfirmVisible] = useState(false);
+  const [deleteDataConfirmVisible, setDeleteDataConfirmVisible] = useState(false);
   
   // Handle save profile changes
   const handleSaveProfile = () => {
@@ -45,7 +103,7 @@ export default function ProfileScreen() {
     
     // Update user data
     if (user) {
-      updateUser({ name, email });
+      updateUser({ name, email, phone });
       setIsEditing(false);
       
       // Show success message
@@ -70,38 +128,99 @@ export default function ProfileScreen() {
     setIsEditing(!isEditing);
   };
   
-  // Handle sign out
-  const handleSignOut = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  // Handle back navigation with haptic feedback
+  const handleBackNavigation = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Navigate back to the settings screen
+    router.back();
+  };
+  
+  // Handle sign out button press
+  const handleSignOutPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setLogoutConfirmVisible(true);
+  };
+  
+  // Handle sign out confirmation
+  const handleSignOutConfirm = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Sign Out',
-          onPress: () => {
-            signOut();
-            router.back();
-          },
-          style: 'destructive',
-        },
-      ]
-    );
+    // Close the modal
+    setLogoutConfirmVisible(false);
+    
+    // Sign out the user
+    signOut();
+    
+    // Show toast message
+    Toast.show({
+      type: 'success',
+      text1: 'Logged out',
+      text2: 'You have been logged out successfully',
+      position: 'bottom',
+      visibilityTime: 2000,
+    });
+    
+    // Navigate back to settings
+    router.back();
+  };
+
+  // Navigate to preferences screen
+  const navigateToPreferences = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push('/preferences');
+  };
+
+  // Navigate to recipe details
+  const navigateToRecipe = (recipeId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push(`/recipe/${recipeId}`);
+  };
+
+  // Handle delete account
+  const handleDeleteAccount = () => {
+    setDeleteAccountConfirmVisible(true);
+  };
+  
+  // Handle delete account confirmation
+  const handleDeleteAccountConfirm = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    
+    // Close the modal
+    setDeleteAccountConfirmVisible(false);
+    
+    // Add account deletion logic here
+    Alert.alert('Account Deleted', 'Your account has been successfully deleted.');
+    signOut();
+    router.push('/');
+  };
+
+  // Handle delete data
+  const handleDeleteData = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // Navigate to manage data screen
+    router.push('/manage-data');
+  };
+  
+  // Handle delete data confirmation
+  const handleDeleteDataConfirm = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    
+    // Close the modal
+    setDeleteDataConfirmVisible(false);
+    
+    // Add data deletion logic here
+    Alert.alert('Data Deleted', 'Your data has been successfully deleted.');
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       
-      {/* Replace with BackHeader */}
+      {/* Header */}
       <BackHeader 
         title="Profile"
-        transparent={true}
+        transparent={false}
+        onBackPress={handleBackNavigation}
         rightContent={
           <TouchableOpacity
             style={styles.editButton}
@@ -112,12 +231,6 @@ export default function ProfileScreen() {
             </Text>
           </TouchableOpacity>
         }
-      />
-      
-      {/* Background Gradient */}
-      <LinearGradient
-        colors={['#6A5ACD', '#836FFF']} // Purple gradient
-        style={styles.headerGradient}
       />
       
       <ScrollView 
@@ -150,7 +263,9 @@ export default function ProfileScreen() {
         </View>
         
         {/* Profile Form */}
-        <View style={styles.formSection}>
+        <View style={styles.cardSection}>
+          <Text style={styles.sectionTitle}>Personal Information</Text>
+          
           <View style={styles.formField}>
             <Text style={styles.fieldLabel}>Name</Text>
             {isEditing ? (
@@ -160,6 +275,7 @@ export default function ProfileScreen() {
                 onChangeText={setName}
                 placeholder="Enter your name"
                 autoCapitalize="words"
+                placeholderTextColor={colors.textTertiary}
               />
             ) : (
               <Text style={styles.fieldValue}>{name || 'Not specified'}</Text>
@@ -176,9 +292,26 @@ export default function ProfileScreen() {
                 placeholder="Enter your email"
                 keyboardType="email-address"
                 autoCapitalize="none"
+                placeholderTextColor={colors.textTertiary}
               />
             ) : (
               <Text style={styles.fieldValue}>{email || 'Not specified'}</Text>
+            )}
+          </View>
+
+          <View style={styles.formField}>
+            <Text style={styles.fieldLabel}>Phone Number (optional)</Text>
+            {isEditing ? (
+              <TextInput
+                style={styles.textInput}
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="Enter your phone number"
+                keyboardType="phone-pad"
+                placeholderTextColor={colors.textTertiary}
+              />
+            ) : (
+              <Text style={styles.fieldValue}>{phone || 'Not specified'}</Text>
             )}
           </View>
           
@@ -186,9 +319,10 @@ export default function ProfileScreen() {
             <TouchableOpacity 
               style={styles.saveButton}
               onPress={handleSaveProfile}
+              activeOpacity={0.8}
             >
               <LinearGradient
-                colors={['#4CAF50', '#81C784']} // Green gradient
+                colors={[colors.orangeAccentStart, colors.orangeAccentEnd]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.saveButtonGradient}
@@ -198,20 +332,272 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Dietary Profile Snapshot */}
+        <View style={styles.cardSection}>
+          <View style={styles.sectionTitleContainer}>
+            <Text style={styles.sectionTitle}>Dietary Profile</Text>
+            <TouchableOpacity 
+              onPress={navigateToPreferences}
+              style={styles.manageButton}
+            >
+              <Text style={styles.manageButtonText}>Manage</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Diet Type */}
+          <View style={styles.dietaryItem}>
+            <Text style={styles.dietaryLabel}>Diet Type</Text>
+            <Text style={styles.dietaryValue}>{mockDietaryProfile.dietType}</Text>
+          </View>
+
+          {/* Allergies */}
+          <View style={styles.dietaryItem}>
+            <Text style={styles.dietaryLabel}>Allergies</Text>
+            <View style={styles.tagsContainer}>
+              {mockDietaryProfile.allergies.map((allergy, index) => (
+                <View key={`allergy-${index}`} style={styles.tag}>
+                  <Text style={styles.tagText}>{allergy}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Disliked Ingredients */}
+          <View style={styles.dietaryItem}>
+            <Text style={styles.dietaryLabel}>Disliked Ingredients</Text>
+            <View style={styles.tagsContainer}>
+              {mockDietaryProfile.dislikedIngredients.map((ingredient, index) => (
+                <View key={`disliked-${index}`} style={styles.tag}>
+                  <Text style={styles.tagText}>{ingredient}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Preferred Cuisines */}
+          <View style={styles.dietaryItem}>
+            <Text style={styles.dietaryLabel}>Preferred Cuisines</Text>
+            <View style={styles.tagsContainer}>
+              {mockDietaryProfile.preferredCuisines.map((cuisine, index) => (
+                <View key={`cuisine-${index}`} style={[styles.tag, styles.tagHighlight]}>
+                  <Text style={[styles.tagText, styles.tagTextHighlight]}>{cuisine}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Max Cooking Time */}
+          <View style={styles.dietaryItem}>
+            <Text style={styles.dietaryLabel}>Max Cooking Time</Text>
+            <Text style={styles.dietaryValue}>{mockDietaryProfile.maxCookingTime}</Text>
+          </View>
+
+          {/* Spice Tolerance */}
+          <View style={styles.dietaryItem}>
+            <Text style={styles.dietaryLabel}>Spice Tolerance</Text>
+            <Text style={styles.dietaryValue}>{mockDietaryProfile.spiceTolerance}</Text>
+          </View>
+
+          {/* Cooking Goals */}
+          <View style={styles.dietaryItem}>
+            <Text style={styles.dietaryLabel}>Cooking Goals</Text>
+            <View style={styles.tagsContainer}>
+              {mockDietaryProfile.cookingGoals.map((goal, index) => (
+                <View key={`goal-${index}`} style={[styles.tag, styles.tagGoal]}>
+                  <Text style={[styles.tagText, styles.tagTextGoal]}>{goal}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
+        
+        {/* Activity & Usage Stats */}
+        <View style={styles.cardSection}>
+          <Text style={styles.sectionTitle}>Activity Stats</Text>
+          
+          <View style={styles.statsGrid}>
+            {/* Recipes Cooked */}
+            <View style={styles.statItem}>
+              <View style={styles.statIconContainer}>
+                <Ionicons name="restaurant-outline" size={24} color={colors.primary} />
+              </View>
+              <Text style={styles.statValue}>{mockActivityStats.recipeCooked}</Text>
+              <Text style={styles.statLabel}>Recipes Cooked</Text>
+            </View>
+            
+            {/* Favorites Saved */}
+            <View style={styles.statItem}>
+              <View style={styles.statIconContainer}>
+                <Ionicons name="heart-outline" size={24} color={colors.primary} />
+              </View>
+              <Text style={styles.statValue}>{mockActivityStats.favoritesSaved}</Text>
+              <Text style={styles.statLabel}>Favorites Saved</Text>
+            </View>
+            
+            {/* Weekly Cooking Goal */}
+            <View style={styles.statItem}>
+              <View style={styles.statIconContainer}>
+                <Ionicons name="calendar-outline" size={24} color={colors.primary} />
+              </View>
+              <Text style={styles.statValue}>
+                {mockActivityStats.weeklyGoal.current}/{mockActivityStats.weeklyGoal.target}
+              </Text>
+              <Text style={styles.statLabel}>Weekly Goal</Text>
+            </View>
+            
+            {/* App Usage Streak */}
+            <View style={styles.statItem}>
+              <View style={styles.statIconContainer}>
+                <Ionicons name="flame" size={24} color={colors.orangeAccentEnd} />
+              </View>
+              <View style={styles.streakContainer}>
+                <Text style={styles.statValue}>{mockActivityStats.streak}</Text>
+                <Text style={styles.statBadge}>🔥</Text>
+              </View>
+              <Text style={styles.statLabel}>Day Streak</Text>
+            </View>
+          </View>
+          
+          {/* Last Recipe Cooked */}
+          <TouchableOpacity 
+            style={styles.lastRecipeCard}
+            onPress={() => navigateToRecipe(mockActivityStats.lastRecipe.id)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.lastRecipeContent}>
+              <View style={styles.lastRecipeIcon}>
+                <Ionicons name="time-outline" size={18} color={colors.textSecondary} />
+              </View>
+              <View>
+                <Text style={styles.lastRecipeLabel}>Last Recipe Cooked</Text>
+                <Text style={styles.lastRecipeName}>{mockActivityStats.lastRecipe.name}</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
         
         {/* Account Actions */}
         {user?.id && !isEditing && (
-          <View style={styles.accountActionsSection}>
+          <>
+            <View style={styles.cardSection}>
+              <Text style={styles.sectionTitle}>Account</Text>
+              
+              {/* Edit Profile */}
+              <TouchableOpacity 
+                style={styles.accountActionButton}
+                onPress={toggleEditMode}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="person-outline" size={20} color={colors.text} />
+                <Text style={styles.accountActionText}>Edit Profile</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} style={styles.actionArrow} />
+              </TouchableOpacity>
+              
+              {/* Change Password */}
+              <TouchableOpacity 
+                style={styles.accountActionButton}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  // Add password change navigation or modal here
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="key-outline" size={20} color={colors.text} />
+                <Text style={styles.accountActionText}>Change Password</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} style={styles.actionArrow} />
+              </TouchableOpacity>
+              
+              {/* Manage Login Method */}
+              <TouchableOpacity 
+                style={styles.accountActionButton}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  // Add login methods management navigation here
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="finger-print-outline" size={20} color={colors.text} />
+                <Text style={styles.accountActionText}>Manage Login Method</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} style={styles.actionArrow} />
+              </TouchableOpacity>
+              
+              {/* Delete My Data */}
+              <TouchableOpacity 
+                style={styles.accountActionButton}
+                onPress={handleDeleteData}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-bin-outline" size={20} color={colors.warning} />
+                <Text style={[styles.accountActionText, { color: colors.warning }]}>Delete My Data</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} style={styles.actionArrow} />
+              </TouchableOpacity>
+              
+              {/* Delete Account */}
+              <TouchableOpacity 
+                style={styles.accountActionButton}
+                onPress={handleDeleteAccount}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close-circle-outline" size={20} color={colors.error} />
+                <Text style={[styles.accountActionText, { color: colors.error }]}>Delete Account</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} style={styles.actionArrow} />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Sign Out Button */}
             <TouchableOpacity 
-              style={styles.signOutButton}
-              onPress={handleSignOut}
+              style={styles.signOutButtonContainer}
+              onPress={handleSignOutPress}
+              activeOpacity={0.8}
             >
-              <Ionicons name="log-out" size={20} color={colors.error} />
-              <Text style={styles.signOutButtonText}>Sign Out</Text>
+              <View style={styles.signOutButton}>
+                <Ionicons name="log-out-outline" size={20} color={colors.white} style={styles.signOutIcon} />
+                <Text style={styles.signOutButtonText}>Sign Out</Text>
+              </View>
             </TouchableOpacity>
-          </View>
+          </>
         )}
       </ScrollView>
+      
+      {/* Logout Confirmation Modal */}
+      <ConfirmModal
+        visible={logoutConfirmVisible}
+        title="Sign Out"
+        message="Are you sure you want to sign out of your account?"
+        confirmText="Sign Out"
+        cancelText="Cancel"
+        onConfirm={handleSignOutConfirm}
+        onCancel={() => setLogoutConfirmVisible(false)}
+        confirmButtonColor={colors.error}
+        isDestructive={true}
+      />
+      
+      {/* Delete Account Confirmation Modal */}
+      <ConfirmModal
+        visible={deleteAccountConfirmVisible}
+        title="Delete Account"
+        message="Are you sure you want to delete your account? This action cannot be undone."
+        confirmText="Delete Account"
+        cancelText="Cancel"
+        onConfirm={handleDeleteAccountConfirm}
+        onCancel={() => setDeleteAccountConfirmVisible(false)}
+        isDestructive={true}
+      />
+      
+      {/* Delete Data Confirmation Modal */}
+      <ConfirmModal
+        visible={deleteDataConfirmVisible}
+        title="Delete My Data"
+        message="Are you sure you want to delete all your data? This includes saved recipes, preferences, and history."
+        confirmText="Delete Data"
+        cancelText="Cancel"
+        onConfirm={handleDeleteDataConfirm}
+        onCancel={() => setDeleteDataConfirmVisible(false)}
+        isDestructive={true}
+      />
     </View>
   );
 }
@@ -219,59 +605,36 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  headerGradient: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 20,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.white,
+    backgroundColor: colors.white,
   },
   editButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: spacing.borderRadius.md,
   },
   editButtonText: {
+    ...typography.button,
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '600',
-    color: colors.white,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 40,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+    paddingTop: spacing.md,
   },
   profileImageSection: {
     alignItems: 'center',
-    marginTop: -50,
-    marginBottom: 20,
+    paddingVertical: spacing.xl,
   },
   profileImageContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: colors.white,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: colors.primaryLight,
     overflow: 'hidden',
     borderWidth: 4,
     borderColor: colors.white,
@@ -279,7 +642,7 @@ const styles = StyleSheet.create({
       ios: {
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.1,
         shadowRadius: 8,
       },
       android: {
@@ -294,102 +657,281 @@ const styles = StyleSheet.create({
   profileImagePlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: colors.primary,
+    backgroundColor: colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
   profileInitials: {
-    fontSize: 36,
+    fontSize: 48,
     fontWeight: 'bold',
-    color: colors.white,
+    fontFamily: 'Poppins-Bold',
+    color: colors.primaryDark || colors.primary,
   },
   changePhotoButton: {
-    marginTop: 12,
-    padding: 8,
+    marginTop: spacing.md,
+    padding: spacing.xs,
   },
   changePhotoText: {
+    ...typography.button,
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '600',
-    color: colors.primary,
   },
-  formSection: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+  cardSection: {
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: spacing.borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
     ...Platform.select({
       ios: {
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
       },
       android: {
-        elevation: 2,
+        elevation: 1,
       },
     }),
   },
+  sectionTitle: {
+    ...typography.subtitle1,
+    color: colors.text,
+    marginBottom: spacing.md,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  sectionTitleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  manageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  manageButtonText: {
+    ...typography.button,
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   formField: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   fieldLabel: {
-    fontSize: 14,
-    fontWeight: '500',
+    ...typography.label,
     color: colors.textSecondary,
-    marginBottom: 8,
+    marginBottom: spacing.xs,
+    fontFamily: 'Poppins-Medium',
   },
   fieldValue: {
-    fontSize: 16,
-    color: colors.text,
+    ...typography.bodyLarge,
+    color: colors.textPrimary,
+    paddingVertical: spacing.sm,
   },
   textInput: {
-    fontSize: 16,
-    color: colors.text,
+    fontSize: typography.bodyLarge.fontSize,
+    fontFamily: typography.bodyLarge.fontFamily,
+    color: colors.textPrimary,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: spacing.borderRadius.md,
+    padding: spacing.md,
+    backgroundColor: colors.white,
   },
   saveButton: {
-    borderRadius: 8,
+    borderRadius: spacing.borderRadius.pill,
     overflow: 'hidden',
-    marginTop: 16,
+    marginTop: spacing.md,
   },
   saveButtonGradient: {
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     alignItems: 'center',
   },
   saveButtonText: {
+    ...typography.button,
+    color: colors.white,
     fontSize: 16,
     fontWeight: '600',
-    color: colors.white,
+    fontFamily: 'Poppins-SemiBold',
   },
-  accountActionsSection: {
+  signOutButtonContainer: {
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  signOutButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.error,
+    borderRadius: spacing.borderRadius.pill,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  signOutIcon: {
+    marginRight: spacing.sm,
+  },
+  signOutButtonText: {
+    ...typography.button,
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  dietaryItem: {
+    marginBottom: spacing.md,
+  },
+  dietaryLabel: {
+    ...typography.label,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+    fontFamily: 'Poppins-Medium',
+  },
+  dietaryValue: {
+    ...typography.body,
+    color: colors.textPrimary,
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: spacing.xs,
+  },
+  tag: {
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: spacing.borderRadius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginRight: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  tagHighlight: {
+    backgroundColor: colors.primaryLight,
+  },
+  tagGoal: {
+    backgroundColor: '#FFF3E0',
+  },
+  tagText: {
+    ...typography.caption,
+    color: colors.textPrimary,
+  },
+  tagTextHighlight: {
+    color: colors.primary,
+  },
+  tagTextGoal: {
+    color: colors.orangeAccentEnd,
+  },
+  // Activity Stats styles
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  statItem: {
+    width: '48%',
     backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: spacing.borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    alignItems: 'center',
     ...Platform.select({
       ios: {
         shadowColor: colors.shadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
       },
       android: {
-        elevation: 2,
+        elevation: 1,
       },
     }),
   },
-  signOutButton: {
+  statIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  statValue: {
+    ...typography.heading3,
+    color: colors.textPrimary,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  statLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  streakContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
   },
-  signOutButtonText: {
+  statBadge: {
     fontSize: 16,
-    fontWeight: '600',
-    color: colors.error,
-    marginLeft: 8,
+    marginLeft: spacing.xs,
+  },
+  lastRecipeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.white,
+    borderRadius: spacing.borderRadius.md,
+    padding: spacing.md,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
+      },
+      android: {
+        elevation: 1,
+      },
+    }),
+  },
+  lastRecipeContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  lastRecipeIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.backgroundAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  lastRecipeLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  lastRecipeName: {
+    ...typography.subtitle2,
+    color: colors.textPrimary,
+  },
+  // Account Action styles
+  accountActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  accountActionText: {
+    ...typography.body,
+    color: colors.text,
+    marginLeft: spacing.md,
+    flex: 1,
+  },
+  actionArrow: {
+    marginLeft: 'auto',
+  },
+  warning: {
+    color: colors.warning || '#F9A825',
   },
 }); 

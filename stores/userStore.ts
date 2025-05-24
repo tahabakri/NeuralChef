@@ -3,7 +3,22 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect } from 'react';
 
-export type Language = 'en' | 'ar'; // English and Arabic support
+export type Language = 
+  | 'en' // English
+  | 'ar' // Arabic
+  | 'es' // Spanish
+  | 'fr' // French
+  | 'de' // German
+  | 'it' // Italian
+  | 'pt' // Portuguese
+  | 'ru' // Russian
+  | 'zh' // Chinese
+  | 'ja' // Japanese
+  | 'ko' // Korean
+  | 'hi' // Hindi
+  | 'tr' // Turkish
+  | 'nl' // Dutch
+  | 'sv'; // Swedish
 
 export interface User {
   id: string;

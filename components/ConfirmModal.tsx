@@ -79,41 +79,53 @@ export default function ConfirmModal({
                 <Text style={styles.message}>{message}</Text>
                 
                 <View style={styles.buttonContainer}>
-                  <TouchableOpacity
-                    style={[styles.button, styles.cancelButton]}
-                    onPress={handleCancel}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.cancelButtonText}>{cancelText}</Text>
-                  </TouchableOpacity>
-                  
                   {isDestructive ? (
-                    <TouchableOpacity
-                      style={[
-                        styles.button,
-                        styles.confirmButton,
-                        { backgroundColor: finalConfirmColor },
-                      ]}
-                      onPress={handleConfirm}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.confirmButtonText}>{confirmText}</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <TouchableOpacity
-                      onPress={handleConfirm}
-                      activeOpacity={0.7}
-                      style={[styles.button, { overflow: 'hidden' }]}
-                    >
-                      <LinearGradient
-                        colors={['#A5D6A7', '#81C784']} // Fresh Green gradient
-                        style={[styles.confirmButton, { backgroundColor: 'transparent' }]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
+                    <>
+                      <TouchableOpacity
+                        style={[
+                          styles.button,
+                          styles.confirmButton,
+                          { backgroundColor: finalConfirmColor },
+                        ]}
+                        onPress={handleConfirm}
+                        activeOpacity={0.7}
                       >
                         <Text style={styles.confirmButtonText}>{confirmText}</Text>
-                      </LinearGradient>
-                    </TouchableOpacity>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity
+                        style={[styles.button, styles.cancelButton]}
+                        onPress={handleCancel}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.cancelButtonText}>{cancelText}</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      <TouchableOpacity
+                        style={[styles.button, styles.cancelButton]}
+                        onPress={handleCancel}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.cancelButtonText}>{cancelText}</Text>
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity
+                        onPress={handleConfirm}
+                        activeOpacity={0.7}
+                        style={[styles.button, { overflow: 'hidden' }]}
+                      >
+                        <LinearGradient
+                          colors={confirmButtonColor ? [confirmButtonColor, confirmButtonColor] : ['#A5D6A7', '#81C784']}
+                          style={[styles.confirmButton, { backgroundColor: 'transparent' }]}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                        >
+                          <Text style={styles.confirmButtonText}>{confirmText}</Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    </>
                   )}
                 </View>
               </View>
@@ -191,10 +203,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cancelButton: {
-    backgroundColor: colors.backgroundAlt,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   confirmButton: {
     backgroundColor: colors.primary,
+    elevation: 2,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   cancelButtonText: {
     color: colors.text,
