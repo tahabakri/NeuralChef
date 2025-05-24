@@ -114,23 +114,31 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   title: {
-    ...typography.heading3,
+    fontFamily: typography?.heading3?.fontFamily ?? 'Poppins-Bold',
+    fontSize: typography?.heading3?.fontSize ?? 24,
+    lineHeight: typography?.heading3?.lineHeight ?? 36,
+    fontWeight: typography?.heading3?.fontWeight ?? '700',
     color: colors.text,
   },
   confirmButton: {
     padding: 8,
   },
   confirmText: {
-    ...typography.bodyMedium,
+    fontFamily: typography?.bodyMedium?.fontFamily ?? 'Poppins-Medium',
+    fontSize: typography?.bodyMedium?.fontSize ?? 16,
+    lineHeight: typography?.bodyMedium?.lineHeight ?? 24,
+    fontWeight: typography?.bodyMedium?.fontWeight ?? '600', // Keep explicit fontWeight
     color: colors.primary,
-    fontWeight: '600',
   },
   content: {
     flex: 1,
     padding: 16,
   },
   description: {
-    ...typography.bodyLarge,
+    fontFamily: typography?.bodyLarge?.fontFamily ?? 'Poppins-Regular',
+    fontSize: typography?.bodyLarge?.fontSize ?? 18,
+    lineHeight: typography?.bodyLarge?.lineHeight ?? 27,
+    fontWeight: typography?.bodyLarge?.fontWeight ?? '400',
     color: colors.text,
     marginBottom: 24,
   },
@@ -176,7 +184,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   optionText: {
-    ...typography.bodyMedium,
+    fontFamily: typography?.bodyMedium?.fontFamily ?? 'Poppins-Regular',
+    fontSize: typography?.bodyMedium?.fontSize ?? 16,
+    lineHeight: typography?.bodyMedium?.lineHeight ?? 24,
+    fontWeight: typography?.bodyMedium?.fontWeight ?? '400',
     color: colors.text,
   },
   selectedOption: {

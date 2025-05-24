@@ -51,7 +51,7 @@ const BulkActionBar: React.FC<BulkActionBarProps> = ({
           style={styles.cancelButton} 
           onPress={() => handleButtonPress(onCancel)}
         >
-          <Ionicons name="close" size={24} color={colors.text} />
+          <Ionicons name="close" size={24} color={colors.textSecondary} /> 
         </TouchableOpacity>
         
         <Text style={styles.selectionText}>
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: colors.card,
+    backgroundColor: colors.white, // Changed from colors.card
     borderTopWidth: 1,
     borderTopColor: colors.border,
     elevation: 8,
@@ -137,4 +137,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default BulkActionBar; 
+export default BulkActionBar;

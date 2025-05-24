@@ -28,7 +28,7 @@ const ErrorScreen = ({ error, onRetry, onBack }: ErrorScreenProps) => {
 
   return (
     <LinearGradient
-      colors={[colors.softPeachStart, colors.softPeachEnd]}
+      colors={[colors.softBlueStart, colors.softBlueEnd]}
       style={styles.container}
     >
       <TouchableOpacity style={styles.backButton} onPress={onBack}>
@@ -53,7 +53,7 @@ const ErrorScreen = ({ error, onRetry, onBack }: ErrorScreenProps) => {
         <View style={styles.buttonContainer}>
           <TouchableOpacity onPress={onRetry}>
             <LinearGradient
-              colors={[colors.sunriseOrangeStart, colors.sunriseOrangeEnd]}
+              colors={[colors.orangeAccentEnd, colors.orangeAccentStart]}
               style={styles.retryButton}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -112,11 +112,13 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     ...typography.heading2,
+    fontFamily: 'Poppins-Bold', // Ensure Poppins for heading
     color: colors.text,
     marginBottom: 10,
   },
   errorMessage: {
     ...typography.bodyLarge,
+    fontFamily: 'OpenSans-Regular', // Ensure OpenSans for body text
     lineHeight: typography.bodyLarge.fontSize ? typography.bodyLarge.fontSize * 1.4 : 22,
     color: colors.textSecondary,
     textAlign: 'center',
@@ -152,7 +154,8 @@ const styles = StyleSheet.create({
   },
   backHomeButtonText: {
     ...typography.bodyMedium,
-    color: colors.success,
+    fontFamily: 'OpenSans-Regular', // Ensure OpenSans for body text
+    color: colors.accentGreenEnd, // Use Accent Green
   },
 });
 

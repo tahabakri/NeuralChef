@@ -39,13 +39,13 @@ const ProgressBar = ({ progress, completedSteps, totalSteps }: ProgressBarProps)
       <View style={styles.progressBarContainer}>
         <Animated.View style={[styles.progressBarWrapper, animatedProgressStyle]}>
           <LinearGradient
-            colors={[colors.softPeachEnd, colors.sunriseOrange]}
+            colors={[colors.accentGreenStart, colors.accentGreenEnd]} // Using Accent Green gradient
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.progressBarGradient}
           />
-          {/* Glow effect at the leading edge */}
-          <View style={styles.glowEffect} />
+          {/* Glow effect at the leading edge - updated to match green accent */}
+          <View style={[styles.glowEffect, { shadowColor: colors.accentGreenEnd }]} />
           
           {/* Step count inside bar if progress > 20% */}
           {progress > 0.2 && (
@@ -77,11 +77,12 @@ const styles = StyleSheet.create({
   },
   stepCount: {
     ...typography.bodySmall,
+    fontFamily: 'OpenSans-Regular', // Ensure OpenSans for body text
     color: colors.textSecondary,
   },
   progressBarContainer: {
     height: 12,
-    backgroundColor: colors.cardAlt,
+    backgroundColor: colors.backgroundAlt, // Light track color
     borderRadius: 6,
     overflow: 'hidden',
   },
@@ -107,7 +108,7 @@ const styles = StyleSheet.create({
     width: 16,
     borderRadius: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.6)',
-    shadowColor: colors.sunriseOrange,
+    // shadowColor is now set dynamically in the component
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 4,
@@ -122,11 +123,11 @@ const styles = StyleSheet.create({
   inBarCount: {
     ...typography.bodySmall,
     color: colors.white,
-    fontFamily: 'Poppins-Medium',
+    fontFamily: 'OpenSans-Regular', // Ensure OpenSans for body text
     textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
 });
 
-export default ProgressBar; 
+export default ProgressBar;

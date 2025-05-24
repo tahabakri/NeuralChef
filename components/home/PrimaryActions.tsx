@@ -17,14 +17,14 @@ const spacing = {
 
 interface PrimaryActionsProps {
   onAddIngredientsPress: () => void;
-  onSurpriseMePress: () => void;
+  onChefsPickPress: () => void;
   ingredientsDetected?: boolean;
   hasNewAIRecipes?: boolean;
 }
 
 const PrimaryActions: React.FC<PrimaryActionsProps> = ({
   onAddIngredientsPress,
-  onSurpriseMePress,
+  onChefsPickPress,
   ingredientsDetected = false,
   hasNewAIRecipes = false,
 }) => {
@@ -45,8 +45,8 @@ const PrimaryActions: React.FC<PrimaryActionsProps> = ({
           style={styles.actionButton}
         >
           <View style={styles.buttonContent}>
-            <Ionicons name="add-outline" size={40} color="white" />
-            <Text style={styles.buttonText}>Add Ingredients</Text>
+            <Ionicons name="add-outline" size={22} color="white" style={styles.iconStyle} />
+            <Text style={styles.addIngredientsButtonText}>+ Add Ingredients</Text>
             {ingredientsDetected && (
               <View style={styles.badge}>
                 <View style={styles.badgeDot} />
@@ -59,7 +59,7 @@ const PrimaryActions: React.FC<PrimaryActionsProps> = ({
       {/* Chef's Pick Button (renamed from Surprise Me) */}
       <TouchableOpacity 
         style={styles.actionButtonWrapper}
-        onPress={onSurpriseMePress}
+        onPress={onChefsPickPress}
         accessibilityLabel="Get AI chef's pick recommendation"
         accessibilityHint="AI generates a personalized lunch recipe suggestion"
         activeOpacity={0.8}
@@ -71,9 +71,9 @@ const PrimaryActions: React.FC<PrimaryActionsProps> = ({
           style={styles.actionButton}
         >
           <View style={styles.buttonContent}>
-            <Ionicons name="sparkles" size={17} color="white" />
+            <Ionicons name="sparkles" size={20} color="white" style={styles.iconStyle} />
             <View style={styles.chefPickTextContainer}>
-              <Text style={styles.buttonText}>Chef's Pick</Text>
+              <Text style={styles.chefPickMainText}>Chef's Pick</Text>
               <Text style={styles.chefPickSubtext}>AI Suggestion</Text>
             </View>
             {hasNewAIRecipes && (
@@ -117,25 +117,31 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
   },
-  buttonText: {
+  iconStyle: {
+    marginRight: spacing.sm, // Add some space between icon and text
+  },
+  addIngredientsButtonText: {
     ...typography.button,
+    fontFamily: 'Poppins-SemiBold', // Assuming Poppins is set up
     color: 'white',
-    marginLeft: spacing.sm,
-    fontWeight: '700',
-    fontSize: 15,
+    // marginLeft: spacing.sm, // iconStyle handles margin
   },
   chefPickTextContainer: {
     flexDirection: 'column',
-    marginLeft: spacing.sm,
-    alignItems: 'center',
+    // marginLeft: spacing.sm, // iconStyle handles margin
+    alignItems: 'center', // Center text lines if they have different widths
+  },
+  chefPickMainText: {
+    ...typography.button,
+    fontFamily: 'Poppins-SemiBold', // Assuming Poppins is set up
+    color: 'white',
   },
   chefPickSubtext: {
     ...typography.caption,
-    color: 'rgba(255, 255, 255, 0.85)',
+    fontFamily: 'Poppins-Regular', // Assuming Poppins is set up
+    color: 'rgba(255, 255, 255, 0.85)', // Lighter white
     textAlign: 'center',
-    fontSize: 11,
-    fontWeight: '500',
-    marginTop: 1,
+    marginTop: 2, // Small space between the two lines
   },
   badge: {
     position: 'absolute',

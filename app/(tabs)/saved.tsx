@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { View, StyleSheet, Text, Pressable, FlatList, ViewStyle, Image, Alert, TextInput, ListRenderItemInfo } from 'react-native';
+import { View, StyleSheet, Text, Pressable, FlatList, ViewStyle, Image, Alert, TextInput, ListRenderItemInfo, TextInput as RNTextInput, ScrollView, Modal, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import colors from '@/constants/colors';
-import typography from '@/constants/typography';
+import typography, { fontFamily, fontWeight } from '@/constants/typography'; // Import fontFamily and fontWeight
 import RecipeCard, { prepareRecipeForCard } from '@/components/RecipeCard';
 import { useRecipeStore, Recipe as ServiceRecipe } from '@/stores/recipeStore'; // ServiceRecipe is the base Recipe type
 import { useSavedRecipesStore } from '@/stores/savedRecipesStore'; // Import the saved recipes store
@@ -29,6 +30,8 @@ type CategoryType = 'All' | 'Breakfast' | 'Lunch' | 'Dinner';
 
 export default function SavedScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const searchInputRef = useRef<RNTextInput>(null);
   const recipeStore = useRecipeStore(); // For hasNewRecipe, lastNewRecipeTimestamp
   const { hasNewRecipe, setHasNewRecipe, lastNewRecipeTimestamp } = recipeStore; // Rename to avoid conflict
   
@@ -55,6 +58,14 @@ export default function SavedScreen() {
   const [sortByOpen, setSortByOpen] = useState(false);
   type SortByType = 'newest' | 'oldest' | 'alphabetical' | 'rating' | 'prepTime';
   const [sortBy, setSortBy] = useState<SortByType>('newest');
+
+  const sortOptions: { label: string; value: SortByType }[] = [
+    { label: 'Newest', value: 'newest' },
+    { label: 'Oldest', value: 'oldest' },
+    { label: 'Alphabetical (A-Z)', value: 'alphabetical' },
+    { label: 'Rating', value: 'rating' },
+    { label: 'Prep Time', value: 'prepTime' },
+  ];
   
   // Use actual saved recipes from the store
   // The RecipeWithTimestamp interface should be compatible with ServiceRecipe from the store
@@ -141,6 +152,7 @@ export default function SavedScreen() {
   // Handle sort change
   const handleSortChange = (sort: SortByType) => {
     setSortBy(sort);
+    setSortByOpen(false); // Close modal after selection
   };
 
   // Handle unsave recipe
@@ -224,23 +236,26 @@ export default function SavedScreen() {
     );
   }
 
+  const actualPaddingTop = insets.top > 0 ? insets.top : 16;
+
   return (
     <View style={styles.container}>
       {/* Header with emoji and search */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: actualPaddingTop }]}>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.emoji}>😋</Text>
           <Text style={styles.headerTitle}>Saved Recipes</Text>
         </View>
-        <Pressable style={styles.searchIcon}>
+        <TouchableOpacity style={styles.searchIcon} onPress={() => searchInputRef.current?.focus()}>
           <FontAwesome name="search" size={20} color={colors.textPrimary} />
-        </Pressable>
+        </TouchableOpacity>
       </View>
       
       {/* Search bar */}
       <View style={styles.searchBarContainer}>
         <FontAwesome name="search" size={16} color={colors.textSecondary} style={styles.searchBarIcon} />
         <TextInput
+          ref={searchInputRef}
           style={styles.searchInput}
           placeholder="Search saved recipes"
           placeholderTextColor={colors.textSecondary}
@@ -251,42 +266,79 @@ export default function SavedScreen() {
       
       {/* Category filters */}
       <View style={styles.filtersContainer}>
-        <View style={styles.categoryFilters}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          contentContainerStyle={styles.categoryFiltersScrollView}
+        >
           {renderCategoryButton('All')}
           {renderCategoryButton('Breakfast')}
           {renderCategoryButton('Dinner')}
           {renderCategoryButton('Lunch')}
-        </View>
+          {/* Add more categories here if needed, they will scroll */}
+        </ScrollView>
         
         <Pressable 
           style={styles.sortByButton}
-          onPress={() => setSortByOpen(!sortByOpen)}
+          onPress={() => setSortByOpen(!sortByOpen)} // This will toggle the modal
         >
           <Text style={styles.sortByText}>Sort by</Text>
           <FontAwesome 
-            name={sortByOpen ? "chevron-up" : "chevron-down"} 
+            name={"chevron-down"} // Icon remains "chevron-down" as per mockup
             size={12} 
             color={colors.textSecondary} 
             style={styles.sortByIcon} 
           />
         </Pressable>
       </View>
+
+      {/* Sort By Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={sortByOpen}
+        onRequestClose={() => setSortByOpen(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setSortByOpen(false)}>
+          <View style={styles.modalContent}>
+            {sortOptions.map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.sortOptionButton,
+                  sortBy === option.value && styles.sortOptionButtonActive,
+                ]}
+                onPress={() => handleSortChange(option.value)}
+              >
+                <Text
+                  style={[
+                    styles.sortOptionText,
+                    sortBy === option.value && styles.sortOptionTextActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
       
       {/* Recipe count and view type toggle */}
       <View style={styles.recipeCountContainer}>
         <Text style={styles.recipeCount}>{filteredRecipes.length} Recipes</Text>
         <View style={styles.viewTypeToggle}>
           <Pressable
-            style={[styles.viewTypeButton, viewType === 'list' && styles.viewTypeButtonActive]}
+            style={[styles.viewTypeButton, viewType === 'list' && styles.viewTypeButtonActive]} // Active style can be empty if only color changes
             onPress={() => setViewType('list')}
           >
-            <FontAwesome name="list" size={16} color={viewType === 'list' ? colors.primary : colors.textSecondary} />
+            <FontAwesome name="list" size={16} color={viewType === 'list' ? colors.accentOrange : colors.textSecondary} />
           </Pressable>
           <Pressable
-            style={[styles.viewTypeButton, viewType === 'grid' && styles.viewTypeButtonActive]}
+            style={[styles.viewTypeButton, viewType === 'grid' && styles.viewTypeButtonActive]} // Active style can be empty if only color changes
             onPress={() => setViewType('grid')}
           >
-            <FontAwesome name="th-large" size={16} color={viewType === 'grid' ? colors.primary : colors.textSecondary} />
+            <FontAwesome name="th-large" size={16} color={viewType === 'grid' ? colors.accentOrange : colors.textSecondary} />
           </Pressable>
         </View>
       </View>
@@ -294,7 +346,7 @@ export default function SavedScreen() {
       {/* Recipe list */}
       {filteredRecipes.length === 0 ? (
         <View style={styles.noResultsContainer}>
-          <Text style={styles.noResultsText}>No recipes match your search</Text>
+          <Text style={styles.noResultsText}>No recipes match your search/filters</Text>
           <Pressable onPress={resetFilters} style={styles.resetButton}>
             <Text style={styles.resetButtonText}>Reset Filters</Text>
           </Pressable>
@@ -372,7 +424,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 16,
+    // paddingTop: 16, // Replaced by dynamic padding using insets (actualPaddingTop)
     paddingBottom: 8,
   },
   headerTitleContainer: {
@@ -393,7 +445,7 @@ const styles = StyleSheet.create({
   searchBarContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EEEEEE', // Consider using colors.inputBackground or similar from your constants
+    backgroundColor: colors.searchBackground, // Updated to use semantic color
     borderRadius: 12,
     marginHorizontal: 16,
     paddingHorizontal: 12,
@@ -408,6 +460,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.textPrimary,
     padding: 0, 
+    fontFamily: typography.body?.fontFamily || 'OpenSans-Regular', // Use OpenSans from typography
   },
   filtersContainer: {
     flexDirection: 'row',
@@ -416,39 +469,83 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 16,
   },
-  categoryFilters: {
+  categoryFilters: { // This style might be redundant if ScrollView's contentContainerStyle is used directly
     flexDirection: 'row',
+  },
+  categoryFiltersScrollView: {
+    flexDirection: 'row',
+    alignItems: 'center', 
+    paddingHorizontal: 16, // Updated as per feedback
   },
   categoryButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#EEEEEE', // Consider using colors.surface or similar
+    backgroundColor: colors.searchBackground, // Updated to use semantic color
     marginRight: 8,
   },
   categoryButtonActive: {
-    backgroundColor: colors.primary, 
+    backgroundColor: colors.accentOrange, // Updated as per feedback
   },
   categoryButtonText: {
-    fontSize: 14, // Consider using typography constants
+    fontFamily: 'Poppins-Medium', // Updated as per feedback (typography.button is OpenSans)
+    fontSize: typography.button?.fontSize || 16, // Use fontSize from typography.button
     color: colors.textSecondary,
   },
   categoryButtonTextActive: {
-    color: colors.textInverse, // Assuming primary button text is white
+    fontFamily: 'Poppins-Medium', // Updated as per feedback
+    fontSize: typography.button?.fontSize || 16,
+    color: colors.white, // Updated as per feedback
   },
   sortByButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 16, // Added as per feedback
   },
   sortByText: {
-    fontSize: 14, // Consider using typography constants
+    ...(typography.bodyMedium || { fontSize: 16, fontFamily: 'OpenSans-Regular' }), // Updated as per feedback
     color: colors.textSecondary,
     marginRight: 4,
   },
   sortByIcon: {
-    marginTop: 2, // Adjust as needed for alignment
+    // marginTop: 2, // Removed, alignment handled by alignItems: 'center' in sortByButton
   },
-  recipeCountContainer: {
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    width: '80%',
+    elevation: 5,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  sortOptionButton: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.divider,
+  },
+  sortOptionButtonActive: {
+    backgroundColor: colors.primaryLight, // Or a different highlight color
+  },
+  sortOptionText: {
+    ...(typography.bodyMedium || { fontSize: 16, fontFamily: 'OpenSans-Regular' }),
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  sortOptionTextActive: {
+    color: colors.primary, // Or colors.textInverse if background is dark
+    fontWeight: 'bold',
+  },
+  recipeCountContainer: { // Styles already match feedback
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -456,21 +553,22 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   recipeCount: {
-    fontSize: 16, // Consider using typography constants
-    fontWeight: '600', // Consider using typography constants
+    fontFamily: fontFamily.bold, // Use imported fontFamily
+    fontSize: typography.bodyLarge?.fontSize || 18, 
+    fontWeight: fontWeight.bold, // Use imported fontWeight
+    lineHeight: typography.bodyLarge?.lineHeight || 27, 
     color: colors.textPrimary,
   },
-  viewTypeToggle: {
+  viewTypeToggle: { // Styles already match feedback
     flexDirection: 'row',
     alignItems: 'center',
   },
-  viewTypeButton: {
+  viewTypeButton: { // Styles already match feedback (padding and margin)
     padding: 8,
     marginLeft: 8,
   },
-  viewTypeButtonActive: {
-    // backgroundColor: colors.primaryLight, // Example active style
-    // borderRadius: 8, // Example active style
+  viewTypeButtonActive: { 
+    // No specific background or border for active, only icon color changes
   },
   listContent: {
     paddingHorizontal: 16, // Add horizontal padding for list view

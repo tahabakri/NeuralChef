@@ -93,7 +93,10 @@ const WeeklyCookingGoal: React.FC<WeeklyCookingGoalProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Your Weekly Cooking Goal</Text>
+        <View style={styles.titleContainer}>
+          <Ionicons name="time-outline" size={20} color={colors.textTertiary} style={styles.headerIcon} />
+          <Text style={styles.title}>Your Weekly Cooking Goal</Text>
+        </View>
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.iconButton}
@@ -121,10 +124,10 @@ const WeeklyCookingGoal: React.FC<WeeklyCookingGoalProps> = ({
       <View style={styles.progressBarContainer}>
         <Animated.View style={[styles.progressBar, { width: animatedWidth }]}>
           <LinearGradient
-            colors={isGoalCompleted ? [colors.success, colors.accentGreenEnd] : [colors.primary, colors.primaryDark]}
+            colors={[colors.accentOrangeLight || '#FFA07A', colors.accentOrange || '#FF7F50']} // Fallback colors if not defined
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-            style={{ flex: 1 }}
+            style={{ flex: 1, borderRadius: spacing.borderRadius.pill }} // Ensure gradient also has rounded corners
           />
         </Animated.View>
       </View>
@@ -156,12 +159,12 @@ const WeeklyCookingGoal: React.FC<WeeklyCookingGoalProps> = ({
         accessibilityRole="button"
         accessibilityState={{ disabled: isGoalCompleted || goal === 0 }}
       >
-        <Ionicons name="checkmark-circle-outline" size={20} color={isGoalCompleted || goal === 0 ? colors.textDisabled : colors.white} style={{marginRight: spacing.sm}}/>
+        {/* Text "✔️ Mark Meal Cooked" - checkmark emoji added directly to text */}
         <Text style={[
           styles.markMealButtonText,
           (isGoalCompleted || goal === 0) && styles.disabledButtonText
         ]}>
-          Mark Meal Cooked
+          ✔️ Mark Meal Cooked
         </Text>
       </TouchableOpacity>
 
@@ -199,8 +202,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIcon: {
+    marginRight: spacing.sm,
+  },
   title: {
-    ...typography.title2, // Slightly larger title
+    ...typography.title2, 
     color: colors.textPrimary,
   },
   headerActions: {
@@ -254,9 +264,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   markMealButton: {
-    backgroundColor: colors.primary, // Changed to primary color
+    backgroundColor: colors.accentOrange, // Reverted to accentOrange as per prompt
     borderRadius: spacing.borderRadius.pill,
-    paddingVertical: spacing.md, // Increased padding
+    paddingVertical: spacing.md, 
     paddingHorizontal: spacing.lg,
     flexDirection: 'row', // Icon and text side-by-side
     alignItems: 'center',
@@ -273,21 +283,22 @@ const styles = StyleSheet.create({
     ...typography.button,
     color: colors.white,
     fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold', // Assuming Poppins is available
   },
   motivationalText: {
-    ...typography.body2, // Adjusted typography
+    ...typography.body2, 
     color: colors.textSecondary,
     fontStyle: 'italic',
     marginTop: spacing.sm,
     textAlign: 'center',
   },
   disabledButton: {
-    backgroundColor: colors.backgroundDisabled,
+    backgroundColor: colors.backgroundDisabled, // Keep existing disabled style
     shadowOpacity: 0,
     elevation: 0,
   },
   disabledButtonText: {
-    color: colors.textDisabled,
+    color: colors.textDisabled, // Keep existing disabled text style
   },
 });
 

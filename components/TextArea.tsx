@@ -40,7 +40,7 @@ try {
 
 import CustomToast from './CustomToast';
 
-interface Tag {
+export interface Tag {
   id: string;
   text: string;
   isValid?: boolean;
@@ -463,27 +463,29 @@ const TextArea: React.FC<TextAreaProps> = ({
           keyboardAppearance="light"
         />
         
-        {/* Voice Input Button */}
-        <View style={styles.voiceButtonContainer}>
-          {isRecording && (
-            <Animated.View style={[styles.rippleEffect, rippleAnimatedStyle]} />
-          )}
-          <Animated.View style={recordingAnimatedStyle}>
-            <TouchableOpacity
-              style={[
-                styles.voiceButton,
-                isRecording && styles.recordingButton
-              ]}
-              onPress={startVoiceRecording}
-              disabled={isRecording}
-              accessibilityRole="button"
-              accessibilityLabel={isRecording ? "Recording in progress" : "Voice input"}
-              accessibilityHint="Double tap to start voice input for ingredients"
-            >
-              <Mic size={20} color={isRecording ? "#fff" : "#34C759"} strokeWidth={2} />
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
+        {/* Inline Voice Input Button: only show if onVoiceInput prop is provided */}
+        {onVoiceInput ? (
+          <View style={styles.voiceButtonContainer}>
+            {isRecording && (
+              <Animated.View style={[styles.rippleEffect, rippleAnimatedStyle]} />
+            )}
+            <Animated.View style={recordingAnimatedStyle}>
+              <TouchableOpacity
+                style={[
+                  styles.voiceButton,
+                  isRecording ? styles.recordingButton : undefined
+                ]}
+                onPress={startVoiceRecording}
+                disabled={isRecording}
+                accessibilityRole="button"
+                accessibilityLabel={isRecording ? "Recording in progress" : "Voice input"}
+                accessibilityHint="Double tap to start voice input for ingredients"
+              >
+                <Mic size={20} color={isRecording ? "#fff" : "#34C759"} strokeWidth={2} />
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
+        ) : null}
       </View>
       
       {/* Autocomplete Suggestions */}

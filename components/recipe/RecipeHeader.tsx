@@ -21,16 +21,43 @@ const RecipeHeader = ({
   rating
 }: RecipeHeaderProps) => {
   // Get difficulty icon and color based on level
-  const getDifficultyData = () => {
-    switch (difficulty) {
-      case 'Easy':
-        return { color: colors.success, icon: '🟢' };
-      case 'Medium':
-        return { color: colors.warning, icon: '🟠' };
-      case 'Hard':
-        return { color: colors.error, icon: '🔴' };
+  interface DifficultyDisplayData {
+    bgColor: string;
+    iconName: keyof typeof Ionicons.glyphMap;
+    iconColor: string;
+    textColor: string;
+  }
+
+  const getDifficultyData = (): DifficultyDisplayData => {
+    switch (difficulty.toLowerCase()) {
+      case 'easy':
+        return {
+          bgColor: colors.tagBackground || '#E6F5EA', // Fallback light green
+          iconName: 'leaf-outline',
+          iconColor: colors.success,
+          textColor: colors.success,
+        };
+      case 'medium':
+        return {
+          bgColor: colors.accentOrangeLight || '#FFEEDA', // Fallback light orange
+          iconName: 'flash-outline',
+          iconColor: colors.accentOrange,
+          textColor: colors.accentOrange,
+        };
+      case 'hard':
+        return {
+          bgColor: colors.errorLight || '#FFD6D6', // Fallback light red
+          iconName: 'flame-outline',
+          iconColor: colors.error,
+          textColor: colors.error,
+        };
       default:
-        return { color: colors.textSecondary, icon: '⚪' };
+        return {
+          bgColor: colors.border,
+          iconName: 'help-circle-outline',
+          iconColor: colors.textSecondary,
+          textColor: colors.textSecondary,
+        };
     }
   };
   
@@ -41,7 +68,7 @@ const RecipeHeader = ({
       <View style={styles.titleContainer}>
         <Text style={styles.title}>{title}</Text>
         <LinearGradient
-          colors={[colors.softPeachStart, colors.softPeachEnd]}
+          colors={[colors.orangeAccentStart, colors.orangeAccentEnd]} // Updated gradient
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.titleUnderline}
@@ -51,9 +78,9 @@ const RecipeHeader = ({
       <View style={styles.metaContainer}>
         {/* Difficulty */}
         <View style={styles.metaItem}>
-          <View style={[styles.difficultyBadge, { backgroundColor: difficultyData.color }]}>
-            <Text style={styles.difficultyIcon}>{difficultyData.icon}</Text>
-            <Text style={styles.difficultyText}>{difficulty}</Text>
+          <View style={[styles.difficultyBadge, { backgroundColor: difficultyData.bgColor }]}>
+            <Ionicons name={difficultyData.iconName} size={14} color={difficultyData.iconColor} style={styles.difficultyIcon} />
+            <Text style={[styles.difficultyText, { color: difficultyData.textColor }]}>{difficulty}</Text>
           </View>
         </View>
         
@@ -77,7 +104,7 @@ const RecipeHeader = ({
         {rating && (
           <View style={styles.metaItem}>
             <View style={styles.metaIconContainer}>
-              <Ionicons name="star" size={16} color={colors.warning} />
+              <Ionicons name="star-outline" size={16} color={colors.textSecondary} />
             </View>
             <Text style={styles.metaText}>{rating.toFixed(1)}</Text>
           </View>
@@ -95,55 +122,56 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   title: {
-    ...typography.heading1,
+    ...typography.heading1, // Provides size (e.g., fontSize.huge)
+    fontFamily: 'Poppins-Bold', // Explicitly Poppins-Bold
     color: colors.text,
     marginBottom: 8,
   },
   titleUnderline: {
-    height: 2,
-    marginBottom: 12,
-    width: '30%',
-    borderRadius: 1,
+    height: 3, // Slightly thicker
+    marginBottom: 16, // More space after underline
+    width: '40%', // Slightly wider
+    borderRadius: 1.5,
   },
   metaContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'wrap', // Allow wrapping on smaller screens
+    alignItems: 'center', // Vertically align items in the row
     marginBottom: 8,
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 16,
-    marginBottom: 8,
+    marginRight: 16, // Spacing between meta items
+    marginBottom: 8, // Spacing if items wrap
   },
   metaIconContainer: {
-    width: 24,
-    height: 24,
+    // Removed fixed width/height to let icon size dictate
+    marginRight: 4, // Space between icon and text
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 4,
   },
   metaText: {
-    ...typography.bodyMedium,
+    ...typography.bodyMedium, // OpenSans-Regular, 16px
     color: colors.textSecondary,
-    marginLeft: 6,
+    // marginLeft: 6, // Removed, using marginRight on icon container
   },
   difficultyBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 10, // More horizontal padding for pill shape
+    paddingVertical: 5,   // More vertical padding
+    borderRadius: 16,     // More rounded corners for pill shape
   },
   difficultyIcon: {
-    fontSize: 10,
-    marginRight: 4,
+    // fontSize: 10, // Size is now controlled by Ionicons size prop
+    marginRight: 6, // Increased space between icon and text
   },
   difficultyText: {
-    ...typography.bodySmall,
-    color: colors.white,
-    fontFamily: 'Poppins-Medium',
+    ...typography.bodySmall, // OpenSans-Regular, 14px
+    fontFamily: 'OpenSans-SemiBold', // Make difficulty text slightly bolder
+    // color: colors.white, // Color is now dynamic
   },
 });
 
-export default RecipeHeader; 
+export default RecipeHeader;

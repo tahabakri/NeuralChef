@@ -69,6 +69,30 @@ const typography: Record<string, TextStyle> = {
     fontWeight: fontWeight.semiBold,
     lineHeight: lineHeight.xxl, // Adjusted
   },
+  heading2: { // New style for section titles
+    fontFamily: 'Poppins-SemiBold', // Directly using Poppins font name
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.semiBold,
+    lineHeight: lineHeight.xl,
+  },
+  heading3: { // Style for prominent section titles or modal titles
+    fontFamily: 'Poppins-Bold',
+    fontSize: fontSize.xxl,         // 24px
+    fontWeight: fontWeight.bold,    // "700"
+    lineHeight: lineHeight.xxl,     // 36px
+  },
+  subtitle1: { // Style for less prominent titles or subtitles
+    fontFamily: 'Poppins-Medium',
+    fontSize: fontSize.lg,          // 18px
+    fontWeight: fontWeight.medium,  // "500"
+    lineHeight: lineHeight.lg,      // 27px
+  },
+  heading4: { // New style for smaller section titles or subheadings
+    fontFamily: 'Poppins-Medium',    // Using Poppins Medium
+    fontSize: fontSize.lg,          // 18px
+    fontWeight: fontWeight.medium,  // "500"
+    lineHeight: lineHeight.lg,      // 27px
+  },
   
   // Body text
   bodyLarge: {
@@ -248,4 +272,5 @@ export const isRTL = (language: Language): boolean => {
   return language === 'ar';
 };
 
-export default typography; 
+export { fontSize, lineHeight, fontFamily, fontWeight }; // Export size and font constants
+export default typography;

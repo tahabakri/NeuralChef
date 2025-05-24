@@ -13,30 +13,19 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import colors from '@/constants/colors';
+import { handleVoiceInput } from '@/services/voiceService';
 
 interface VoiceInputModalProps {
   onComplete: (recognizedText: string) => void;
   onClose: () => void;
-  visible?: boolean;
+  visible: boolean;
   onInputReceived?: (text: string) => void;
 }
-
-// Placeholder for actual voice recognition implementation
-// In a real app, this would use a library like react-native-voice
-const simulateVoiceRecognition = (): Promise<string> => {
-  return new Promise((resolve) => {
-    // Simulate processing delay
-    setTimeout(() => {
-      // Return simulated recognized text
-      resolve('chicken breasts, broccoli, olive oil, garlic, salt, pepper');
-    }, 3000);
-  });
-};
 
 export default function VoiceInputModal({ 
   onComplete, 
   onClose, 
-  visible = true,
+  visible,
   onInputReceived
 }: VoiceInputModalProps) {
   const [isListening, setIsListening] = useState(false);
@@ -45,7 +34,17 @@ export default function VoiceInputModal({
   // Animation for recording indicator
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
   
-  // Start animation when listening
+  // Automatically start listening when modal opens
+  useEffect(() => {
+    if (visible) {
+      startListening();
+    } else {
+      setIsListening(false);
+      setRecognizedText('');
+    }
+  }, [visible]);
+  
+  // Pulse animation for recording indicator
   useEffect(() => {
     if (isListening) {
       Animated.loop(
@@ -70,7 +69,7 @@ export default function VoiceInputModal({
         useNativeDriver: true,
       }).stop();
     }
-  }, [isListening, pulseAnim]);
+  }, [isListening]);
   
   // Start voice recognition
   const startListening = async () => {
@@ -79,9 +78,10 @@ export default function VoiceInputModal({
     setRecognizedText('');
     
     try {
-      // In a real app, this would initialize and start the voice recognition
-      const result = await simulateVoiceRecognition();
-      setRecognizedText(result);
+      await handleVoiceInput(
+        (result: string) => setRecognizedText(result),
+        (error: Error) => console.error('Voice recognition error:', error)
+      );
     } catch (error) {
       console.error('Voice recognition error:', error);
     } finally {
@@ -179,22 +179,7 @@ export default function VoiceInputModal({
                   </TouchableOpacity>
                 </View>
               </>
-            ) : (
-              <>
-                <Text style={styles.instructionText}>
-                  Tap the microphone and start listing your ingredients.
-                  Speak clearly and pause between ingredients.
-                </Text>
-                
-                <TouchableOpacity
-                  style={styles.startButton}
-                  onPress={startListening}
-                >
-                  <Ionicons name="mic-outline" size={32} color="white" />
-                  <Text style={styles.startButtonText}>Tap to Start</Text>
-                </TouchableOpacity>
-              </>
-            )}
+            ) : null }
           </View>
         </View>
       </SafeAreaView>
@@ -206,7 +191,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
   modalContent: {
     backgroundColor: colors.background,
@@ -372,30 +357,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Poppins-SemiBold',
-  },
-  startButton: {
-    backgroundColor: colors.primary,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.shadow,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 5,
-      },
-    }),
-  },
-  startButtonText: {
-    color: 'white',
-    fontSize: 14,
-    marginTop: 8,
-    fontFamily: 'Poppins-Medium',
   },
 }); 

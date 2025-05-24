@@ -113,39 +113,23 @@ const TodaysPlanSummary: React.FC<TodaysPlanSummaryProps> = ({
                 key={meal.id}
                 style={styles.mealPlanItem}
                 onPress={() => onMealPress(meal)}
-                accessibilityLabel={`${meal.mealType} - ${meal.recipe.title} ${meal.reminderTime ? `at ${format(new Date(`${today}T${meal.reminderTime}`), 'h:mm a')}` : ''}`}
+                accessibilityLabel={`${meal.mealType} - ${meal.recipe.title}`}
               >
-                {meal.recipe.imageUrl && (
-                  <Image source={{ uri: meal.recipe.imageUrl }} style={styles.mealThumbnail} />
-                )}
-                {!meal.recipe.imageUrl && (
-                    <View style={[styles.mealThumbnail, styles.mealThumbnailPlaceholder]}>
-                        <Ionicons name="restaurant-outline" size={20} color={colors.textSecondary} />
-                    </View>
-                )}
-                <View style={styles.mealInfoContainer}>
-                  <View style={[styles.mealTypeIndicator, { backgroundColor: getMealTypeColor(meal.mealType) }]} />
-                  <View style={styles.mealPlanTimeContainer}>
-                    <Text style={styles.mealPlanTime}>
-                      {meal.reminderTime ? format(new Date(`${today}T${meal.reminderTime}`), 'h:mm a') : meal.mealType.toUpperCase()}
-                    </Text>
-                    <Text style={[styles.mealPlanType, { color: getMealTypeColor(meal.mealType) }]}>
-                      {meal.mealType}
-                    </Text>
-                  </View>
-                  <View style={styles.mealPlanDetails}>
-                    <Text style={styles.mealPlanTitle} numberOfLines={1}>
-                      {meal.recipe.title}
-                    </Text>
-                  </View>
+                <Text style={styles.mealIcon}>🍴</Text>
+                <View style={styles.mealTypeLabelsContainer}>
+                  <Text style={styles.mealTypeLabelMain}>{meal.mealType.toUpperCase()}</Text>
+                  <Text style={styles.mealTypeLabelSub}>{meal.mealType.charAt(0).toUpperCase() + meal.mealType.slice(1)}</Text>
                 </View>
+                <Text style={styles.mealPlanTitle} numberOfLines={1}>
+                  {meal.recipe.title}
+                </Text>
                 <View style={styles.mealActions}>
                   <TouchableOpacity
                     style={styles.actionButton}
                     onPress={(e) => { e.stopPropagation(); onEditMealPress(meal.id); }}
                     accessibilityLabel={`Edit ${meal.mealType} - ${meal.recipe.title}`}
                   >
-                    <Ionicons name="pencil-outline" size={18} color={colors.primary} />
+                    <Ionicons name="pencil-outline" size={18} color={colors.textTertiary} />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.actionButton}
@@ -158,14 +142,16 @@ const TodaysPlanSummary: React.FC<TodaysPlanSummaryProps> = ({
               </TouchableOpacity>
             );
           })}
-          <TouchableOpacity
-            style={styles.addMealButton}
-            onPress={onAddMealPress}
-            accessibilityLabel="Add meal to today's plan"
-          >
-            <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-            <Text style={styles.addMealText}>Add Another Meal</Text>
-          </TouchableOpacity>
+          {meals.length > 0 && ( // Only show if there are meals
+            <TouchableOpacity
+              style={styles.addMealButton}
+              onPress={onAddMealPress}
+              accessibilityLabel="Add another meal to today's plan"
+            >
+              <Ionicons name="add-circle-outline" size={20} color={colors.accentOrange} />
+              <Text style={styles.addMealText}>Add Another Meal</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </View>
@@ -247,53 +233,30 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.divider,
     alignItems: 'center',
   },
-  mealThumbnail: {
-    width: 48,
-    height: 48,
-    borderRadius: spacing.borderRadius.md,
+  mealIcon: {
+    fontSize: 20,
+    color: colors.textSecondary,
     marginRight: spacing.md,
-    backgroundColor: colors.background, // Placeholder background
   },
-  mealThumbnailPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.cardAlt,
-  },
-  mealInfoContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  mealTypeIndicator: {
-    width: 4,
-    height: '70%',
-    borderRadius: 2,
+  mealTypeLabelsContainer: {
+    width: 70, // Fixed width for alignment
     marginRight: spacing.sm,
   },
-  mealPlanTimeContainer: {
-    width: 75, // Adjusted width
-    paddingRight: spacing.sm,
-  },
-  mealPlanTime: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  mealPlanType: {
+  mealTypeLabelMain: {
     ...typography.caption,
-    textTransform: 'capitalize',
-    fontWeight: '500',
-    fontSize: 11,
+    fontWeight: 'bold',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
   },
-  mealPlanDetails: {
-    flex: 1,
-    justifyContent: 'center', // Center title vertically if time is short
+  mealTypeLabelSub: {
+    ...typography.caption,
+    color: colors.textTertiary,
   },
   mealPlanTitle: {
-    ...typography.body1,
-    color: colors.text,
-    fontWeight: '500',
+    ...typography.bodyMedium, // As per prompt
+    color: colors.textPrimary,
+    flex: 1, // Allow title to take remaining space
+    marginRight: spacing.sm, // Space before action icons
   },
   mealActions: {
     flexDirection: 'row',
@@ -315,9 +278,9 @@ const styles = StyleSheet.create({
   },
   addMealText: {
     ...typography.button, // Using button typography
-    color: colors.primary,
+    color: colors.accentOrange, // As per prompt
     marginLeft: spacing.sm,
-    fontWeight: '600', // Bolder
+    fontFamily: 'Poppins-SemiBold', // Assuming Poppins is available
   },
 });
 

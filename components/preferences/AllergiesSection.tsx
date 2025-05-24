@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
 import {
   View,
   Text,
@@ -14,26 +14,73 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { commonAllergies } from './constants';
 import { AllergiesSectionProps } from './types';
-
-// Theme colors
-const theme = {
-  orange: '#FF8C00', // Brighter orange
-  lightOrange: 'rgba(255, 155, 84, 0.1)', // orange with 10% opacity
-  green: '#50C878', // Emerald green
-  lightGreen: 'rgba(76, 175, 80, 0.1)', // green with 10% opacity
-  white: '#FFFFFF',
-  glassBg: 'rgba(255, 255, 255, 0.2)', // Glassmorphic background
-  borderColor: 'rgba(255, 255, 255, 0.3)',
-  shadowColor: 'rgba(0, 0, 0, 0.1)',
-  lightOrangeFill: 'rgba(255, 140, 0, 0.1)', // Light orange for input fill
-};
+import colors from '@/constants/colors'; // Import global colors
 
 // Chef icon states
 const WINKING_CHEF_ICON = "happy-outline";
 const FROWNING_CHEF_ICON = "sad-outline"; // Or any suitable frowning icon
 const DEFAULT_CHEF_ICON = "person-circle-outline";
 
-const AllergiesSection: React.FC<AllergiesSectionProps> = ({
+// TypeScript interfaces for memoized components
+interface AllergyOptionProps {
+  allergy: { id: string; label: string };
+  isSelected: boolean;
+  onToggle: (id: string) => void;
+  scaleAnim: Animated.Value;
+}
+
+interface CustomAllergyChipProps {
+  allergy: string;
+  onRemove: (allergy: string) => void;
+}
+
+// Memoized allergy option
+const AllergyOption = memo<AllergyOptionProps>(({ 
+  allergy,
+  isSelected,
+  onToggle,
+  scaleAnim
+}) => {
+  return (
+    <Animated.View
+      style={{ transform: [{ scale: scaleAnim }] }}
+    >
+      <TouchableOpacity
+        style={[
+          styles.allergyOption,
+          isSelected 
+            ? styles.selectedAllergyOption 
+            : styles.unselectedAllergyOption,
+        ]}
+        onPress={() => onToggle(allergy.id)}
+      >
+        <Text style={[
+          styles.allergyOptionText,
+          isSelected
+            ? styles.selectedOptionText 
+            : styles.unselectedOptionText,
+        ]}>{allergy.label}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+});
+
+// Memoized custom allergy chip
+const CustomAllergyChip = memo<CustomAllergyChipProps>(({ 
+  allergy, 
+  onRemove 
+}) => {
+  return (
+    <View style={styles.customAllergyChip}>
+      <Text style={styles.customAllergyChipText}>{allergy}</Text>
+      <TouchableOpacity onPress={() => onRemove(allergy)} style={styles.removeChipButton}>
+        <Ionicons name="close-outline" size={20} color={colors.white} />
+      </TouchableOpacity>
+    </View>
+  );
+});
+
+const AllergiesSection = memo<AllergiesSectionProps>(({
   selectedAllergies,
   customAllergies,
   onToggleAllergy,
@@ -47,16 +94,16 @@ const AllergiesSection: React.FC<AllergiesSectionProps> = ({
   const addBtnScale = useRef(new Animated.Value(1)).current;
   const chefMessageAnim = useRef(new Animated.Value(0)).current;
 
-  // Animation refs for allergy cards
+  // Animation refs for allergy cards - memoized object
   const allergyCardScaleAnims = useRef<{ [key: string]: Animated.Value }>(
-    commonAllergies.reduce((acc, allergy) => ({ ...acc, [allergy.id]: new Animated.Value(1) }), {})
+    Object.fromEntries(commonAllergies.map(allergy => [allergy.id, new Animated.Value(1)]))
   ).current;
 
-  const playChefAnimation = (iconName: string, message?: string) => {
+  const playChefAnimation = useCallback((iconName: string, message?: string) => {
     setChefIconName(iconName);
     if (message) setChefMessage(message);
 
-    chefIconScale.setValue(0.8); // Start smaller for a pop effect
+    chefIconScale.setValue(0.8);
     Animated.spring(chefIconScale, {
       toValue: 1,
       friction: 3,
@@ -72,7 +119,7 @@ const AllergiesSection: React.FC<AllergiesSectionProps> = ({
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }),
-        Animated.delay(2000), // Hold message
+        Animated.delay(2000),
         Animated.timing(chefMessageAnim, {
           toValue: 0,
           duration: 300,
@@ -84,11 +131,11 @@ const AllergiesSection: React.FC<AllergiesSectionProps> = ({
 
     // Reset icon after a delay if not showing a message
     if (!message) {
-        setTimeout(() => setChefIconName(DEFAULT_CHEF_ICON), 800);
+      setTimeout(() => setChefIconName(DEFAULT_CHEF_ICON), 800);
     }
-  };
+  }, [chefIconScale, chefMessageAnim]);
 
-  const handleAddCustom = () => {
+  const handleAddCustom = useCallback(() => {
     if (newAllergy.trim()) {
       Animated.sequence([
         Animated.timing(addBtnScale, { toValue: 1.2, duration: 100, useNativeDriver: true }),
@@ -100,9 +147,9 @@ const AllergiesSection: React.FC<AllergiesSectionProps> = ({
       setNewAllergy('');
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-  };
+  }, [newAllergy, onAddCustomAllergy, addBtnScale, playChefAnimation]);
 
-  const handleToggleAllergy = (id: string) => {
+  const handleToggleAllergy = useCallback((id: string) => {
     // Bounce animation for the card
     Animated.sequence([
       Animated.timing(allergyCardScaleAnims[id], {
@@ -122,12 +169,13 @@ const AllergiesSection: React.FC<AllergiesSectionProps> = ({
     onToggleAllergy(id);
     playChefAnimation(FROWNING_CHEF_ICON);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
+  }, [allergyCardScaleAnims, onToggleAllergy, playChefAnimation]);
 
   const chefMessageOpacity = chefMessageAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 1],
   });
+  
   const chefMessageTranslateY = chefMessageAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [10, 0],
@@ -136,7 +184,7 @@ const AllergiesSection: React.FC<AllergiesSectionProps> = ({
   return (
     <View style={styles.section}>
       <Animated.View style={[styles.chefIconContainer, { transform: [{ scale: chefIconScale }] }]}>
-        <Ionicons name={chefIconName as any} size={30} color={theme.orange} />
+        <Ionicons name={chefIconName as any} size={30} color={colors.primary} />
       </Animated.View>
 
       {chefMessage && (
@@ -157,34 +205,24 @@ const AllergiesSection: React.FC<AllergiesSectionProps> = ({
 
       <View style={styles.optionsContainer}>
         {commonAllergies.map((allergy) => (
-          <Animated.View
+          <AllergyOption
             key={allergy.id}
-            style={{ transform: [{ scale: allergyCardScaleAnims[allergy.id] }] }}
-          >
-            <TouchableOpacity
-              style={[
-                styles.allergyOption,
-                selectedAllergies.includes(allergy.id) 
-                  ? styles.selectedAllergyOption 
-                  : styles.unselectedAllergyOption,
-              ]}
-              onPress={() => handleToggleAllergy(allergy.id)}
-            >
-              <Text style={styles.allergyOptionText}>{allergy.label}</Text>
-            </TouchableOpacity>
-          </Animated.View>
+            allergy={allergy}
+            isSelected={selectedAllergies.includes(allergy.id)}
+            onToggle={handleToggleAllergy}
+            scaleAnim={allergyCardScaleAnims[allergy.id]}
+          />
         ))}
       </View>
 
       {customAllergies.length > 0 && (
         <View style={styles.customAllergyListContainer}>
           {customAllergies.map((allergy, index) => (
-            <View key={`${allergy}-${index}`} style={styles.customAllergyChip}>
-              <Text style={styles.customAllergyChipText}>{allergy}</Text>
-              <TouchableOpacity onPress={() => onRemoveCustomAllergy(allergy)} style={styles.removeChipButton}>
-                <Ionicons name="close-outline" size={20} color={theme.green} />
-              </TouchableOpacity>
-            </View>
+            <CustomAllergyChip
+              key={`${allergy}-${index}`}
+              allergy={allergy}
+              onRemove={onRemoveCustomAllergy}
+            />
           ))}
         </View>
       )}
@@ -193,38 +231,29 @@ const AllergiesSection: React.FC<AllergiesSectionProps> = ({
         <TextInput
           style={styles.customAllergyInput}
           placeholder="Add an allergy…"
-          placeholderTextColor={theme.orange} // Using orange for placeholder
+          placeholderTextColor={colors.textSecondary} 
           value={newAllergy}
           onChangeText={setNewAllergy}
-          onSubmitEditing={handleAddCustom} // Allows submitting with keyboard "done"
+          onSubmitEditing={handleAddCustom}
           returnKeyType="done"
         />
-        <Animated.View style={{ transform: [{scale: addBtnScale}]}}>
-            <TouchableOpacity
-                style={styles.addButton}
-                onPress={handleAddCustom}
-            >
-                <Ionicons name="add-outline" size={28} color={theme.white} />
-            </TouchableOpacity>
-        </Animated.View>
+        <TouchableOpacity onPress={handleAddCustom} style={styles.addButtonTouch}>
+          <Animated.View style={[styles.addButton, { transform: [{ scale: addBtnScale }] }]}>
+            <Ionicons name="add-outline" size={24} color={colors.white} />
+          </Animated.View>
+        </TouchableOpacity>
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   section: {
-    padding: 20,
+    paddingVertical: 15,
+    paddingHorizontal: 5,
     marginBottom: 20,
-    backgroundColor: theme.glassBg,
+    backgroundColor: 'transparent',
     borderRadius: 15,
-    borderWidth: 1,
-    borderColor: theme.borderColor,
-    shadowColor: theme.shadowColor,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
     position: 'relative',
   },
   chefIconContainer: {
@@ -235,127 +264,125 @@ const styles = StyleSheet.create({
   },
   speechBubbleContainer: {
     position: 'absolute',
-    top: 50, // Adjust as needed, below the chef icon
+    top: 50, 
     right: 15,
     alignItems: 'flex-end',
     zIndex: 20,
   },
   speechBubble: {
-    backgroundColor: theme.green,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: colors.primaryLight, 
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 10,
-    shadowColor: theme.shadowColor,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.15,
     shadowRadius: 3,
     elevation: 3,
   },
   speechBubbleText: {
-    color: theme.white,
-    fontSize: 14,
-    fontFamily: 'PlayfulFont-SemiBold', // Placeholder
+    color: colors.textPrimary,
+    fontSize: 13,
   },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: theme.orange,
     marginBottom: 5,
-    fontFamily: 'PlayfulFont-Bold', // Placeholder
+    color: colors.primary, 
   },
   sectionSubtitle: {
-    fontSize: 16,
-    color: theme.green,
+    fontSize: 14,
     marginBottom: 15,
-    fontFamily: 'PlayfulFont-Regular', // Placeholder
+    color: colors.textSecondary,
   },
   optionsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
-    marginBottom: 15,
-    marginHorizontal: -4, // Offset for card margins
+    marginHorizontal: -4,
   },
   allergyOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 15,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
     margin: 4,
-    borderWidth: 2,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   unselectedAllergyOption: {
-    backgroundColor: theme.green,
-    borderColor: theme.orange,
+    backgroundColor: colors.success,
+    borderColor: colors.success,
   },
   selectedAllergyOption: {
-    backgroundColor: theme.orange,
-    borderColor: theme.green, // Green outline when selected
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
-  allergyOptionText: {
-    color: theme.white,
+  allergyOptionText: { // General text style, color defined by selection state
     fontSize: 14,
     fontWeight: '600',
-    fontFamily: 'PlayfulFont-SemiBold', // Placeholder
+  },
+  selectedOptionText: {
+    color: colors.white,
+    fontWeight: 'bold',
+  },
+  unselectedOptionText: {
+    color: colors.white,
   },
   customAllergyListContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 15,
-    marginTop: 5, // Add some space if there are common allergies above
+    marginTop: 10,
+    marginHorizontal: -3,
   },
   customAllergyChip: {
-    backgroundColor: theme.orange,
-    borderRadius: 15,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    margin: 4,
-    borderWidth: 1,
-    borderColor: theme.green, // Green border for chip
+    backgroundColor: colors.success, // Green chips for custom allergies
+    borderRadius: 15,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    margin: 3,
   },
   customAllergyChipText: {
-    color: theme.green, // Green text
+    color: colors.white,
     fontSize: 14,
-    marginRight: 8,
-    fontFamily: 'PlayfulFont-Regular', // Placeholder
+    marginRight: 5,
   },
   removeChipButton: {
-    // Style for the 'x' button if needed, e.g., padding
+    padding: 2,
   },
   addCustomContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 15,
+    backgroundColor: colors.white,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
+    paddingLeft: 10,
+    height: 48, // Fixed height for input container
   },
   customAllergyInput: {
     flex: 1,
-    borderWidth: 2,
-    borderColor: theme.green,
-    backgroundColor: theme.lightOrangeFill, // Light orange fill
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 10, // Adjust padding for platform
+    height: '100%', // Ensure input fills container
+    paddingHorizontal: 10,
     fontSize: 16,
-    color: theme.orange, // Text color when typing
-    marginRight: 10,
-    fontFamily: 'PlayfulFont-Regular', // Placeholder
+    color: colors.textPrimary,
+  },
+  addButtonTouch: {
+    // Wrapper for consistent touch area if needed
   },
   addButton: {
-    backgroundColor: theme.green,
-    padding: 10,
-    borderRadius: 10, // Rounded button
-    borderWidth: 2,
-    borderColor: theme.orange, // Orange outline
-    alignItems: 'center',
+    backgroundColor: colors.success, // Green '+' button
+    paddingHorizontal: 16,
+    // Match container height
+    height: '100%',
+    borderTopRightRadius: 8, // Match container's borderRadius (approx)
+    borderBottomRightRadius: 8,
     justifyContent: 'center',
-    shadowColor: theme.shadowColor,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
+    alignItems: 'center',
+    marginLeft: 5, // space between input and button
   },
 });
 

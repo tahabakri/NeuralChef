@@ -180,12 +180,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: colors.card,
+    backgroundColor: colors.accentOrangeLight, // Changed background
   },
   todayButtonText: {
-    ...typography.bodyMedium,
-    color: colors.primary,
-    fontWeight: '600',
+    fontFamily: typography?.bodyMedium?.fontFamily ?? 'Poppins-Medium',
+    fontSize: typography?.bodyMedium?.fontSize ?? 16,
+    lineHeight: typography?.bodyMedium?.lineHeight ?? 24,
+    fontWeight: typography?.bodyMedium?.fontWeight ?? '600', // Keep fontWeight as it was explicitly set
+    color: colors.accentOrange, // Changed text color
   },
   datesContainer: {
     paddingHorizontal: 16,
@@ -201,26 +203,30 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   selectedDateItem: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accentOrangeLight, // Changed background
+    borderColor: colors.accentOrange,         // Added orange border
+    borderWidth: 2,                         // Added border width
   },
-  todayDateItem: {
+  todayDateItem: { // For 'Today' indication when not selected
     borderWidth: 2,
-    borderColor: colors.primary,
+    borderColor: colors.accentOrange, // Changed border to orange
   },
   dayText: {
+    fontFamily: 'Poppins-Regular', // Added Poppins font
     fontSize: 14,
     color: colors.textSecondary,
     marginBottom: 4,
   },
   dateText: {
+    fontFamily: 'Poppins-SemiBold', // Added Poppins font
     fontSize: 16,
-    fontWeight: '600',
+    // fontWeight: '600', // fontWeight is inherent in Poppins-SemiBold
     color: colors.text,
   },
   selectedText: {
-    color: colors.white,
+    color: colors.accentOrange, // Changed text color to orange
   },
-  todayText: {
-    color: colors.primary,
+  todayText: { // For 'Today' text when not selected
+    color: colors.accentOrange, // Changed text color to orange
   },
 });

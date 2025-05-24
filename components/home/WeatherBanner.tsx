@@ -4,54 +4,67 @@ import { Ionicons } from '@expo/vector-icons';
 import colors from '@/constants/colors';
 import typography from '@/constants/typography';
 
+import { router } from 'expo-router';
+
 // Define the spacing values if not imported from a constants file
+// Assuming spacing.borderRadius.xl and spacing.lg are defined in your constants/spacing.ts
+// If not, you might need to define them or import them.
+// For this example, let's assume they exist or define placeholder values.
 const spacing = {
   xs: 4,
   sm: 8,
   md: 16,
-  lg: 24,
-  xl: 22,
+  lg: 24, // Used for padding and marginHorizontal
+  xl: 32, // Used for marginTop (example value)
   borderRadius: {
     sm: 4,
     md: 8,
     lg: 12,
+    xl: 20, // Used for banner borderRadius (example value)
   },
 };
 
 interface WeatherBannerProps {
-  mainText: string;
-  subText: string;
-  iconName: keyof typeof Ionicons.glyphMap;
-  onPress: () => void;
+  weatherCondition: string;
+  recipeSuggestionText: string;
+  weatherIconName: keyof typeof Ionicons.glyphMap;
+  recipeIdToNavigate: string;
+  // onPress prop is now implicitly handled by router.push
 }
 
 const WeatherBanner: React.FC<WeatherBannerProps> = ({
-  mainText,
-  subText,
-  iconName,
-  onPress,
+  weatherCondition,
+  recipeSuggestionText,
+  weatherIconName,
+  recipeIdToNavigate,
 }) => {
+  const handlePress = () => {
+    router.push(`/recipe/${recipeIdToNavigate}`);
+  };
+
   return (
     <TouchableOpacity
       style={styles.banner}
-      onPress={onPress}
-      accessibilityLabel={`${mainText} ${subText} Tap to view recipe.`}
+      onPress={handlePress}
+      accessibilityLabel={`${weatherCondition}. Suggestion: ${recipeSuggestionText}. Tap to view recipe.`}
     >
-      <Ionicons 
-        name={iconName} 
-        size={24} 
-        color={colors.accentOrange || '#FF7643'} 
-        style={styles.icon} 
-      />
-      <View style={styles.textContainer}>
-        <Text style={styles.mainText}>{mainText}</Text>
-        <Text style={styles.subText}>{subText}</Text>
+      <View style={styles.iconContainer}>
+        <Ionicons
+          name={weatherIconName}
+          size={30} // Increased size
+          color={colors.accentOrange} // Example: accentOrange on light blue background
+          style={styles.icon}
+        />
       </View>
-      <Ionicons 
-        name="chevron-forward-outline" 
-        size={22} 
-        color={colors.textTertiary || '#999'} 
-        style={styles.arrow} 
+      <View style={styles.textContainer}>
+        <Text style={styles.weatherConditionText}>{weatherCondition}</Text>
+        <Text style={styles.recipeSuggestionText}>{recipeSuggestionText}</Text>
+      </View>
+      <Ionicons
+        name="chevron-forward-outline" // Using a simple chevron for now
+        size={26} // Slightly larger arrow
+        color={colors.textPrimary} // Contrasting color for arrow
+        style={styles.arrow}
       />
     </TouchableOpacity>
   );
@@ -59,36 +72,45 @@ const WeatherBanner: React.FC<WeatherBannerProps> = ({
 
 const styles = StyleSheet.create({
   banner: {
-    backgroundColor: colors.backgroundAlt || '#FEF7F0', // Light peach/beige
-    borderRadius: spacing.borderRadius.lg,
-    padding: spacing.md,
+    backgroundColor: colors.accentBlueLight, // Using accentBlueLight
+    borderRadius: spacing.borderRadius.xl, // More pronounced rounding
+    padding: spacing.lg, // Larger padding
     marginHorizontal: spacing.lg,
-    marginTop: spacing.xl,
+    marginTop: spacing.xl, // Larger top margin
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: colors.shadow || '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 3 }, // Adjusted shadow
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    elevation: 4, // Adjusted elevation
+  },
+  iconContainer: {
+    // Optional: Add a circular background to the icon if desired
+    // backgroundColor: colors.accentBlue, // Slightly darker blue for icon background
+    // borderRadius: 20, // Make it circular
+    // padding: spacing.xs, // Padding around the icon
+    marginRight: spacing.md,
   },
   icon: {
-    marginRight: spacing.md,
+    // Styles for the icon itself, if not covered by container
   },
   textContainer: {
     flex: 1,
   },
-  mainText: {
-    ...typography.bodyMedium,
-    color: colors.text,
+  weatherConditionText: {
+    ...typography.subtitle1, // Poppins bold, larger
+    color: colors.textDark, // Ensure contrast with accentBlueLight
+    marginBottom: spacing.xs, // Space between condition and suggestion
   },
-  subText: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
+  recipeSuggestionText: {
+    ...typography.bodyMedium, // OpenSans, engaging
+    color: colors.textDark, // Ensure contrast
+    // To highlight recipe name, you might need to parse the string or pass structured text
   },
   arrow: {
     marginLeft: spacing.sm,
   },
 });
 
-export default WeatherBanner; 
+export default WeatherBanner;

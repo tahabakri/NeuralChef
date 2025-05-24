@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   StyleSheet,
@@ -20,6 +20,7 @@ import LottieView from 'lottie-react-native'; // For confetti and other animatio
 
 import {
   usePreferencesStore,
+  usePreferenceSelector,
   DietaryProfile, // This is the type from the store, equivalent to DietaryProfileId
   SpiceLevel,     // Equivalent to SpiceLevelId
   PortionSize,    // Equivalent to PortionSizeId
@@ -56,187 +57,188 @@ import gradients, { directions } from '@/constants/gradients';
 
 const CONFETTI_LOTTIE = require('@/assets/animations/confetti.json'); // Placeholder path
 
-// Animated Winking Chef Icon for Header
-const AnimatedHeaderChefIcon: React.FC = () => {
+// Memoized Winking Chef Icon for Header
+const AnimatedHeaderChefIcon = React.memo(() => {
   return (
     <Image
       source={require('@/assets/images/winking-chef.png')}
       style={styles.headerChefIconImage}
     />
   );
-};
+});
 
 
 export default function PreferencesScreen() {
   const router = useRouter();
-  const prefs = usePreferencesStore(state => state);
-  const updatePreferences = usePreferencesStore(state => state.updatePreferences);
-
-  // Local component state, initialized from the store
-  // For customAllergies, if the store doesn't have it, initialize as empty array or handle appropriately.
-  // Assuming customAllergies are not part of the persisted store state based on errors.
-  const initialCustomAllergies = Array.isArray(prefs.allergies) ? prefs.allergies.filter(a => {
-    // A simple heuristic: if an allergy is not in a predefined list, it might be custom.
-    // This depends on how commonAllergies are defined and if they are accessible here.
-    // For now, let's assume the store's `allergies` array contains ALL allergies (common + custom).
-    // The UI then needs to differentiate them if needed.
-    // The prompt implies `AllergiesSection` handles `selectedAllergies` and `customAllergies` separately for its UI.
-    // Let's stick to the previous logic of filtering them out if they were stored separately,
-    // but since `prefs.customAllergies` doesn't exist, we'll manage customAllergies purely locally.
-    return false; // Placeholder, will be managed locally.
-  }) : [];
-
-  const [dietaryProfile, setDietaryProfile] = useState<DietaryProfileType>(prefs.dietaryProfile);
-  // Initialize `allergies` with those from store that are NOT in local `customAllergies` state.
-  // This logic is a bit circular if `customAllergies` itself isn't persisted.
-  // Let's simplify: `allergies` from store are all allergies. `customAllergies` is for UI interaction.
-  const [allStoredAllergies, setAllStoredAllergies] = useState<string[]>(prefs.allergies || []);
-  const [customAllergies, setCustomAllergies] = useState<string[]>([]); // Purely local for UI
-  // `selectedAllergies` for the component will be `allStoredAllergies` minus `customAllergies`
-  const commonSelectedAllergies = allStoredAllergies.filter(a => !customAllergies.includes(a));
-
-  const [dislikedIngredients, setDislikedIngredients] = useState<string[]>(prefs.dislikedIngredients);
-  const [spiceLevel, setSpiceLevel] = useState<SpiceLevelType>(prefs.spiceLevel);
-  const [selectedCuisines, setSelectedCuisines] = useState<string[]>(prefs.cuisineTypes);
-  const [cookingTime, setCookingTime] = useState<string>(String(prefs.cookingTimeLimit));
-  const [maxCalories, setMaxCalories] = useState<string>(String(prefs.maxCalories));
-  const [portionSize, setPortionSize] = useState<PortionSizeType>(prefs.portionSize);
-  const [microPreferences, setMicroPreferences] = useState<MicroPreference[]>(prefs.microPreferences);
-  const [cookingGoals, setCookingGoals] = useState<CookingGoal[]>(prefs.cookingGoals);
   
-  // Define predefined medical conditions for consistent filtering
+  // Use selective state selectors for better performance
+  const dietaryProfile = usePreferenceSelector(state => state.dietaryProfile);
+  const allergies = usePreferenceSelector(state => state.allergies || []);
+  const dislikedIngredients = usePreferenceSelector(state => state.dislikedIngredients || []);
+  const spiceLevel = usePreferenceSelector(state => state.spiceLevel);
+  const cuisineTypes = usePreferenceSelector(state => state.cuisineTypes || []);
+  const cookingTimeLimit = usePreferenceSelector(state => state.cookingTimeLimit || 0);
+  const maxCalories = usePreferenceSelector(state => state.maxCalories || 0);
+  const portionSize = usePreferenceSelector(state => state.portionSize);
+  const microPreferences = usePreferenceSelector(state => state.microPreferences || []);
+  const cookingGoals = usePreferenceSelector(state => state.cookingGoals || []);
+  const medicalConditions = usePreferenceSelector(state => state.medicalConditions || []);
+  
+  // Get selective update functions
+  const updateDietaryProfile = usePreferencesStore(state => state.updateDietaryProfile);
+  const updateAllergies = usePreferencesStore(state => state.updateAllergies);
+  const updateDislikedIngredients = usePreferencesStore(state => state.updateDislikedIngredients);
+  const updateSpiceLevel = usePreferencesStore(state => state.updateSpiceLevel);
+  const updateCuisineTypes = usePreferencesStore(state => state.updateCuisineTypes);
+  const updateCookingTimeLimit = usePreferencesStore(state => state.updateCookingTimeLimit);
+  const updateMaxCalories = usePreferencesStore(state => state.updateMaxCalories);
+  const updatePortionSize = usePreferencesStore(state => state.updatePortionSize);
+  const updateMicroPreferences = usePreferencesStore(state => state.updateMicroPreferences);
+  const updateCookingGoals = usePreferencesStore(state => state.updateCookingGoals);
+  const updateMedicalConditions = usePreferencesStore(state => state.updateMedicalConditions);
+
+  // Predefined medical conditions list
   const predefinedMedicalConditionsList: MedicalCondition[] = ['Diabetes', 'Hypertension', 'Celiac Disease', 'High Cholesterol', 'IBS'];
   
-  // Split medicalConditions from store into predefined and custom
-  const [selectedPredefinedMedicalConditions, setSelectedPredefinedMedicalConditions] = useState<MedicalCondition[]>(
-    (prefs.medicalConditions || [])
+  // Local component state for UI interactions
+  const [localDietaryProfile, setLocalDietaryProfile] = useState<DietaryProfileType>(dietaryProfile);
+  const [localAllergies, setLocalAllergies] = useState<string[]>(allergies);
+  const [customAllergies, setCustomAllergies] = useState<string[]>([]);
+  // Common allergies calculation
+  const commonSelectedAllergies = localAllergies.filter(a => !customAllergies.includes(a));
+
+  const [localDislikedIngredients, setLocalDislikedIngredients] = useState<string[]>(dislikedIngredients);
+  const [localSpiceLevel, setLocalSpiceLevel] = useState<SpiceLevelType>(spiceLevel);
+  const [localCuisines, setLocalCuisines] = useState<string[]>(cuisineTypes);
+  const [localCookingTime, setLocalCookingTime] = useState<string>(String(cookingTimeLimit));
+  const [localMaxCalories, setLocalMaxCalories] = useState<string>(String(maxCalories));
+  const [localPortionSize, setLocalPortionSize] = useState<PortionSizeType>(portionSize);
+  const [localMicroPreferences, setLocalMicroPreferences] = useState<MicroPreference[]>(microPreferences);
+  const [localCookingGoals, setLocalCookingGoals] = useState<CookingGoal[]>(cookingGoals);
+  
+  const [localPredefinedMedicalConditions, setLocalPredefinedMedicalConditions] = useState<MedicalCondition[]>(
+    (medicalConditions || [])
       .filter((condition): condition is MedicalCondition => 
         predefinedMedicalConditionsList.includes(condition as any)
       )
   );
   
-  const [customMedicalConditions, setCustomMedicalConditions] = useState<string[]>(
-    (prefs.medicalConditions || [])
+  const [localCustomMedicalConditions, setLocalCustomMedicalConditions] = useState<string[]>(
+    (medicalConditions || [])
       .filter(condition => 
         !predefinedMedicalConditionsList.includes(condition as any)
       ) as string[]
   );
 
-  // Effect to sync local state if store changes
-  useEffect(() => {
-    setDietaryProfile(prefs.dietaryProfile);
-    setAllStoredAllergies(prefs.allergies || []);
-    setCustomAllergies([]);
-    setDislikedIngredients(prefs.dislikedIngredients);
-    setSpiceLevel(prefs.spiceLevel);
-    setSelectedCuisines(prefs.cuisineTypes);
-    setCookingTime(String(prefs.cookingTimeLimit));
-    setMaxCalories(String(prefs.maxCalories));
-    setPortionSize(prefs.portionSize);
-    setMicroPreferences(prefs.microPreferences);
-    setCookingGoals(prefs.cookingGoals);
-    
-    // Split medicalConditions from store into predefined and custom
-    setSelectedPredefinedMedicalConditions(
-      (prefs.medicalConditions || [])
-        .filter((condition): condition is MedicalCondition => 
-          predefinedMedicalConditionsList.includes(condition as any)
-        )
-    );
-    setCustomMedicalConditions(
-      (prefs.medicalConditions || [])
-        .filter(condition => 
-          !predefinedMedicalConditionsList.includes(condition as any)
-        ) as string[]
-    );
-  }, [
-    prefs.dietaryProfile, prefs.allergies, prefs.dislikedIngredients,
-    prefs.spiceLevel, prefs.cuisineTypes, prefs.cookingTimeLimit, prefs.maxCalories,
-    prefs.portionSize, prefs.microPreferences, prefs.cookingGoals, prefs.medicalConditions
-  ]);
-
+  // Animation refs
   const saveButtonScaleAnim = useRef(new Animated.Value(1)).current;
   const confettiRef = useRef<LottieView>(null);
 
-  // Handlers for preference changes
-  const handleToggleAllergy = (id: string) => {
-    setAllStoredAllergies((prev: string[]) => 
+  // Memoized handlers for better performance
+  const handleToggleAllergy = useCallback((id: string) => {
+    setLocalAllergies(prev => 
       prev.includes(id) 
-        ? prev.filter((item: string) => item !== id) 
+        ? prev.filter(item => item !== id) 
         : [...prev, id]
     );
-  };
-  const handleAddCustomAllergy = (allergy: string) => {
+  }, []);
+
+  const handleAddCustomAllergy = useCallback((allergy: string) => {
     const trimmedAllergy = allergy.trim();
-    if (trimmedAllergy && !customAllergies.includes(trimmedAllergy) && !allStoredAllergies.includes(trimmedAllergy)) {
+    if (trimmedAllergy && !customAllergies.includes(trimmedAllergy) && !localAllergies.includes(trimmedAllergy)) {
       setCustomAllergies(prev => [...prev, trimmedAllergy]);
+      setLocalAllergies(prev => [...prev, trimmedAllergy]);
     }
-  };
-  const handleRemoveCustomAllergy = (allergy: string) => {
+  }, [customAllergies, localAllergies]);
+
+  const handleRemoveCustomAllergy = useCallback((allergy: string) => {
     setCustomAllergies(prev => prev.filter(item => item !== allergy));
-  };
-  const handleAddDislikedIngredient = (ingredient: string) => {
+    setLocalAllergies(prev => prev.filter(item => item !== allergy));
+  }, []);
+
+  const handleAddDislikedIngredient = useCallback((ingredient: string) => {
     const trimmed = ingredient.trim();
-    if (trimmed && !dislikedIngredients.includes(trimmed)) {
-      setDislikedIngredients(prev => [...prev, trimmed]);
+    if (trimmed && !localDislikedIngredients.includes(trimmed)) {
+      setLocalDislikedIngredients(prev => [...prev, trimmed]);
     }
-  };
-  const handleRemoveDislikedIngredient = (ingredient: string) => {
-    setDislikedIngredients(prev => prev.filter(item => item !== ingredient));
-  };
-  const handleToggleCuisine = (id: string) => {
-    setSelectedCuisines(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
-  };
-  const handleToggleMicroPreference = (id: MicroPreference) => {
-    setMicroPreferences(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
-  };
-  const handleToggleCookingGoal = (id: CookingGoal) => {
-    setCookingGoals(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
-  };
-  const handleTogglePredefinedMedicalCondition = (condition: MedicalCondition) => {
-    setSelectedPredefinedMedicalConditions(prev => 
+  }, [localDislikedIngredients]);
+
+  const handleRemoveDislikedIngredient = useCallback((ingredient: string) => {
+    setLocalDislikedIngredients(prev => prev.filter(item => item !== ingredient));
+  }, []);
+
+  const handleToggleCuisine = useCallback((id: string) => {
+    setLocalCuisines(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
+  }, []);
+
+  const handleToggleMicroPreference = useCallback((id: MicroPreference) => {
+    setLocalMicroPreferences(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
+  }, []);
+
+  const handleToggleCookingGoal = useCallback((id: CookingGoal) => {
+    setLocalCookingGoals(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
+  }, []);
+
+  const handleTogglePredefinedMedicalCondition = useCallback((condition: MedicalCondition) => {
+    setLocalPredefinedMedicalConditions(prev => 
       prev.includes(condition) 
         ? prev.filter(item => item !== condition) 
         : [...prev, condition]
     );
-  };
-  const handleAddCustomMedicalCondition = (condition: string) => {
-    if (condition.trim() && !customMedicalConditions.includes(condition.trim())) {
-      setCustomMedicalConditions(prev => [...prev, condition.trim()]);
-    }
-  };
-  const handleRemoveCustomMedicalCondition = (condition: string) => {
-    setCustomMedicalConditions(prev => prev.filter(item => item !== condition));
-  };
+  }, []);
 
-  const handleSave = () => {
+  const handleAddCustomMedicalCondition = useCallback((condition: string) => {
+    if (condition.trim() && !localCustomMedicalConditions.includes(condition.trim())) {
+      setLocalCustomMedicalConditions(prev => [...prev, condition.trim()]);
+    }
+  }, [localCustomMedicalConditions]);
+
+  const handleRemoveCustomMedicalCondition = useCallback((condition: string) => {
+    setLocalCustomMedicalConditions(prev => prev.filter(item => item !== condition));
+  }, []);
+
+  const handleSave = useCallback(() => {
     Animated.sequence([
       Animated.timing(saveButtonScaleAnim, { toValue: 1.2, duration: 100, useNativeDriver: true }),
       Animated.timing(saveButtonScaleAnim, { toValue: 1, duration: 100, useNativeDriver: true }),
     ]).start();
 
-    confettiRef.current?.reset();
-    confettiRef.current?.play();
+    if (confettiRef.current) {
+      confettiRef.current.reset();
+      confettiRef.current.play();
+    }
     
-    updatePreferences({
-      dietaryProfile,
-      allergies: [...commonSelectedAllergies, ...customAllergies],
-      dislikedIngredients,
-      spiceLevel,
-      cuisineTypes: selectedCuisines,
-      cookingTimeLimit: Number(cookingTime) || 0,
-      maxCalories: Number(maxCalories) || 0,
-      portionSize,
-      microPreferences,
-      cookingGoals,
-      medicalConditions: [
-        ...selectedPredefinedMedicalConditions,
-        ...customMedicalConditions
-      ] as MedicalCondition[], // Cast to satisfy TypeScript
-    });
-    // Consider a custom toast/modal instead of Alert for better UX matching the theme
+    // Use selective update methods for better performance
+    updateDietaryProfile(localDietaryProfile as DietaryProfile);
+    updateAllergies([...commonSelectedAllergies, ...customAllergies]);
+    updateDislikedIngredients(localDislikedIngredients);
+    updateSpiceLevel(localSpiceLevel as SpiceLevel);
+    updateCuisineTypes(localCuisines);
+    updateCookingTimeLimit(Number(localCookingTime) || 0);
+    updateMaxCalories(Number(localMaxCalories) || 0);
+    updatePortionSize(localPortionSize as PortionSize);
+    updateMicroPreferences(localMicroPreferences);
+    updateCookingGoals(localCookingGoals);
+    updateMedicalConditions([
+      ...localPredefinedMedicalConditions,
+      ...localCustomMedicalConditions
+    ] as MedicalCondition[]);
+    
     Alert.alert('Preferences Saved!', 'Your lunch preferences are all set!', [{ text: 'Awesome!', onPress: () => router.back() }]);
-  };
+  }, [
+    saveButtonScaleAnim, updateDietaryProfile, localDietaryProfile, 
+    updateAllergies, commonSelectedAllergies, customAllergies, 
+    updateDislikedIngredients, localDislikedIngredients, 
+    updateSpiceLevel, localSpiceLevel, 
+    updateCuisineTypes, localCuisines, 
+    updateCookingTimeLimit, localCookingTime, 
+    updateMaxCalories, localMaxCalories, 
+    updatePortionSize, localPortionSize, 
+    updateMicroPreferences, localMicroPreferences, 
+    updateCookingGoals, localCookingGoals, 
+    updateMedicalConditions, localPredefinedMedicalConditions, localCustomMedicalConditions, 
+    router
+  ]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -244,9 +246,9 @@ export default function PreferencesScreen() {
       <Stack.Screen options={{ headerShown: false }} />
 
       <LinearGradient
-        colors={[colors.softBlueStart, colors.softBlueEnd]}
+        colors={[colors.backgroundGradientStart, colors.backgroundGradientEnd]}
         style={styles.gradientBackground}
-        locations={[0, 0.6]} // Adjust gradient spread
+        locations={[0, 1]}
       >
         {/* TODO: Subtle lunch icons overlay view here */}
         {/* <View style={styles.lunchIconsOverlay}> ... </View> */}
@@ -260,8 +262,9 @@ export default function PreferencesScreen() {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContentContainer}
           showsVerticalScrollIndicator={false}
+          removeClippedSubviews={true}
         >
-          <DietaryProfileSelector selectedProfile={dietaryProfile} onSelectProfile={setDietaryProfile} />
+          <DietaryProfileSelector selectedProfile={localDietaryProfile} onSelectProfile={setLocalDietaryProfile} />
           <AllergiesSection
             selectedAllergies={commonSelectedAllergies}
             customAllergies={customAllergies}
@@ -270,23 +273,23 @@ export default function PreferencesScreen() {
             onRemoveCustomAllergy={handleRemoveCustomAllergy}
           />
           <MedicalConditionsSelector
-            selectedPredefinedConditions={selectedPredefinedMedicalConditions}
-            customMedicalConditions={customMedicalConditions}
+            selectedPredefinedConditions={localPredefinedMedicalConditions}
+            customMedicalConditions={localCustomMedicalConditions}
             onTogglePredefinedCondition={handleTogglePredefinedMedicalCondition}
             onAddCustomCondition={handleAddCustomMedicalCondition}
             onRemoveCustomCondition={handleRemoveCustomMedicalCondition}
           />
-          <CookingTimeSelector selectedTime={cookingTime} onSelectTime={setCookingTime} />
-          <PortionSizeSelector selectedSize={portionSize} onSelectSize={setPortionSize} />
+          <CookingTimeSelector selectedTime={localCookingTime} onSelectTime={setLocalCookingTime} />
+          <PortionSizeSelector selectedSize={localPortionSize} onSelectSize={setLocalPortionSize} />
 
           <MoreOptionsSection title="More Lunch Options">
-            <SpiceLevelSelector selectedLevel={spiceLevel} onSelectLevel={setSpiceLevel} />
-            <CuisineTypeSelector selectedCuisines={selectedCuisines} onToggleCuisine={handleToggleCuisine} />
-            <CalorieSelector maxCalories={maxCalories} onChangeCalories={setMaxCalories} />
-            <MicroPreferencesSection selectedPreferences={microPreferences} onTogglePreference={handleToggleMicroPreference} />
-            <CookingGoalsSection selectedGoals={cookingGoals} onToggleGoal={handleToggleCookingGoal} />
+            <SpiceLevelSelector selectedLevel={localSpiceLevel} onSelectLevel={setLocalSpiceLevel} />
+            <CuisineTypeSelector selectedCuisines={localCuisines} onToggleCuisine={handleToggleCuisine} />
+            <CalorieSelector maxCalories={localMaxCalories} onChangeCalories={setLocalMaxCalories} />
+            <MicroPreferencesSection selectedPreferences={localMicroPreferences} onTogglePreference={handleToggleMicroPreference} />
+            <CookingGoalsSection selectedGoals={localCookingGoals} onToggleGoal={handleToggleCookingGoal} />
             <DislikedIngredientsSection
-              dislikedIngredients={dislikedIngredients}
+              dislikedIngredients={localDislikedIngredients}
               onAddIngredient={handleAddDislikedIngredient}
               onRemoveIngredient={handleRemoveDislikedIngredient}
             />
@@ -341,7 +344,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.text,
+    color: colors.textPrimary,
     flexShrink: 1,
     marginLeft: 10,
   },
@@ -368,7 +371,7 @@ const styles = StyleSheet.create({
     // Allows shadow to be visible if button has shadow
   },
   saveButton: {
-    backgroundColor: colors.primary, // Warm orange color
+    backgroundColor: colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

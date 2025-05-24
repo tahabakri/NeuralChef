@@ -133,10 +133,10 @@ const TimerButton = ({ minutes }: TimerButtonProps) => {
   });
   
   // Determine which gradient to use based on state
-  const getGradientColors = () => {
-    if (isComplete) return [colors.success, colors.primaryDark]; // Green for complete
-    if (isTimerActive) return [colors.sunriseOrange, colors.secondaryDark]; // Orange for active
-    return [colors.softPeachEnd, colors.softPeachStart]; // Peach for default
+  const getGradientColors = (): [string, string] => { // Explicitly type the return
+    if (isComplete) return [colors.success, colors.accentGreenEnd]; // Accent Green for complete
+    if (isTimerActive) return [colors.orangeAccentStart, colors.orangeAccentEnd]; // Primary gradient for active
+    return [colors.orangeAccentStart, colors.orangeAccentEnd]; // Primary gradient for default
   };
   
   return (
@@ -211,18 +211,32 @@ const TimerButton = ({ minutes }: TimerButtonProps) => {
             
             <View style={styles.buttonRow}>
               {isTimerActive ? (
-                <TouchableOpacity style={styles.actionButton} onPress={pauseTimer}>
-                  <Ionicons name="pause" size={24} color={colors.white} />
-                  <Text style={styles.actionButtonText}>Pause</Text>
+                <TouchableOpacity onPress={pauseTimer} style={styles.actionButtonContainer}>
+                  <LinearGradient
+                    colors={[colors.orangeAccentStart, colors.orangeAccentEnd]}
+                    style={styles.actionButtonGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <Ionicons name="pause" size={24} color={colors.white} />
+                    <Text style={styles.actionButtonText}>Pause</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity 
-                  style={styles.actionButton} 
+                <TouchableOpacity
                   onPress={startTimer}
                   disabled={isComplete}
+                  style={styles.actionButtonContainer}
                 >
-                  <Ionicons name="play" size={24} color={colors.white} />
-                  <Text style={styles.actionButtonText}>Start</Text>
+                  <LinearGradient
+                    colors={isComplete ? [colors.backgroundDisabled, colors.backgroundDisabled] : [colors.success, colors.accentGreenEnd || colors.success]} // Use Accent Green for Start
+                    style={[styles.actionButtonGradient, isComplete && styles.disabledButtonGradient]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                  >
+                    <Ionicons name="play" size={24} color={isComplete ? colors.textDisabled : colors.white} />
+                    <Text style={[styles.actionButtonText, isComplete && styles.disabledButtonText]}>Start</Text>
+                  </LinearGradient>
                 </TouchableOpacity>
               )}
               
@@ -250,7 +264,7 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.white,
     marginLeft: 4,
-    fontFamily: 'Poppins-Medium',
+    fontFamily: 'OpenSans-Regular', // Use OpenSans
   },
   modalOverlay: {
     flex: 1,
@@ -305,20 +319,29 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     marginBottom: 30,
   },
-  actionButton: {
+  actionButtonContainer: { // New container for gradient button
+    width: '45%',
+    borderRadius: 16,
+    overflow: 'hidden', // Important for gradient border radius
+  },
+  actionButtonGradient: { // Style for the gradient itself
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 16,
-    width: '45%',
+  },
+  disabledButtonGradient: {
+    backgroundColor: colors.backgroundDisabled, // Fallback if gradient doesn't show well
+    opacity: 0.6,
+  },
+  disabledButtonText: {
+    color: colors.textDisabled,
   },
   actionButtonText: {
     ...typography.bodyMedium,
     color: colors.white,
-    fontFamily: 'Poppins-Medium',
+    fontFamily: 'OpenSans-Regular', // Use OpenSans
     marginLeft: 8,
   },
   resetButton: {
@@ -334,7 +357,7 @@ const styles = StyleSheet.create({
   resetButtonText: {
     ...typography.bodyMedium,
     color: colors.text,
-    fontFamily: 'Poppins-Medium',
+    fontFamily: 'OpenSans-Regular', // Use OpenSans
     marginLeft: 8,
   },
   bellAnimation: {
@@ -352,4 +375,4 @@ const styles = StyleSheet.create({
   }
 });
 
-export default TimerButton; 
+export default TimerButton;

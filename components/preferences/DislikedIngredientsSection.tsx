@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
 import {
   View,
   Text,
@@ -30,7 +30,45 @@ const theme = {
 const WINKING_CHEF_ICON = "happy-outline"; // For successful add
 // const FROWNING_CHEF_ICON = "sad-outline"; // Could be used for removal or other interactions
 
-const DislikedIngredientsSection: React.FC<DislikedIngredientsSectionProps> = ({
+// TypeScript interfaces for memoized components
+interface IngredientChipProps {
+  ingredient: string;
+  animValue: Animated.Value;
+  onRemove: (ingredient: string) => void;
+}
+
+// Memoized ingredient chip component
+const IngredientChip = memo<IngredientChipProps>(({
+  ingredient,
+  animValue,
+  onRemove
+}) => {
+  const handleRemove = useCallback(() => {
+    onRemove(ingredient);
+  }, [ingredient, onRemove]);
+
+  return (
+    <Animated.View 
+      style={[
+        styles.ingredientChip,
+        { 
+          opacity: animValue, 
+          transform: [{ scale: animValue }] 
+        }
+      ]}
+    >
+      <Text style={styles.ingredientChipText}>{ingredient}</Text>
+      <TouchableOpacity
+        style={styles.removeChipButton}
+        onPress={handleRemove}
+      >
+        <Ionicons name="close-outline" size={20} color={theme.green} />
+      </TouchableOpacity>
+    </Animated.View>
+  );
+});
+
+const DislikedIngredientsSection = memo<DislikedIngredientsSectionProps>(({
   dislikedIngredients,
   onAddIngredient,
   onRemoveIngredient,
@@ -40,16 +78,20 @@ const DislikedIngredientsSection: React.FC<DislikedIngredientsSectionProps> = ({
   const chefMessageAnim = useRef(new Animated.Value(0)).current;
   const addBtnScale = useRef(new Animated.Value(1)).current;
 
-  // Animation for individual ingredient chips (e.g., for removal)
+  // Animation for individual ingredient chips - optimized with useRef
   const ingredientChipAnimations = useRef<{ [key: string]: Animated.Value }>({}).current;
 
+  // Optimize animation creation with useEffect
   useEffect(() => {
+    // Create animations for new ingredients only
     dislikedIngredients.forEach(ingredient => {
       if (!ingredientChipAnimations[ingredient]) {
         ingredientChipAnimations[ingredient] = new Animated.Value(1);
       }
     });
-    // Clean up removed ingredients from animations ref if necessary
+    
+    // Optional cleanup of removed ingredients
+    // This could be removed if it causes performance issues
     Object.keys(ingredientChipAnimations).forEach(key => {
       if (!dislikedIngredients.includes(key)) {
         delete ingredientChipAnimations[key];
@@ -57,52 +99,72 @@ const DislikedIngredientsSection: React.FC<DislikedIngredientsSectionProps> = ({
     });
   }, [dislikedIngredients, ingredientChipAnimations]);
 
-  const showTemporaryChefMessage = (message: string) => {
+  const showTemporaryChefMessage = useCallback((message: string) => {
     setChefMessage(message);
     chefMessageAnim.setValue(0);
     Animated.sequence([
-      Animated.timing(chefMessageAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(chefMessageAnim, { 
+        toValue: 1, 
+        duration: 300, 
+        useNativeDriver: true 
+      }),
       Animated.delay(2000),
-      Animated.timing(chefMessageAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+      Animated.timing(chefMessageAnim, { 
+        toValue: 0, 
+        duration: 300, 
+        useNativeDriver: true 
+      }),
     ]).start(() => setChefMessage(null));
-  };
+  }, [chefMessageAnim]);
 
-  const handleAddIngredient = () => {
+  const handleAddIngredient = useCallback(() => {
     if (newIngredient.trim()) {
       onAddIngredient(newIngredient.trim());
-      showTemporaryChefMessage(`Noted! No ${newIngredient.trim()}.`); // Chef message
+      showTemporaryChefMessage(`Noted! No ${newIngredient.trim()}.`);
       setNewIngredient('');
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       // Add button bounce
       Animated.sequence([
-        Animated.timing(addBtnScale, { toValue: 1.2, duration: 100, useNativeDriver: true }),
-        Animated.timing(addBtnScale, { toValue: 1, duration: 100, useNativeDriver: true }),
+        Animated.timing(addBtnScale, { 
+          toValue: 1.2, 
+          duration: 100, 
+          useNativeDriver: true 
+        }),
+        Animated.timing(addBtnScale, { 
+          toValue: 1, 
+          duration: 100, 
+          useNativeDriver: true 
+        }),
       ]).start();
     }
-  };
+  }, [newIngredient, onAddIngredient, showTemporaryChefMessage, addBtnScale]);
 
-  const handleRemoveIngredient = (ingredient: string) => {
-    const anim = ingredientChipAnimations[ingredient] || new Animated.Value(1); // Fallback just in case
+  const handleRemoveIngredient = useCallback((ingredient: string) => {
+    const anim = ingredientChipAnimations[ingredient];
+    if (!anim) return;
+    
     Animated.timing(anim, {
-      toValue: 0, // Fade out and shrink
+      toValue: 0,
       duration: 200,
       easing: Easing.ease,
       useNativeDriver: true, 
     }).start(() => {
       onRemoveIngredient(ingredient);
-      // No need to reset anim.setValue(1) here as it will be re-created/managed by useEffect or chip is gone
     });
+    
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
+  }, [ingredientChipAnimations, onRemoveIngredient]);
 
+  // Memoize interpolations
   const chefMessageOpacity = chefMessageAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 1],
   });
+  
   const chefMessageTransform = chefMessageAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [10, 0], // Slight upward movement
+    outputRange: [10, 0],
   });
 
   return (
@@ -147,31 +209,19 @@ const DislikedIngredientsSection: React.FC<DislikedIngredientsSectionProps> = ({
           {dislikedIngredients.map((ingredient) => {
             const chipAnimValue = ingredientChipAnimations[ingredient] || new Animated.Value(1);
             return (
-              <Animated.View 
-                key={ingredient} 
-                style={[
-                  styles.ingredientChip,
-                  { 
-                    opacity: chipAnimValue, 
-                    transform: [{ scale: chipAnimValue }] 
-                  }
-                ]}
-              >
-                <Text style={styles.ingredientChipText}>{ingredient}</Text>
-                <TouchableOpacity
-                  style={styles.removeChipButton}
-                  onPress={() => handleRemoveIngredient(ingredient)}
-                >
-                  <Ionicons name="close-outline" size={20} color={theme.green} />
-                </TouchableOpacity>
-              </Animated.View>
+              <IngredientChip
+                key={ingredient}
+                ingredient={ingredient}
+                animValue={chipAnimValue}
+                onRemove={handleRemoveIngredient}
+              />
             );
           })}
         </View>
       )}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

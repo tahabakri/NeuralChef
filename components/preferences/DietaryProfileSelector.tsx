@@ -9,22 +9,10 @@ import {
   // Image, // For placeholder chef icon - Consider using an actual image or LottieView
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Ionicons } from '@expo/vector-icons'; // Using Ionicons for now
-// import colors from '@/constants/colors'; // Using local theme
+import { Ionicons } from '@expo/vector-icons';
+import colors from '@/constants/colors'; // Import global colors
 import { dietaryProfiles } from './constants';
 import { DietaryProfileSelectorProps, DietaryProfileType } from './types';
-
-// New theme colors matching Home screen
-const theme = {
-  orange: '#FF8C00', // Brighter orange
-  green: '#50C878', // Emerald green
-  white: '#FFFFFF',
-  glassBg: 'rgba(255, 255, 255, 0.2)', // Glassmorphic background
-  softPeachGradientTop: '#FFDAB9', // Peachpuff for top of gradient
-  softPeachGradientBottom: '#FFFFFF', // White for bottom of gradient
-  borderColor: 'rgba(255, 255, 255, 0.3)', // Light border for glassmorphism
-  shadowColor: 'rgba(0, 0, 0, 0.1)', // Softer shadow
-};
 
 // Placeholder for chef icon - ideally a Lottie animation or custom image
 // For now, we'll use an Ionicons name that can be dynamically changed.
@@ -89,7 +77,7 @@ const DietaryProfileSelector: React.FC<DietaryProfileSelectorProps> = ({
     <View style={styles.section}>
       {/* Chef icon in the corner - Animated */}
       <Animated.View style={[styles.chefIconContainer, { transform: [{ scale: chefIconScale }] }]}>
-        <Ionicons name={chefIconName as any} size={30} color={theme.orange} />
+        <Ionicons name={chefIconName as any} size={30} color={colors.primary} />
       </Animated.View>
 
       <Text style={styles.sectionTitle}>Your Food Style</Text>
@@ -113,7 +101,7 @@ const DietaryProfileSelector: React.FC<DietaryProfileSelectorProps> = ({
             >
               <Text style={[
                 styles.profileOptionText,
-                selectedProfile === profile.id && styles.selectedOptionText,
+                selectedProfile === profile.id ? styles.selectedOptionText : styles.unselectedOptionText,
               ]}>
                 {profile.label}
               </Text>
@@ -127,72 +115,70 @@ const DietaryProfileSelector: React.FC<DietaryProfileSelectorProps> = ({
 
 const styles = StyleSheet.create({
   section: {
-    padding: 20, // Increased padding
+    paddingVertical: 15, // Adjusted padding
+    paddingHorizontal: 5, // Adjusted padding to align with overall screen padding if needed
     marginBottom: 20,
-    backgroundColor: theme.glassBg, // Glassmorphic background
+    backgroundColor: 'transparent', // Use transparent background
     borderRadius: 15,
-    borderWidth: 1,
-    borderColor: theme.borderColor, // Light border for glass effect
-    shadowColor: theme.shadowColor,
-    shadowOffset: { width: 0, height: 4 }, // Adjusted shadow
-    shadowOpacity: 0.1,
-    shadowRadius: 10, // Softer shadow
-    elevation: 5, // For Android shadow
+    // Remove card-specific styles like borderWidth, borderColor, shadow
     position: 'relative', // For absolute positioning of chef icon
   },
   chefIconContainer: {
     position: 'absolute',
     top: 15,
     right: 15,
-    zIndex: 10, // Ensure it's above other elements
+    zIndex: 10,
   },
   sectionTitle: {
-    fontSize: 22, // Slightly larger
-    fontWeight: 'bold', // Bold
+    fontSize: 18, // Adjusted to match general style
+    fontWeight: 'bold',
     marginBottom: 5,
-    color: theme.orange, // Orange color
-    fontFamily: 'PlayfulFont-Bold', // Placeholder for playful font
+    color: colors.primary, // Use global primary color (orange)
+    // fontFamily: 'PlayfulFont-Bold', // Removed custom font for now
   },
   sectionSubtitle: {
-    fontSize: 16,
+    fontSize: 14, // Adjusted
     marginBottom: 15,
-    color: theme.green, // Green color
-    fontFamily: 'PlayfulFont-Regular', // Placeholder for playful font
+    color: colors.textSecondary, // Use global text secondary color
+    // fontFamily: 'PlayfulFont-Regular', // Removed custom font for now
   },
   optionsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
-    marginHorizontal: -4, // Offset for card margins
+    marginHorizontal: -4, 
   },
   profileOption: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 15, // Rounded cards
+    borderRadius: 10, // Adjusted border radius to match image
     margin: 4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 90, // Minimum width for smaller text options
-    borderWidth: 2, // Outline
+    minWidth: 90, 
+    borderWidth: 1.5, // Keep a border as in the image
   },
   unselectedOption: {
-    backgroundColor: theme.green,
-    borderColor: theme.orange,
+    backgroundColor: colors.success, // Use global success color (green)
+    borderColor: colors.success, // Border same as background for solid look
   },
   selectedOption: {
-    backgroundColor: theme.orange, // Fully orange when selected
-    borderColor: theme.orange, // Still orange border or could be green for contrast
+    backgroundColor: colors.primary, // Use global primary color (orange)
+    borderColor: colors.primary, // Border same as background for solid look
   },
-  profileOptionText: {
+  profileOptionText: { // General text style for options
     fontSize: 14,
     fontWeight: '600',
-    color: theme.white, // White text for green cards
-    fontFamily: 'PlayfulFont-SemiBold', // Placeholder for playful font
+    // color: colors.white, // Text color will be set in specific selected/unselected styles
+    // fontFamily: 'PlayfulFont-SemiBold', 
   },
   selectedOptionText: {
-    color: theme.white, // White text for orange cards
+    color: colors.white, // White text for orange cards
     fontWeight: 'bold',
+  },
+  unselectedOptionText: { // Added style for unselected option text
+    color: colors.white, // White text for green cards
   },
   // Remove chefMessageOverlay, chefIcon, speechBubble, speechBubbleText, lunchIcon styles
   // as they are replaced or handled differently.

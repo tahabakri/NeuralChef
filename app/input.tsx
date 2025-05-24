@@ -8,10 +8,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
   LayoutAnimation,
   UIManager,
   Switch,
+  Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,18 +19,28 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import colors from '@/constants/colors';
 import { LinearGradient } from 'expo-linear-gradient';
-import TextArea from '@/components/TextArea';
+import TextArea, { Tag } from '@/components/TextArea';
 import VoiceInputModal from '@/components/VoiceInputModal';
 import CameraInput from '@/components/CameraInput';
+import ImageInputOptionsModal from '@/components/ImageInputOptionsModal';
+import LottieIllustration from '@/components/LottieIllustration';
+import IngredientPillList from '@/components/IngredientPillList';
+import typography, { fontSize, fontWeight, lineHeight } from '@/constants/typography';
+import IngredientDetectionConfirmation from '@/components/IngredientDetectionConfirmation';
+import * as ImagePicker from 'expo-image-picker';
+import { mockIngredientRecognition } from '@/utils/mockImageRecognition';
 
 export default function InputScreen() {
   const params = useLocalSearchParams<{ mode: string }>();
   const [inputText, setInputText] = useState('');
-  const [ingredients, setIngredients] = useState<string[]>([]);
+  const [ingredients, setIngredients] = useState<Tag[]>([]);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [showImageInputOptionsModal, setShowImageInputOptionsModal] = useState(false);
   const [applyUserPreferences, setApplyUserPreferences] = useState(true);
   const [smartSuggestions, setSmartSuggestions] = useState<string[]>([]);
+  const [galleryImageForConfirmation, setGalleryImageForConfirmation] = useState<{uri: string, ingredients: string[]} | null>(null);
+  const [isProcessingGalleryImage, setIsProcessingGalleryImage] = useState(false);
 
   const commonPairings = ["olive oil", "onion", "garlic", "salt", "pepper"];
 
@@ -40,45 +50,52 @@ export default function InputScreen() {
     { name: "Salad Base", ingredients: ["lettuce", "cucumber", "tomato", "olive oil"] },
   ];
 
-  // Enable LayoutAnimation for Android
   if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
   }
 
-  // Check if we should show camera on start based on mode param
-  useEffect(() => {
-    if (params.mode === 'camera') {
-      setShowCamera(true);
-    }
-  }, [params.mode]);
-
-  // Update smart suggestions based on current ingredients
   useEffect(() => {
     if (ingredients.length >= 2 && ingredients.length <= 3) {
+      const currentIngredientTexts = ingredients.map(ing => ing.text.toLowerCase());
       const suggestions = commonPairings.filter(
-        (sugg) => !ingredients.includes(sugg) && !inputText.toLowerCase().includes(sugg)
-      ).slice(0, 3); // Show up to 3 suggestions
+        (sugg: string) => !currentIngredientTexts.includes(sugg.toLowerCase()) && !inputText.toLowerCase().includes(sugg.toLowerCase())
+      ).slice(0, 3);
       setSmartSuggestions(suggestions);
     } else {
       setSmartSuggestions([]);
     }
   }, [ingredients, inputText]);
 
-  // Process text input into ingredients
+  const addIngredientToList = (text: string) => {
+    const newIngredient: Tag = {
+      id: `tag-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${text}`,
+      text: text.trim(),
+      isValid: true,
+    };
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIngredients(prev => {
+      if (!prev.find(p => p.text.toLowerCase() === newIngredient.text.toLowerCase())) {
+        return [...prev, newIngredient];
+      }
+      return prev;
+    });
+  };
+
+  const handleRemoveIngredientPill = (tagId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setIngredients(prev => prev.filter(tag => tag.id !== tagId));
+  };
+
   const handleAddFromText = () => {
     if (inputText.trim()) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      
-      const newIngredients = inputText
+      const newIngredientTexts = inputText
         .split(/[,\n]/)
         .map(i => i.trim())
         .filter(Boolean);
       
-      setIngredients(prev => {
-        const uniqueNewIngredients = newIngredients.filter(ing => !prev.includes(ing));
-        return [...prev, ...uniqueNewIngredients];
-      });
+      newIngredientTexts.forEach(text => addIngredientToList(text));
       setInputText('');
     }
   };
@@ -86,75 +103,99 @@ export default function InputScreen() {
   const handleAddPopularCombo = (comboIngredients: string[]) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setIngredients(prev => {
-      const uniqueNewIngredients = comboIngredients.filter(ing => !prev.includes(ing));
-      return [...prev, ...uniqueNewIngredients];
-    });
+    comboIngredients.forEach(text => addIngredientToList(text));
   };
 
-  const handleAddSmartSuggestion = (suggestion: string) => {
+  const handleAddSmartSuggestion = (suggestionText: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setIngredients(prev => {
-      if (!prev.includes(suggestion)) {
-        return [...prev, suggestion];
-      }
-      return prev;
-    });
-    // Optionally, clear the suggestion or update the list
-    setSmartSuggestions(prev => prev.filter(s => s !== suggestion));
+    addIngredientToList(suggestionText);
+    setSmartSuggestions(prev => prev.filter(s => s !== suggestionText));
   };
 
-  // Handle ingredients from voice input
-  const handleVoiceInput = (recognizedText: string) => {
+  const handleVoiceInputFromModal = (recognizedText: string) => {
     if (recognizedText) {
-      // Auto-fill the input box with spoken text for review and editing
       setInputText(prev => prev ? `${prev}${prev.endsWith(',') || prev.endsWith(' ') || prev.length === 0 ? '' : ', '}${recognizedText}` : recognizedText);
     }
     setShowVoiceModal(false);
   };
 
-  // Handle ingredients from camera
-  const handleCameraInput = (recognizedIngredients: string[]) => {
-    if (recognizedIngredients.length > 0) {
+  const handleCameraInput = (recognizedIngredientTexts: string[]) => {
+    if (recognizedIngredientTexts.length > 0) {
       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-      setIngredients(prev => [...prev, ...recognizedIngredients.filter(ing => !prev.includes(ing))]); // Avoid duplicates
+      recognizedIngredientTexts.forEach(text => addIngredientToList(text));
     }
     setShowCamera(false);
+    setGalleryImageForConfirmation(null);
   };
 
-  // Remove ingredient at index
-  const handleRemoveIngredient = (index: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    const newIngredients = [...ingredients];
-    newIngredients.splice(index, 1);
-    setIngredients(newIngredients);
-  };
-
-  // Clear all ingredients
   const handleClearAll = () => {
     if (ingredients.length === 0) return;
-    
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setIngredients([]);
+    setInputText('');
   };
 
-  // Generate recipe with current ingredients
   const handleGenerateRecipe = () => {
     if (ingredients.length === 0) {
       return;
     }
-    
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const ingredientTexts = ingredients.map(tag => tag.text);
     router.push({
       pathname: '/generate',
       params: { 
-        ingredients: JSON.stringify(ingredients),
+        ingredients: JSON.stringify(ingredientTexts),
         applyUserPreferences: applyUserPreferences.toString(),
       }
     });
+  };
+
+  const handleChooseFromGallery = async () => {
+    setShowImageInputOptionsModal(false);
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Sorry, we need gallery access to pick an image.');
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.7,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const imageUri = result.assets[0].uri;
+        setIsProcessingGalleryImage(true);
+        setTimeout(() => {
+          const detectedIngredients = mockIngredientRecognition(imageUri);
+          setGalleryImageForConfirmation({ uri: imageUri, ingredients: detectedIngredients });
+          setIsProcessingGalleryImage(false);
+        }, 1500);
+      } else {
+        console.log('Image picking cancelled or no assets found.');
+      }
+    } catch (error) {
+      console.error('Error picking image from gallery:', error);
+      Alert.alert('Error', 'Could not pick image from gallery.');
+      setIsProcessingGalleryImage(false);
+    }
+  };
+  
+  const handleTakePicture = () => {
+    setShowImageInputOptionsModal(false);
+    setShowCamera(true);
+  };
+  
+  const confirmIngredientsFromGallery = (confirmedIngredients: string[]) => {
+    if (confirmedIngredients.length > 0) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      confirmedIngredients.forEach(text => addIngredientToList(text));
+    }
+    setGalleryImageForConfirmation(null);
   };
 
   return (
@@ -174,6 +215,8 @@ export default function InputScreen() {
             <TouchableOpacity
               style={styles.backButton}
               onPress={() => router.back()}
+              accessibilityLabel="Go back"
+              accessibilityRole="button"
             >
               <Ionicons name="arrow-back" size={24} color={colors.text} />
             </TouchableOpacity>
@@ -182,17 +225,18 @@ export default function InputScreen() {
               style={styles.clearButton}
               onPress={handleClearAll}
               disabled={ingredients.length === 0}
+              accessibilityLabel="Clear all ingredients"
+              accessibilityRole="button"
             >
               <Ionicons 
                 name="trash-outline" 
-                size={20} 
-                color={ingredients.length === 0 ? colors.textTertiary : colors.primary} 
+                size={20}
+                color={ingredients.length === 0 ? colors.textTertiary : colors.accentOrange} 
               />
               <Text
                 style={[
                   styles.clearButtonText,
-                  { marginLeft: 5 }, 
-                  ingredients.length === 0 && styles.disabledText
+                  { color: ingredients.length === 0 ? colors.textTertiary : colors.accentOrange }
                 ]}
               >
                 Clear
@@ -200,37 +244,30 @@ export default function InputScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Main content */}
+          {/* Instruction Text */}
+          <Text style={styles.instruction}>
+            What ingredients do you have?
+          </Text>
+
           <ScrollView 
             style={styles.content}
             contentContainerStyle={styles.contentContainer}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Instructions */}
-            <Text style={styles.instruction}>
-              What ingredients do you have?
-            </Text>
-
-            {/* Ingredients List or Empty State */}
+            {/* 1. Empty State OR Ingredient Pills */}
             {ingredients.length > 0 ? (
-              <View style={styles.ingredientsList}>
-                {ingredients.map((ingredient, index) => (
-                  <View key={`${ingredient}-${index}`} style={styles.ingredientItem}>
-                    <Text style={styles.ingredientText}>{ingredient}</Text>
-                    <TouchableOpacity
-                      style={styles.removeButton}
-                      onPress={() => handleRemoveIngredient(index)}
-                    >
-                      <Ionicons name="close-circle" size={20} color={colors.primary} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
+              <IngredientPillList 
+                ingredients={ingredients} 
+                onRemoveIngredient={handleRemoveIngredientPill} 
+              />
             ) : (
               <View style={styles.emptyStateContainer}>
-                <Image 
-                  source={require('@/assets/images/empty-basket.png')} 
-                  style={styles.emptyStateImage} 
+                <LottieIllustration
+                  type="empty-state"
+                  style={styles.emptyStateAnimation}
+                  autoPlay
+                  loop
+                  size={180}
                 />
                 <Text style={styles.emptyStateText}>
                   Add at least one ingredient to get started!
@@ -238,63 +275,65 @@ export default function InputScreen() {
               </View>
             )}
 
-            {/* Input Methods */}
-            <View style={styles.inputMethodsContainer}>
-              {/* Text Input */}
+            {/* 2. Main Text Input Area */}
+            <View style={styles.textInputSection}>
+              {ingredients.length === 0 && !inputText.trim() && (
+                <Text style={styles.textAreaPlaceholder_statusLine}>
+                  No ingredients added yet
+                </Text>
+              )}
               <TextArea
                 value={inputText}
                 onChangeText={setInputText}
+                tags={[]}
+                onAddTag={(tag) => addIngredientToList(tag.text)}
+                onRemoveTag={handleRemoveIngredientPill}
                 placeholder="Example: chicken, rice, bell peppers..."
                 onSubmit={handleAddFromText}
                 style={styles.textArea}
-                onAddTag={() => {}} // Added dummy prop
-                onRemoveTag={() => {}} // Added dummy prop
-                tags={[]} // Added dummy prop
               />
+            </View>
+
+            {/* 3. Input Method Buttons */}
+            <View style={styles.inputMethodButtonsContainer}>
+              <TouchableOpacity
+                style={styles.inputMethodButtonPill}
+                onPress={() => setShowVoiceModal(true)}
+              >
+                <Ionicons name="mic-outline" size={20} color={colors.accentOrange} />
+                <Text style={[styles.inputMethodButtonPillText, { color: colors.accentOrange }]}>Voice</Text>
+              </TouchableOpacity>
               
-              {/* Input Method Buttons */}
-              <View style={styles.inputMethodsButtonRow}>
-                <TouchableOpacity
-                  style={styles.inputMethodButton}
-                  onPress={() => setShowVoiceModal(true)}
-                >
-                  <Ionicons name="mic-outline" size={22} color={colors.primary} />
-                  <Text style={styles.inputMethodButtonText}>Voice</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.inputMethodButton}
-                  onPress={() => setShowCamera(true)}
-                >
-                  <Ionicons name="camera-outline" size={22} color={colors.primary} />
-                  <Text style={styles.inputMethodButtonText}>Camera</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
+              <TouchableOpacity
+                style={styles.inputMethodButtonPill}
+                onPress={() => setShowImageInputOptionsModal(true)}
+              >
+                <Ionicons name="image-outline" size={20} color={colors.accentOrange} />
+                <Text style={[styles.inputMethodButtonPillText, { color: colors.accentOrange }]}>Image</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.inputMethodButtonPill,
+                  { backgroundColor: inputText.trim() ? colors.success : colors.backgroundDisabled }
+                ]}
+                onPress={handleAddFromText}
+                disabled={!inputText.trim()}
+              >
+                <Ionicons
+                  name="add-circle-outline"
+                  size={20}
+                  color={inputText.trim() ? colors.white : colors.textTertiary}
+                />
+                <Text
                   style={[
-                    styles.inputMethodButton,
-                    styles.addButton,
-                    !inputText.trim() && styles.disabledButton
+                    styles.inputMethodButtonPillText,
+                    { color: inputText.trim() ? colors.white : colors.textTertiary }
                   ]}
-                  onPress={handleAddFromText}
-                  disabled={!inputText.trim()}
                 >
-                  <Ionicons
-                    name="add-circle-outline"
-                    size={24}
-                    color={inputText.trim() ? colors.white : colors.textTertiary}
-                  />
-                  <Text
-                    style={[
-                      styles.inputMethodButtonText,
-                      styles.addButtonText,
-                      !inputText.trim() && styles.disabledText
-                    ]}
-                  >
-                    Add
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                  Add
+                </Text>
+              </TouchableOpacity>
             </View>
             
             {/* Smart Suggestions */}
@@ -315,71 +354,102 @@ export default function InputScreen() {
               </View>
             )}
 
-            {/* Popular Combinations */}
-            <View style={styles.popularCombosContainer}>
-              <Text style={styles.popularCombosTitle}>Quick Suggestions</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.popularCombosScroll}>
+            {/* 4. Quick Suggestions Section */}
+            <View style={styles.quickSuggestionsContainer}>
+              <Text style={styles.quickSuggestionsTitle}>Quick Suggestions</Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                contentContainerStyle={styles.quickSuggestionsScroll}
+              >
                 {popularCombos.map((combo) => (
                   <TouchableOpacity
                     key={combo.name}
-                    style={styles.popularComboButton}
+                    style={styles.quickSuggestionButton}
                     onPress={() => handleAddPopularCombo(combo.ingredients)}
                   >
-                    <Text style={styles.popularComboText}>{combo.name}</Text>
+                    <Text style={styles.quickSuggestionText}>{combo.name}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
-
           </ScrollView>
 
-          {/* Preferences Toggle */}
+          {/* 5. Apply Dietary Preferences Toggle */}
           <View style={styles.preferencesToggleContainer}>
             <Text style={styles.preferencesToggleText}>Apply My Dietary Preferences</Text>
             <Switch
-              trackColor={{ false: colors.backgroundDisabled, true: colors.primaryLight }}
-              thumbColor={applyUserPreferences ? colors.primary : colors.textTertiary}
+              trackColor={{ false: colors.backgroundDisabled, true: colors.accentOrangeLight }} 
+              thumbColor={applyUserPreferences ? colors.accentOrange : colors.textTertiary}
               ios_backgroundColor={colors.backgroundDisabled}
               onValueChange={setApplyUserPreferences}
               value={applyUserPreferences}
             />
           </View>
 
-          {/* Generate Button */}
+          {/* Fixed Footer: Generate Recipe Button */}
           <View style={styles.generateButtonContainer}>
             <TouchableOpacity
               style={[
                 styles.generateButton,
-                ingredients.length === 0 && styles.disabledButton
+                ingredients.length === 0 && styles.disabledGenerateButton 
               ]}
               onPress={handleGenerateRecipe}
               disabled={ingredients.length === 0}
             >
-              <Text style={styles.generateButtonText}>
+              <Text style={[
+                styles.generateButtonText,
+                ingredients.length === 0 && styles.disabledGenerateButtonText
+              ]}>
                 Generate Recipe {ingredients.length > 0 ? `(${ingredients.length})` : ''}
               </Text>
-              <Ionicons name="arrow-forward" size={20} color={colors.white} />
+              <Ionicons 
+                name="arrow-forward" 
+                size={20} 
+                color={ingredients.length === 0 ? colors.textTertiary : colors.white} 
+              />
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
 
       {/* Voice Input Modal */}
-      {showVoiceModal && (
-        <VoiceInputModal
-          visible={showVoiceModal}
-          onComplete={handleVoiceInput}
-          onClose={() => setShowVoiceModal(false)}
-        />
-      )}
+      <VoiceInputModal
+        visible={showVoiceModal}
+        onComplete={handleVoiceInputFromModal}
+        onClose={() => setShowVoiceModal(false)}
+        onInputReceived={handleVoiceInputFromModal}
+      />
 
-      {/* Camera Input */}
+      {/* Camera Input as full overlay */}
       {showCamera && (
         <View style={styles.cameraContainer}>
           <CameraInput
             onIngredientsDetected={handleCameraInput}
+            onClose={() => setShowCamera(false)}
           />
         </View>
+      )}
+
+      {/* Image Input Options Modal (New) */}
+      {showImageInputOptionsModal && (
+        <ImageInputOptionsModal
+          visible={showImageInputOptionsModal}
+          onClose={() => setShowImageInputOptionsModal(false)}
+          onTakePicture={handleTakePicture}
+          onChooseFromGallery={handleChooseFromGallery}
+        />
+      )}
+
+      {/* Confirmation for Gallery Image (New) */}
+      {galleryImageForConfirmation && (
+        <IngredientDetectionConfirmation
+          visible={!!galleryImageForConfirmation}
+          onClose={() => setGalleryImageForConfirmation(null)}
+          detectedIngredients={galleryImageForConfirmation.ingredients}
+          onConfirm={confirmIngredientsFromGallery}
+          isProcessing={isProcessingGalleryImage}
+        />
       )}
     </LinearGradient>
   );
@@ -399,22 +469,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 1,
+    paddingTop: Platform.OS === 'android' ? 18 : 10,
+    paddingBottom: 1,
+    marginBottom: 1,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.card,
   },
   headerTitle: {
-    fontFamily: 'Poppins-SemiBold',
-    fontSize: 18,
+    ...typography.heading2,
     color: colors.text,
   },
   backButton: {
-    // Ensure consistent sizing for tap targets
-    minWidth: 40, 
+    minWidth: 42, 
     minHeight: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    padding:8,
+    padding: 16,
   },
   clearButton: {
     flexDirection: 'row',
@@ -424,202 +496,178 @@ const styles = StyleSheet.create({
   },
   clearButtonText: {
     fontFamily: 'Poppins-Medium',
-    fontSize: 14,
-    color: colors.primary,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    lineHeight: lineHeight.md,
+    marginLeft: 1,
   },
   instruction: {
-    fontFamily: 'Poppins-Medium',
-    fontSize: 16,
+    ...typography.subtitle1,
     color: colors.text,
-    marginBottom: 16,
+    marginBottom: 1,
     paddingHorizontal: 16,
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    paddingBottom: 24, // Ensure space for generate button
-  },
-  ingredientsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: 16,
-    marginBottom: 24,
-    alignItems: 'center',
-  },
-  ingredientItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primaryLight, // Use a muted primary for pills
-    borderRadius: 16, // Pill shape
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  ingredientText: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 14,
-    color: colors.primary, // Text color that contrasts with primaryMuted
-    marginRight: 6, // Space before the remove icon
-  },
-  removeButton: {
-    padding: 2, // Smaller padding for icon within pill
+    paddingBottom: 20, 
   },
   emptyStateContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
+    justifyContent: 'flex-start',
+    paddingTop: 10,
+    paddingBottom: 16,
     marginHorizontal: 16,
-    marginBottom: 24,
+    marginBottom: 10,
   },
-  emptyStateImage: {
-    width: 100,
-    height: 100,
-    resizeMode: 'contain',
-    marginBottom: 16,
-    opacity: 0.7,
+  emptyStateAnimation: {
+    width: 280,
+    height: 280,
+    marginBottom: 1,
   },
   emptyStateText: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 15,
+    ...typography.bodyMedium,
     color: colors.textSecondary,
     textAlign: 'center',
+    marginTop: 1,
   },
-  inputMethodsContainer: {
-    marginHorizontal: 16,
+  textInputSection: {
+    marginHorizontal: 12,
+    marginBottom: 1,
   },
   textArea: {
-    marginBottom: 12,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  inputMethodsButtonRow: {
+  textAreaPlaceholder_statusLine: {
+    ...typography.bodySmall,
+    color: colors.textTertiary,
+    marginBottom: 4,
+    paddingHorizontal: 12,
+  },
+  inputMethodButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 12,
+    gap: 12,
   },
-  inputMethodButton: {
+  inputMethodButtonPill: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.card,
-    borderRadius: 8,
-    paddingVertical: 10,
     paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 48,
     flex: 1,
-    marginRight: 8,
+    marginHorizontal: 4,
   },
-  inputMethodButtonText: {
-    fontFamily: 'Poppins-Medium',
-    fontSize: 14,
-    color: colors.text,
-    marginLeft: 6,
-  },
-  addButton: {
-    backgroundColor: colors.primary,
-    marginRight: 0,
-  },
-  addButtonText: {
-    color: colors.white,
-  },
-  disabledButton: {
-    backgroundColor: colors.backgroundDisabled,
-  },
-  disabledText: {
-    color: colors.textTertiary,
+  inputMethodButtonPillText: {
+    ...typography.button,
+    marginLeft: 8,
   },
   smartSuggestionsContainer: {
     marginHorizontal: 16,
-    marginTop: 8, // Add some space above if it appears
     marginBottom: 16,
   },
   smartSuggestionsTitle: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 14,
+    ...typography.caption,
     color: colors.textSecondary,
     marginBottom: 8,
   },
   smartSuggestionsList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 8,
   },
   smartSuggestionButton: {
     backgroundColor: colors.accentBlueLight,
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
-    marginRight: 8,
-    marginBottom: 8,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
   smartSuggestionText: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 13,
+    ...typography.caption,
     color: colors.accentBlue,
   },
-  popularCombosContainer: {
-    marginVertical: 16,
-    paddingLeft: 16, // For consistent padding with other sections
+  quickSuggestionsContainer: {
+    marginBottom: 24,
+    paddingLeft: 16, 
   },
-  popularCombosTitle: {
-    fontFamily: 'Poppins-SemiBold',
-    fontSize: 16,
+  quickSuggestionsTitle: {
+    ...typography.heading3,
     color: colors.textPrimary,
-    marginBottom: 10,
+    marginBottom: 8,
   },
-  popularCombosScroll: {
-    paddingRight: 16, // Ensure last item has padding
+  quickSuggestionsScroll: {
+    paddingRight: 16, 
   },
-  popularComboButton: {
-    backgroundColor: colors.secondaryLight,
+  quickSuggestionButton: {
+    backgroundColor: colors.accentBlueLight, 
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginRight: 10,
+    paddingVertical: 12,
+    borderRadius: 48, 
+    marginRight: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  popularComboText: {
+  quickSuggestionText: {
+    ...typography.button,
     fontFamily: 'Poppins-Medium',
-    fontSize: 13,
-    color: colors.secondaryDark,
+    color: colors.accentBlue,
   },
   preferencesToggleContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: colors.card, // Or another suitable background
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderTopWidth: 1,
     borderBottomWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.card, 
   },
   preferencesToggleText: {
-    fontFamily: 'Poppins-Regular',
-    fontSize: 15,
+    ...typography.bodyLarge,
     color: colors.textPrimary,
   },
   generateButtonContainer: {
-    padding: 16,
-    // borderTopWidth: 1, // Removed as preferences toggle now has top border
-    borderTopColor: colors.border,
+    padding: 12,
     backgroundColor: colors.white,
+    marginTop: 1,
   },
   generateButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: 12,
+    backgroundColor: colors.success,
+    borderRadius: 48, 
     paddingVertical: 16,
   },
+  disabledGenerateButton: {
+    backgroundColor: colors.backgroundDisabled, 
+  },
   generateButtonText: {
-    fontFamily: 'Poppins-SemiBold',
-    fontSize: 16,
-    color: colors.white,
+    ...typography.button,
+    fontWeight: '600',
+    color: colors.white, 
     marginRight: 8,
+  },
+  disabledGenerateButtonText: {
+    color: colors.textTertiary, 
   },
   cameraContainer: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 1000,
+    backgroundColor: colors.black,
+    padding: 12,
   },
 });

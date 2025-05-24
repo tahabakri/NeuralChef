@@ -16,13 +16,15 @@ import Animated, {
   withSequence,
 } from 'react-native-reanimated';
 import colors from '@/constants/colors';
+import { Ingredient } from '@/types/recipe'; // Import Ingredient type
 
 interface IngredientListProps {
-  ingredients: string[];
+  ingredients: Ingredient[]; // Changed from string[] to Ingredient[]
   editable?: boolean;
-  onEdit?: (ingredients: string[]) => void;
+  onEdit?: (ingredients: Ingredient[]) => void; // Changed from string[] to Ingredient[]
   highlight?: string[];
   showQuantities?: boolean;
+  onAddToShoppingList?: () => void;
 }
 
 export default function IngredientList({
@@ -31,15 +33,16 @@ export default function IngredientList({
   onEdit,
   highlight = [],
   showQuantities = true,
+  onAddToShoppingList,
 }: IngredientListProps) {
   const [checkedIngredients, setCheckedIngredients] = useState<boolean[]>(
     new Array(ingredients.length).fill(false)
   );
   const [isEditing, setIsEditing] = useState(false);
+  const itemOpacity = useSharedValue(1); 
+  const itemScale = useSharedValue(1); 
   
-  // Animation for list items
-  const itemOpacity = useSharedValue(1);
-  const itemScale = useSharedValue(1);
+  // itemOpacity and itemScale were defined twice. Removed duplicate.
   
   const toggleCheck = (index: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -61,45 +64,22 @@ export default function IngredientList({
     // Animate the item being removed
     itemOpacity.value = withTiming(0, { duration: 300 });
     
-    const newIngredients = [...ingredients];
-    newIngredients.splice(index, 1);
+    const newIngredients = ingredients.filter((_, i) => i !== index); // Create new array
     
     if (onEdit) {
       onEdit(newIngredients);
     }
   };
   
-  const parseIngredientText = (text: string) => {
-    if (!showQuantities) {
-      // Remove quantities and return just the ingredient name
-      return text.replace(/^[\d\s./½⅓⅔¼¾⅛⅜⅝⅞\-–—]+(?:cup|cups|tbsp|tsp|tablespoon|teaspoon|oz|ounce|lb|pound|g|kg|ml|l|liter|bunch|pinch|to taste)[s]?\s+/i, '');
-    }
-    
-    // If showing quantities, check if we should split quantity and name
-    const quantityMatch = text.match(/^([\d\s./½⅓⅔¼¾⅛⅜⅝⅞\-–—]+(?:cup|cups|tbsp|tsp|tablespoon|teaspoon|oz|ounce|lb|pound|g|kg|ml|l|liter|bunch|pinch|to taste)[s]?)\s+(.+)$/i);
-    
-    if (quantityMatch && quantityMatch[1] && quantityMatch[2]) {
-      // Return structured ingredient parts
-      return {
-        quantity: quantityMatch[1].trim(),
-        name: quantityMatch[2].trim()
-      };
-    }
-    
-    // No quantity detected or not in expected format
-    return {
-      quantity: '',
-      name: text.trim()
-    };
-  };
+  // No longer need parseIngredientText as we receive structured Ingredient objects
+  // const parseIngredientText = (text: string) => { ... }
   
-  const renderIngredient = ({ item, index }: { item: string; index: number }) => {
+  const renderIngredient = ({ item, index }: { item: Ingredient; index: number }) => { // item is now Ingredient
     const isHighlighted = highlight.some(
-      h => item.toLowerCase().includes(h.toLowerCase())
+      h => item.name.toLowerCase().includes(h.toLowerCase()) // Use item.name
     );
     
-    // Parse ingredient text to potentially separate quantity from name
-    const parsedIngredient = parseIngredientText(item);
+    // Use item.quantity, item.unit, and item.name directly
     
     // Animated styles
     const animatedStyle = useAnimatedStyle(() => {
@@ -114,7 +94,7 @@ export default function IngredientList({
         <TouchableOpacity
           style={styles.checkboxContainer}
           onPress={() => toggleCheck(index)}
-          disabled={!editable}
+          // disabled={!editable} // Checkboxes are always active for tracking
         >
           <View 
             style={[
@@ -129,31 +109,34 @@ export default function IngredientList({
         </TouchableOpacity>
         
         <View style={styles.ingredientTextContainer}>
-          {typeof parsedIngredient === 'object' && parsedIngredient.quantity ? (
+          {showQuantities && (item.quantity || item.unit) ? (
             <View style={styles.ingredientWithQuantity}>
-              <Text style={styles.ingredientQuantity}>{parsedIngredient.quantity}</Text>
-              <Text 
+              {item.quantity && <Text style={styles.ingredientQuantity}>{item.quantity}</Text>}
+              {item.unit && <Text style={styles.ingredientUnit}>{item.unit}</Text>}
+              <Text
                 style={[
-                  styles.ingredientName, 
+                  styles.ingredientName,
                   checkedIngredients[index] && styles.checkedIngredient,
-                  isHighlighted && styles.highlightedIngredient
+                  isHighlighted && styles.highlightedIngredient,
+                  !(item.quantity || item.unit) && styles.ingredientNameFullWidth // Adjust if no quantity/unit
                 ]}
               >
-                {parsedIngredient.name}
+                {item.name}
               </Text>
             </View>
           ) : (
-            <Text 
+            <Text
               style={[
-                styles.ingredientText, 
+                styles.ingredientText, // Use ingredientText for full width name
+                styles.ingredientName, // Ensure consistent styling for name part
                 checkedIngredients[index] && styles.checkedIngredient,
                 isHighlighted && styles.highlightedIngredient
               ]}
             >
-              {typeof parsedIngredient === 'object' ? parsedIngredient.name : parsedIngredient}
+              {item.name}
             </Text>
           )}
-          
+
           {isEditing && (
             <TouchableOpacity
               style={styles.deleteButton}
@@ -171,23 +154,33 @@ export default function IngredientList({
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Ingredients</Text>
-        
-        {editable && (
-          <TouchableOpacity 
-            style={styles.editButton}
-            onPress={() => setIsEditing(!isEditing)}
-          >
-            <Text style={styles.editButtonText}>
-              {isEditing ? 'Done' : 'Edit'}
-            </Text>
-          </TouchableOpacity>
-        )}
+        <View style={styles.headerActions}>
+          {onAddToShoppingList && (
+            <TouchableOpacity
+              style={styles.shoppingListButton}
+              onPress={onAddToShoppingList}
+            >
+              <Ionicons name="cart-outline" size={22} color={colors.primary} />
+              {/* <Text style={styles.shoppingListButtonText}>Add to List</Text> */}
+            </TouchableOpacity>
+          )}
+          {editable && (
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => setIsEditing(!isEditing)}
+            >
+              <Text style={styles.editButtonText}>
+                {isEditing ? 'Done' : 'Edit'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
       
       <FlatList
         data={ingredients}
         renderItem={renderIngredient}
-        keyExtractor={(item, index) => `ingredient-${index}-${item}`}
+        keyExtractor={(item, index) => `ingredient-${index}-${item.name}`} // Use item.name for key
         contentContainerStyle={styles.listContainer}
       />
     </View>
@@ -223,6 +216,26 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.text,
     fontFamily: 'Poppins-Bold',
+    flex: 1, // Allow title to take available space
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  shoppingListButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    // backgroundColor: colors.primaryLight,
+    // borderRadius: 20,
+    marginRight: 8,
+  },
+  shoppingListButtonText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+    marginLeft: 6,
   },
   editButton: {
     padding: 8,
@@ -250,14 +263,15 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 20,
     height: 20,
-    borderRadius: 4,
+    borderRadius: 4, // Square checkbox
     borderWidth: 2,
-    borderColor: colors.primary,
+    borderColor: colors.border, // Subtle border for unchecked
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkedCheckbox: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.success, // Green when checked
+    borderColor: colors.success, // Green border when checked
   },
   ingredientTextContainer: {
     flex: 1,
@@ -269,23 +283,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
     fontFamily: 'Poppins-Regular',
+    flex: 1, // Ensure text takes full width if no quantity
   },
   ingredientWithQuantity: {
     flexDirection: 'row',
+    alignItems: 'baseline', // Align text nicely
     flex: 1,
   },
   ingredientQuantity: {
     fontSize: 16,
     fontWeight: '500',
     color: colors.primary,
-    marginRight: 6,
+    marginRight: 4, // Reduced margin
     fontFamily: 'Poppins-Medium',
+  },
+  ingredientUnit: {
+    fontSize: 15, // Slightly smaller for unit
+    color: colors.textSecondary,
+    marginRight: 6,
+    fontFamily: 'Poppins-Regular',
   },
   ingredientName: {
     fontSize: 16,
     color: colors.text,
-    flex: 1,
+    flex: 1, // Allow name to take remaining space
     fontFamily: 'Poppins-Regular',
+  },
+  ingredientNameFullWidth: { // Style for when name is the only element
+    // No specific styles needed if ingredientText already handles it
   },
   checkedIngredient: {
     textDecorationLine: 'line-through',

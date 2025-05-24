@@ -15,12 +15,10 @@ export interface ScheduledMeal {
 export interface MealItemProps {
   mealType: MealType;
   meal?: ScheduledMeal;
-  onPress: () => void;
-  onItemPress?: (meal: ScheduledMeal) => void;
-  onSetReminderPress?: (meal: ScheduledMeal) => void;
-  onRemovePress?: (meal: ScheduledMeal) => void;
-  onSuggestPress?: () => void;
-  isAiSuggesting?: boolean;
+  onAddRecipe: () => void; // For adding a new recipe to an empty slot
+  onRecipePress: (recipeId: string) => void; // For viewing a planned recipe
+  onRemoveRecipe: (mealId: string) => void; // For removing a planned recipe
+  onChangeRecipe: (mealId: string) => void; // For changing a planned recipe
 }
 
 export interface RecipeSelectorProps {

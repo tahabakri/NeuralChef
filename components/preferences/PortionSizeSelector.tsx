@@ -2,19 +2,9 @@ import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-// import colors from '@/constants/colors'; // Will use theme colors
+import colors from '@/constants/colors';
 import { portionSizes } from './constants';
 import { PortionSizeSelectorProps, PortionSizeType } from './types';
-
-// Theme colors
-const theme = {
-  orange: '#FF8C00',
-  green: '#50C878',
-  white: '#FFFFFF',
-  glassBg: 'rgba(255, 255, 255, 0.2)',
-  borderColor: 'rgba(255, 255, 255, 0.3)',
-  shadowColor: 'rgba(0, 0, 0, 0.1)',
-};
 
 // Chef icon states
 const WINKING_CHEF_ICON = "happy-outline";
@@ -63,16 +53,10 @@ const PortionSizeSelector: React.FC<PortionSizeSelectorProps> = ({
     playChefWinkAnimation();
   };
 
-  // Helper to get the right icon for portion size
-  const getPortionIconName = (sizeId: string): keyof typeof Ionicons.glyphMap => {
-    const portion = portionSizes.find(p => p.id === sizeId);
-    return portion?.iconName || 'help-circle-outline'; // Default icon if not found
-  };
-
   return (
     <View style={styles.section}>
       <Animated.View style={[styles.chefIconContainer, { transform: [{ scale: chefIconScale }] }]}>
-        <Ionicons name={chefIconName as any} size={30} color={theme.orange} />
+        <Ionicons name={chefIconName as any} size={30} color={colors.primary} />
       </Animated.View>
 
       <Text style={styles.sectionTitle}>Lunch Portion Size</Text>
@@ -81,7 +65,6 @@ const PortionSizeSelector: React.FC<PortionSizeSelectorProps> = ({
       <View style={styles.portionOptionsContainer}>
         {portionSizes.map((size) => {
           const isSelected = selectedSize === size.id;
-          const iconName = getPortionIconName(size.id);
           return (
             <Animated.View
               key={size.id}
@@ -94,13 +77,10 @@ const PortionSizeSelector: React.FC<PortionSizeSelectorProps> = ({
                 ]}
                 onPress={() => handleSelectSize(size.id)}
               >
-                <Ionicons 
-                  name={iconName} 
-                  size={22} 
-                  color={isSelected ? theme.orange : theme.green} // Icon color: orange when selected, green otherwise
-                  style={styles.iconStyle}
-                />
-                <Text style={styles.portionOptionText}>
+                <Text style={[
+                  styles.portionOptionText,
+                  isSelected ? styles.selectedOptionText : styles.unselectedOptionText
+                ]}>
                   {size.label}
                 </Text>
               </TouchableOpacity>
@@ -114,17 +94,11 @@ const PortionSizeSelector: React.FC<PortionSizeSelectorProps> = ({
 
 const styles = StyleSheet.create({
   section: {
-    padding: 20,
+    paddingVertical: 15,
+    paddingHorizontal: 5,
     marginBottom: 20,
-    backgroundColor: theme.glassBg,
+    backgroundColor: 'transparent',
     borderRadius: 15,
-    borderWidth: 1,
-    borderColor: theme.borderColor,
-    shadowColor: theme.shadowColor,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
     position: 'relative',
   },
   chefIconContainer: {
@@ -134,51 +108,51 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: theme.orange,
+    color: colors.primary,
     marginBottom: 5,
-    fontFamily: 'PlayfulFont-Bold', // Placeholder
   },
   sectionSubtitle: {
-    fontSize: 16,
-    color: theme.green,
+    fontSize: 14,
+    color: colors.textSecondary,
     marginBottom: 15,
-    fontFamily: 'PlayfulFont-Regular', // Placeholder
   },
   portionOptionsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginHorizontal: -5,
+    justifyContent: 'flex-start',
+    marginHorizontal: -4,
   },
   portionOption: {
-    paddingHorizontal: 15,
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 15,
-    margin: 5,
-    borderWidth: 2,
+    borderRadius: 10,
+    margin: 4,
+    borderWidth: 1.5,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: '45%', 
+    minWidth: '45%',
   },
   unselectedOption: {
-    backgroundColor: theme.green,
-    borderColor: theme.orange,
+    backgroundColor: colors.success,
+    borderColor: colors.success,
   },
   selectedOption: {
-    backgroundColor: theme.orange,
-    borderColor: theme.green,
-  },
-  iconStyle: {
-    marginRight: 8,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   portionOptionText: {
     fontSize: 14,
-    color: theme.white,
     fontWeight: '600',
-    fontFamily: 'PlayfulFont-SemiBold', // Placeholder
+  },
+  selectedOptionText: {
+    color: colors.white,
+    fontWeight: 'bold',
+  },
+  unselectedOptionText: {
+    color: colors.white,
   },
 });
 

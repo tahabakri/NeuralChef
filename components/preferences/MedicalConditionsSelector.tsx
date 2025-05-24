@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback, memo } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,67 @@ import colors from '@/constants/colors';
 const WINKING_CHEF_ICON = "happy-outline";
 const DEFAULT_CHEF_ICON = "medkit-outline"; // Icon relevant to medical conditions
 
-const MedicalConditionsSelector: React.FC<MedicalConditionsSelectorProps> = ({
+// TypeScript interfaces for memoized components
+interface ConditionOptionProps {
+  condition: { id: string; label: string };
+  isSelected: boolean;
+  onToggle: (conditionId: MedicalCondition) => void;
+  scaleAnim: Animated.Value;
+}
+
+interface CustomConditionChipProps {
+  condition: string;
+  onRemove: (condition: string) => void;
+}
+
+// Memoized condition option component
+const ConditionOption = memo<ConditionOptionProps>(({
+  condition,
+  isSelected,
+  onToggle,
+  scaleAnim
+}) => {
+  return (
+    <Animated.View
+      style={{ transform: [{ scale: scaleAnim }] }}
+    >
+      <TouchableOpacity
+        style={[
+          styles.optionChip,
+          isSelected ? styles.selectedOptionChip : styles.unselectedOptionChip,
+        ]}
+        onPress={() => onToggle(condition.id as MedicalCondition)}
+      >
+        <Text style={[
+          styles.optionText,
+          isSelected ? styles.selectedOptionText : styles.unselectedOptionText
+        ]}>
+          {condition.label}
+        </Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+});
+
+// Memoized custom condition chip component
+const CustomConditionChip = memo<CustomConditionChipProps>(({
+  condition,
+  onRemove
+}) => {
+  return (
+    <View style={styles.customConditionChip}>
+      <Text style={styles.customConditionChipText}>{condition}</Text>
+      <TouchableOpacity 
+        onPress={() => onRemove(condition)} 
+        style={styles.removeChipButton}
+      >
+        <Ionicons name="close-outline" size={20} color={colors.white} />
+      </TouchableOpacity>
+    </View>
+  );
+});
+
+const MedicalConditionsSelector = memo<MedicalConditionsSelectorProps>(({
   selectedPredefinedConditions,
   customMedicalConditions,
   onTogglePredefinedCondition,
@@ -34,16 +94,16 @@ const MedicalConditionsSelector: React.FC<MedicalConditionsSelectorProps> = ({
   const addBtnScale = useRef(new Animated.Value(1)).current;
   const chefMessageAnim = useRef(new Animated.Value(0)).current;
 
-  // Animation refs for condition cards
+  // Animation refs for condition cards - optimized with Object.fromEntries
   const conditionCardScaleAnims = useRef<{[key: string]: Animated.Value}>(
-    medicalConditions.reduce((acc, condition) => ({ ...acc, [condition.id]: new Animated.Value(1) }), {})
+    Object.fromEntries(medicalConditions.map(condition => [condition.id, new Animated.Value(1)]))
   ).current;
 
-  const playChefAnimation = (iconName: string = WINKING_CHEF_ICON, message?: string) => {
+  const playChefAnimation = useCallback((iconName: string = WINKING_CHEF_ICON, message?: string) => {
     setChefIconName(iconName);
     if (message) setChefMessage(message);
     
-    chefIconScale.setValue(0.8); // Start smaller for a pop effect
+    chefIconScale.setValue(0.8);
     Animated.spring(chefIconScale, {
       toValue: 1,
       friction: 3,
@@ -59,7 +119,7 @@ const MedicalConditionsSelector: React.FC<MedicalConditionsSelectorProps> = ({
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }),
-        Animated.delay(2000), // Hold message
+        Animated.delay(2000),
         Animated.timing(chefMessageAnim, {
           toValue: 0,
           duration: 300,
@@ -73,9 +133,9 @@ const MedicalConditionsSelector: React.FC<MedicalConditionsSelectorProps> = ({
     if (!message) {
       setTimeout(() => setChefIconName(DEFAULT_CHEF_ICON), 800);
     }
-  };
+  }, [chefIconScale, chefMessageAnim]);
 
-  const handleAddCustom = () => {
+  const handleAddCustom = useCallback(() => {
     if (newCondition.trim()) {
       Animated.sequence([
         Animated.timing(addBtnScale, { toValue: 1.2, duration: 100, useNativeDriver: true }),
@@ -87,9 +147,9 @@ const MedicalConditionsSelector: React.FC<MedicalConditionsSelectorProps> = ({
       setNewCondition('');
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-  };
+  }, [newCondition, onAddCustomCondition, addBtnScale, playChefAnimation]);
 
-  const handleToggleCondition = (conditionId: MedicalCondition) => {
+  const handleToggleCondition = useCallback((conditionId: MedicalCondition) => {
     // Bounce animation for the card
     Animated.sequence([
       Animated.timing(conditionCardScaleAnims[conditionId], {
@@ -107,14 +167,15 @@ const MedicalConditionsSelector: React.FC<MedicalConditionsSelectorProps> = ({
     ]).start();
 
     onTogglePredefinedCondition(conditionId);
-    playChefAnimation(); // Default wink
+    playChefAnimation();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
+  }, [conditionCardScaleAnims, onTogglePredefinedCondition, playChefAnimation]);
 
   const chefMessageOpacity = chefMessageAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, 1],
   });
+  
   const chefMessageTranslateY = chefMessageAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [10, 0],
@@ -123,7 +184,7 @@ const MedicalConditionsSelector: React.FC<MedicalConditionsSelectorProps> = ({
   return (
     <View style={styles.section}>
       <Animated.View style={[styles.chefIconContainer, { transform: [{ scale: chefIconScale }] }]}>
-        <Ionicons name={chefIconName as any} size={30} color={colors.secondary} />
+        <Ionicons name={chefIconName as any} size={30} color={colors.primary} />
       </Animated.View>
 
       {chefMessage && (
@@ -143,39 +204,25 @@ const MedicalConditionsSelector: React.FC<MedicalConditionsSelectorProps> = ({
       <Text style={styles.sectionSubtitle}>Any health-related dietary needs?</Text>
 
       <View style={styles.optionsContainer}>
-        {medicalConditions.map((condition) => {
-          const isSelected = selectedPredefinedConditions.includes(condition.id as MedicalCondition);
-          return (
-            <Animated.View
-              key={condition.id}
-              style={{ transform: [{ scale: conditionCardScaleAnims[condition.id] }] }}
-            >
-              <TouchableOpacity
-                style={[
-                  styles.optionChip,
-                  isSelected ? styles.selectedOptionChip : styles.unselectedOptionChip,
-                ]}
-                onPress={() => handleToggleCondition(condition.id as MedicalCondition)}
-              >
-                <Text style={styles.optionText}>{condition.label}</Text>
-              </TouchableOpacity>
-            </Animated.View>
-          );
-        })}
+        {medicalConditions.map((condition) => (
+          <ConditionOption
+            key={condition.id}
+            condition={condition}
+            isSelected={selectedPredefinedConditions.includes(condition.id as MedicalCondition)}
+            onToggle={handleToggleCondition}
+            scaleAnim={conditionCardScaleAnims[condition.id]}
+          />
+        ))}
       </View>
 
       {customMedicalConditions.length > 0 && (
         <View style={styles.customConditionsContainer}>
           {customMedicalConditions.map((condition, index) => (
-            <View key={`${condition}-${index}`} style={styles.customConditionChip}>
-              <Text style={styles.customConditionChipText}>{condition}</Text>
-              <TouchableOpacity 
-                onPress={() => onRemoveCustomCondition(condition)} 
-                style={styles.removeChipButton}
-              >
-                <Ionicons name="close-outline" size={20} color={colors.primary} />
-              </TouchableOpacity>
-            </View>
+            <CustomConditionChip
+              key={`${condition}-${index}`}
+              condition={condition}
+              onRemove={onRemoveCustomCondition}
+            />
           ))}
         </View>
       )}
@@ -184,38 +231,29 @@ const MedicalConditionsSelector: React.FC<MedicalConditionsSelectorProps> = ({
         <TextInput
           style={styles.customConditionInput}
           placeholder="Add other health condition…"
-          placeholderTextColor={colors.secondary}
+          placeholderTextColor={colors.textSecondary}
           value={newCondition}
           onChangeText={setNewCondition}
           onSubmitEditing={handleAddCustom}
           returnKeyType="done"
         />
-        <Animated.View style={{ transform: [{scale: addBtnScale}]}}>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={handleAddCustom}
-          >
-            <Ionicons name="add-outline" size={28} color={colors.white} />
-          </TouchableOpacity>
-        </Animated.View>
+        <TouchableOpacity onPress={handleAddCustom} style={styles.addButtonTouch}>
+          <Animated.View style={[styles.addButton, { transform: [{ scale: addBtnScale }] }]}>
+            <Ionicons name="add-outline" size={24} color={colors.white} />
+          </Animated.View>
+        </TouchableOpacity>
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   section: {
-    padding: 20,
+    paddingVertical: 15,
+    paddingHorizontal: 5,
     marginBottom: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'transparent',
     borderRadius: 15,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    shadowColor: 'rgba(0, 0, 0, 0.1)',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
     position: 'relative',
   },
   chefIconContainer: {
@@ -232,122 +270,118 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   speechBubble: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 10,
-    shadowColor: 'rgba(0, 0, 0, 0.1)',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.15,
     shadowRadius: 3,
     elevation: 3,
   },
   speechBubbleText: {
-    color: colors.white,
-    fontSize: 14,
-    fontFamily: 'PlayfulFont-SemiBold', // Placeholder
+    color: colors.textPrimary,
+    fontSize: 13,
   },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: colors.secondary,
     marginBottom: 5,
-    fontFamily: 'PlayfulFont-Bold', // Placeholder
+    color: colors.primary,
   },
   sectionSubtitle: {
-    fontSize: 16,
-    color: colors.primary,
+    fontSize: 14,
     marginBottom: 15,
-    fontFamily: 'PlayfulFont-Regular', // Placeholder
+    color: colors.textSecondary,
   },
   optionsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
-    marginHorizontal: -4, // Offset for chip margins
-    marginBottom: 15,
+    marginHorizontal: -4,
   },
   optionChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 15, // Rounded cards
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
     margin: 4,
-    borderWidth: 2,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 90, // Minimum width for smaller text options
-  },
-  unselectedOptionChip: {
-    backgroundColor: colors.primary,
-    borderColor: colors.secondary,
   },
   selectedOptionChip: {
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.primary,
     borderColor: colors.primary,
   },
+  unselectedOptionChip: {
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primaryLight,
+  },
   optionText: {
-    color: colors.white,
     fontSize: 14,
     fontWeight: '600',
-    fontFamily: 'PlayfulFont-SemiBold', // Placeholder
+  },
+  selectedOptionText: {
+    color: colors.white,
+    fontWeight: 'bold',
+  },
+  unselectedOptionText: {
+    color: colors.textPrimary,
   },
   customConditionsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 15,
-    marginTop: 5,
+    marginTop: 10,
+    marginHorizontal: -3,
   },
   customConditionChip: {
-    backgroundColor: colors.secondary,
-    borderRadius: 15,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    margin: 4,
-    borderWidth: 1,
-    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+    borderRadius: 15,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    margin: 3,
   },
   customConditionChipText: {
-    color: colors.primary,
+    color: colors.white,
     fontSize: 14,
-    marginRight: 8,
-    fontFamily: 'PlayfulFont-Regular', // Placeholder
+    marginRight: 5,
   },
   removeChipButton: {
-    // Potentially add padding for easier tap target
+    padding: 2,
   },
   addCustomContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 15,
+    backgroundColor: colors.white,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
+    paddingLeft: 10,
+    height: 48,
   },
   customConditionInput: {
     flex: 1,
-    borderWidth: 2,
-    borderColor: colors.primary,
-    backgroundColor: 'rgba(255, 140, 0, 0.1)',
-    borderRadius: 10,
-    paddingHorizontal: 15,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
+    height: '100%',
+    paddingHorizontal: 10,
     fontSize: 16,
-    color: colors.secondary,
-    marginRight: 10,
-    fontFamily: 'PlayfulFont-Regular', // Placeholder
+    color: colors.textPrimary,
+  },
+  addButtonTouch: {
+    // Wrapper for consistent touch area
   },
   addButton: {
     backgroundColor: colors.primary,
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: colors.secondary,
-    alignItems: 'center',
+    paddingHorizontal: 16,
+    height: '100%',
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
     justifyContent: 'center',
-    shadowColor: 'rgba(0, 0, 0, 0.1)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
+    alignItems: 'center',
+    marginLeft: 5,
   },
 });
 

@@ -1,37 +1,69 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback, memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-// import colors from '@/constants/colors'; // Will use theme colors
+import colors from '@/constants/colors';
 import { cookingTimes } from './constants';
 import { CookingTimeSelectorProps } from './types';
-
-// Theme colors matching Home screen and other preference sections
-const theme = {
-  orange: '#FF8C00', // Brighter orange
-  green: '#50C878', // Emerald green
-  white: '#FFFFFF',
-  glassBg: 'rgba(255, 255, 255, 0.2)', // Glassmorphic background
-  borderColor: 'rgba(255, 255, 255, 0.3)',
-  shadowColor: 'rgba(0, 0, 0, 0.1)',
-};
 
 // Chef icon states
 const WINKING_CHEF_ICON = "happy-outline";
 const DEFAULT_CHEF_ICON = "person-circle-outline";
 
-const CookingTimeSelector: React.FC<CookingTimeSelectorProps> = ({
+// TypeScript interface for memoized components
+interface TimeOptionProps {
+  time: { id: string; label: string };
+  isSelected: boolean;
+  animatedScale: Animated.Value;
+  onSelect: (timeId: string) => void;
+}
+
+// Memoized time option component
+const TimeOption = memo<TimeOptionProps>(({
+  time,
+  isSelected,
+  animatedScale,
+  onSelect
+}) => {
+  const handlePress = useCallback(() => {
+    onSelect(time.id);
+  }, [time.id, onSelect]);
+
+  return (
+    <Animated.View 
+      style={{ transform: [{ scale: animatedScale }] }}
+    >
+      <TouchableOpacity
+        style={[
+          styles.timeOption,
+          isSelected ? styles.selectedOption : styles.unselectedOption,
+        ]}
+        onPress={handlePress}
+      >
+        <Text style={[
+          styles.timeOptionText,
+          isSelected ? styles.selectedOptionText : styles.unselectedOptionText
+        ]}>
+          {time.label}
+        </Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+});
+
+const CookingTimeSelector = memo<CookingTimeSelectorProps>(({
   selectedTime,
   onSelectTime,
 }) => {
+  // Optimize animation creation with Object.fromEntries
   const animatedScales = useRef<{[key: string]: Animated.Value}>(
-    cookingTimes.reduce((acc, time) => ({ ...acc, [time.id]: new Animated.Value(1) }), {})
+    Object.fromEntries(cookingTimes.map(time => [time.id, new Animated.Value(1)]))
   ).current;
 
-  const [chefIconName, setChefIconName] = React.useState(DEFAULT_CHEF_ICON);
+  const [chefIconName, setChefIconName] = useState(DEFAULT_CHEF_ICON);
   const chefIconScale = useRef(new Animated.Value(1)).current;
 
-  const playChefWinkAnimation = () => {
+  const playChefWinkAnimation = useCallback(() => {
     setChefIconName(WINKING_CHEF_ICON);
     chefIconScale.setValue(0.8); 
     Animated.spring(chefIconScale, {
@@ -41,9 +73,9 @@ const CookingTimeSelector: React.FC<CookingTimeSelectorProps> = ({
     }).start();
     // Reset icon after a delay
     setTimeout(() => setChefIconName(DEFAULT_CHEF_ICON), 800);
-  };
+  }, [chefIconScale]);
 
-  const handleSelectTime = (timeId: string) => {
+  const handleSelectTime = useCallback((timeId: string) => {
     // Bounce animation for the card
     Animated.sequence([
       Animated.timing(animatedScales[timeId], {
@@ -63,64 +95,40 @@ const CookingTimeSelector: React.FC<CookingTimeSelectorProps> = ({
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onSelectTime(timeId);
     playChefWinkAnimation();
-  };
+  }, [animatedScales, onSelectTime, playChefWinkAnimation]);
   
   return (
     <View style={styles.section}>
       <Animated.View style={[styles.chefIconContainer, { transform: [{ scale: chefIconScale }] }]}>
-        <Ionicons name={chefIconName as any} size={30} color={theme.orange} />
+        <Ionicons name={chefIconName as any} size={30} color={colors.primary} />
       </Animated.View>
 
       <Text style={styles.sectionTitle}>Lunch Cooking Time</Text>
       <Text style={styles.sectionSubtitle}>How quick for today?</Text>
 
       <View style={styles.timeOptionsContainer}>
-        {cookingTimes.map((time) => {
-          const isSelected = selectedTime === time.id;
-          return (
-            <Animated.View 
-              key={time.id}
-              style={{ transform: [{ scale: animatedScales[time.id] }] }}
-            >
-              <TouchableOpacity
-                style={[
-                  styles.timeOption,
-                  isSelected ? styles.selectedOption : styles.unselectedOption,
-                ]}
-                onPress={() => handleSelectTime(time.id)}
-              >
-                <Ionicons 
-                  name="time-outline" // Using time-outline, can be changed to a more playful clock
-                  size={22} 
-                  color={isSelected ? theme.orange : theme.green} // Icon color change: orange when selected, green otherwise
-                  style={styles.iconStyle}
-                />
-                <Text style={styles.timeOptionText}>
-                  {time.label}
-                </Text>
-              </TouchableOpacity>
-            </Animated.View>
-          );
-        })}
+        {cookingTimes.map((time) => (
+          <TimeOption
+            key={time.id}
+            time={time}
+            isSelected={selectedTime === time.id}
+            animatedScale={animatedScales[time.id]}
+            onSelect={handleSelectTime}
+          />
+        ))}
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   section: {
-    padding: 20,
+    paddingVertical: 15,
+    paddingHorizontal: 5,
     marginBottom: 20,
-    backgroundColor: theme.glassBg,
+    backgroundColor: 'transparent',
     borderRadius: 15,
-    borderWidth: 1,
-    borderColor: theme.borderColor,
-    shadowColor: theme.shadowColor,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
-    position: 'relative', 
+    position: 'relative',
   },
   chefIconContainer: {
     position: 'absolute',
@@ -129,54 +137,52 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: theme.orange,
+    color: colors.primary,
     marginBottom: 5,
-    fontFamily: 'PlayfulFont-Bold', // Placeholder
   },
   sectionSubtitle: {
-    fontSize: 16,
-    color: theme.green,
+    fontSize: 14,
+    color: colors.textSecondary,
     marginBottom: 15,
-    fontFamily: 'PlayfulFont-Regular', // Placeholder
   },
   timeOptionsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between', // Distribute items
-    marginHorizontal: -5, // Offset for card margins
+    justifyContent: 'flex-start',
+    marginHorizontal: -4,
   },
   timeOption: {
-    paddingHorizontal: 15,
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 15,
-    margin: 5,
-    borderWidth: 2,
+    borderRadius: 10,
+    margin: 4,
+    borderWidth: 1.5,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: '45%', // Ensure two items per row with some spacing
+    minWidth: '45%',
   },
   unselectedOption: {
-    backgroundColor: theme.green,
-    borderColor: theme.orange,
+    backgroundColor: colors.success,
+    borderColor: colors.success,
   },
   selectedOption: {
-    backgroundColor: theme.orange,
-    borderColor: theme.green, // Green outline when selected
-  },
-  iconStyle: {
-    marginRight: 8,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   timeOptionText: {
     fontSize: 14,
-    color: theme.white, 
     fontWeight: '600',
-    fontFamily: 'PlayfulFont-SemiBold', // Placeholder
   },
-  // selectedOptionText is not explicitly needed if text color is always white.
-  // If selected text color needs to change, add selectedOptionText style here.
+  selectedOptionText: {
+    color: colors.white,
+    fontWeight: 'bold',
+  },
+  unselectedOptionText: {
+    color: colors.white,
+  },
 });
 
 export default CookingTimeSelector;

@@ -2,17 +2,9 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import Animated, { 
-  useAnimatedStyle, 
-  useSharedValue, 
-  withTiming, 
-  withSequence,
-  withDelay,
-  Easing
-} from 'react-native-reanimated';
-import LottieView from 'lottie-react-native';
 import colors from '@/constants/colors';
 import typography from '@/constants/typography';
+import spacing from '@/constants/spacing';
 
 interface Ingredient {
   name: string;
@@ -22,167 +14,162 @@ interface Ingredient {
 
 interface IngredientListProps {
   ingredients: Ingredient[];
-  servings: number;
+  // servings: number; // Servings prop seems unused, removing for now
+  // onAddToShoppingList?: () => void; // Removed
 }
 
-const IngredientList = ({ ingredients, servings }: IngredientListProps) => {
-  const [checkedIngredients, setCheckedIngredients] = useState<number[]>([]);
-  
-  const toggleIngredient = (index: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setCheckedIngredients(prev => {
-      if (prev.includes(index)) {
-        return prev.filter(i => i !== index);
-      } else {
-        return [...prev, index];
-      }
-    });
-  };
-  
+const IngredientList = ({ ingredients }: IngredientListProps) => { // Removed onAddToShoppingList from props
+  const [checkedIngredients, setCheckedIngredients] = useState<boolean[]>(
+    new Array(ingredients?.length || 0).fill(false)
+  );
+
   if (!ingredients || ingredients.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <LottieView
-          source={require('@/assets/animations/empty-state.json')}
-          autoPlay
-          loop
-          style={styles.emptyAnimation}
-        />
         <Text style={styles.emptyText}>No ingredients available</Text>
       </View>
     );
   }
+
+  const toggleCheck = (index: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const newChecked = [...checkedIngredients];
+    newChecked[index] = !newChecked[index];
+    setCheckedIngredients(newChecked);
+  };
   
   return (
     <View style={styles.container}>
-      {ingredients.map((ingredient, index) => {
-        const isChecked = checkedIngredients.includes(index);
-        // Animation values
-        const checkScale = useSharedValue(isChecked ? 1 : 0);
-
-        const checkmarkAnimatedStyle = useAnimatedStyle(() => {
-          return {
-            transform: [{ scale: checkScale.value }],
-            opacity: checkScale.value,
-          };
-        });
-
-        // Update animation when checked state changes
-        React.useEffect(() => {
-          if (isChecked) {
-            checkScale.value = withSequence(
-              withTiming(0.8, { duration: 50 }),
-              withTiming(1, { duration: 200 })
-            );
-          } else {
-            checkScale.value = withTiming(0, { duration: 150 });
-          }
-        }, [isChecked]);
-        
-        return (
+      {/* {onAddToShoppingList && ( // Removed button
+        <TouchableOpacity style={styles.shoppingListButton} onPress={onAddToShoppingList}>
+          <Ionicons name="cart-outline" size={20} color={colors.primary} />
+          <Text style={styles.shoppingListButtonText}>Add All to Shopping List</Text>
+        </TouchableOpacity>
+      )} */}
+      {ingredients.map((ingredient, index) => (
+        <View
+          key={`${ingredient.name}-${index}`}
+          style={styles.ingredientItem}
+        >
           <TouchableOpacity
-            key={`${ingredient.name}-${index}`}
-            style={[
-              styles.ingredientItem,
-              index % 2 === 1 && styles.zebraStripe,
-              isChecked && styles.checkedItem
-            ]}
-            onPress={() => toggleIngredient(index)}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            style={styles.checkboxContainer}
+            onPress={() => toggleCheck(index)}
           >
-            <View style={[
-              styles.checkbox,
-              isChecked && styles.checkboxChecked
-            ]}>
-              <Animated.View style={checkmarkAnimatedStyle}>
-                <Ionicons name="checkmark" size={12} color={colors.white} />
-              </Animated.View>
-            </View>
-            
-            <View style={styles.ingredientContent}>
-              <Text style={[
-                styles.ingredientName,
-                isChecked && styles.ingredientChecked
-              ]}>
-                {ingredient.name}
-              </Text>
-              
-              <Text style={[
-                styles.ingredientQuantity,
-                isChecked && styles.ingredientChecked
-              ]}>
-                {ingredient.quantity} {ingredient.unit}
-              </Text>
+            <View
+              style={[
+                styles.checkbox,
+                checkedIngredients[index] && styles.checkedCheckbox,
+                !checkedIngredients[index] && styles.uncheckedCheckbox, // For orange border
+              ]}
+            >
+              {checkedIngredients[index] && (
+                <Ionicons name="checkmark" size={14} color={colors.white} />
+              )}
             </View>
           </TouchableOpacity>
-        );
-      })}
+          
+          <View style={styles.ingredientContent}>
+            <Text style={[styles.ingredientNameText, checkedIngredients[index] && styles.checkedIngredientText]}>
+              {ingredient.name}
+            </Text>
+            {(ingredient.quantity || ingredient.unit) && (
+              <Text style={[styles.ingredientQuantityText, checkedIngredients[index] && styles.checkedIngredientText]}>
+                {ingredient.quantity}{ingredient.unit && ` ${ingredient.unit}`}
+              </Text>
+            )}
+          </View>
+        </View>
+      ))}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 4,
+    paddingVertical: spacing.sm,
   },
+  // shoppingListButton: { // Styles removed
+  //   flexDirection: 'row',
+  //   alignItems: 'center',
+  //   justifyContent: 'center',
+  //   paddingVertical: spacing.md,
+  //   paddingHorizontal: spacing.lg,
+  //   backgroundColor: colors.primaryLight,
+  //   borderRadius: spacing.borderRadius.md,
+  //   marginBottom: spacing.md,
+  //   alignSelf: 'center',
+  // },
+  // shoppingListButtonText: { // Styles removed
+  //   ...typography.button,
+  //   fontFamily: 'Poppins-Medium',
+  //   color: colors.primary,
+  //   marginLeft: spacing.sm,
+  // },
   ingredientItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
+    alignItems: 'center', // Align checkbox and text
+    marginBottom: spacing.md,
+    paddingVertical: spacing.xs,
   },
-  zebraStripe: {
-    backgroundColor: colors.softPeachStart,
-  },
-  checkedItem: {
-    backgroundColor: colors.softPeachEnd,
+  checkboxContainer: {
+    marginRight: spacing.md,
+    padding: spacing.xs, // Increase tappable area
   },
   checkbox: {
-    width: 24,
+    width: 24, // Slightly larger for better touch
     height: 24,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginRight: 12,
+    borderRadius: 12, // Circular
+    borderWidth: 2,
+    // borderColor: colors.border, // Default border, will be overridden
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 2,
+    backgroundColor: colors.white, // Background for unchecked state
   },
-  checkboxChecked: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  uncheckedCheckbox: {
+    borderColor: colors.accentOrange, // Orange border for unchecked
+  },
+  checkedCheckbox: {
+    backgroundColor: colors.success,
+    borderColor: colors.success, // Green border for checked
   },
   ingredientContent: {
     flex: 1,
+    justifyContent: 'center', // Align text vertically if needed
   },
-  ingredientName: {
-    ...typography.bodyMedium,
+  ingredientNameText: { // Renamed from ingredientText
+    ...typography.bodyMedium, // Should be OpenSans 16px
+    fontFamily: 'OpenSans-Regular',
     color: colors.text,
-    marginBottom: 2,
+    // lineHeight: 22, // Default from typography or adjust as needed
   },
-  ingredientChecked: {
+  ingredientQuantityText: {
+    ...typography.bodySmall, // Smaller font for quantity, OpenSans 14px
+    fontFamily: 'OpenSans-Regular',
     color: colors.textSecondary,
-    opacity: 0.7,
+    marginTop: 4, // Small space between name and quantity (spacing.xxs was not defined)
   },
-  ingredientQuantity: {
-    ...typography.bodySmall,
-    color: colors.textSecondary,
+  checkedIngredientText: {
+    textDecorationLine: 'line-through',
+    opacity: 0.7, // Make it slightly faded
+    // color: colors.textSecondary, // Already applied by default to quantity, name will inherit
   },
+  // quantityText: { // Merged into ingredientQuantityText
+  //   fontFamily: 'OpenSans-Semibold',
+  //   color: colors.primary,
+  // },
+  // unitText: { // Merged into ingredientQuantityText
+  //   fontFamily: 'OpenSans-Regular',
+  //   color: colors.textSecondary,
+  // },
   emptyContainer: {
     paddingVertical: 20,
     alignItems: 'center',
   },
-  emptyAnimation: {
-    width: 120,
-    height: 120,
-    marginBottom: 12,
-  },
   emptyText: {
     ...typography.bodyMedium,
+    fontFamily: 'OpenSans-Regular',
     color: colors.textSecondary,
   },
 });
 
-export default IngredientList; 
+export default IngredientList;

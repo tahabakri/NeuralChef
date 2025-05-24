@@ -21,16 +21,25 @@ import { format } from 'date-fns';
 
 // Stores
 import { useSavedRecipesStore } from '@/stores/savedRecipesStore';
-import { Recipe as SavedRecipeType } from '@/services/recipeService'; // Assuming Recipe type is from recipeService
+import { Recipe as SavedRecipeType } from '@/services/recipeService';
 import { useMealPlannerStore } from '@/stores/mealPlannerStore';
-import { Recipe as ServiceRecipe } from '@/stores/recipeStore'; // Import ServiceRecipe for casting
+import { Recipe as ServiceRecipe } from '@/stores/recipeStore';
+import { usePreferencesStore } from '@/stores/preferencesStore';
+
+// Hooks
+import {
+  MockWeather,
+  WeatherRecipeSuggestion,
+  mockWeatherScenarios,
+  getWeatherBasedSuggestionLogic,
+} from '@/hooks/useWeatherSuggestionLogic';
 
 // Constants & Utils
 import colors from '@/constants/colors';
-import { todayRecipes } from '@/constants/sampleRecipes';
+import { todayRecipes } from '@/constants/sampleRecipes'; // Used as availableRecipes
 
 // Components
-import GreetingHeader from '@/components/home/GreetingHeader';
+import WeatherBanner from '@/components/home/WeatherBanner'; // Added
 import PrimaryActions from '@/components/home/PrimaryActions';
 import QuickCookCard from '@/components/home/QuickCookCard';
 import TodaysPlanSummary from '@/components/home/TodaysPlanSummary';
@@ -42,6 +51,19 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { getMealsForDateAndType } = useMealPlannerStore();
   const { savedRecipes, saveRecipe, removeSavedRecipe, isSaved } = useSavedRecipesStore();
+  const preferences = usePreferencesStore(state => ({
+    dietaryProfile: state.dietaryProfile,
+    allergies: state.allergies,
+    dislikedIngredients: state.dislikedIngredients,
+    spiceLevel: state.spiceLevel,
+    cuisineTypes: state.cuisineTypes,
+    cookingTimeLimit: state.cookingTimeLimit,
+    maxCalories: state.maxCalories,
+    portionSize: state.portionSize,
+    microPreferences: state.microPreferences,
+    cookingGoals: state.cookingGoals,
+    mealTimePreference: state.mealTimePreference,
+  }));
 
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,16 +71,42 @@ export default function HomeScreen() {
   const [weeklyCookingGoal, setWeeklyCookingGoal] = useState(5);
   const [cookedMealsThisWeek, setCookedMealsThisWeek] = useState(2);
   const [currentTodaysPicks, setCurrentTodaysPicks] = useState<RecipeCardRecipe[]>([]);
+  const [currentWeather, setCurrentWeather] = useState<MockWeather | null>(null);
+  const [weatherRecipeSuggestion, setWeatherRecipeSuggestion] = useState<WeatherRecipeSuggestion | null>(null);
 
   useEffect(() => {
+    // Initial load and network listener
     setTimeout(() => setIsLoading(false), 1000);
     const unsubscribe = NetworkManager.addListener(setIsOffline);
     const picks = todayRecipes.slice(0, 5).map(prepareRecipeForCard);
     setCurrentTodaysPicks(picks);
+
+    // Fetch initial weather
+    const fetchWeatherAndSuggest = async () => {
+      try {
+        // Simulate getting location (random mock for now)
+        const randomMock = mockWeatherScenarios[Math.floor(Math.random() * mockWeatherScenarios.length)];
+        setCurrentWeather(randomMock);
+      } catch (error) {
+        console.warn("Error fetching mock location/weather:", error);
+        setCurrentWeather(mockWeatherScenarios[0]); // Fallback
+      }
+    };
+
+    fetchWeatherAndSuggest();
+
     return () => {
       unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    // Update suggestion when weather changes
+    if (currentWeather) {
+      const suggestion = getWeatherBasedSuggestionLogic(currentWeather, todayRecipes as ServiceRecipe[]);
+      setWeatherRecipeSuggestion(suggestion);
+    }
+  }, [currentWeather]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -122,15 +170,16 @@ export default function HomeScreen() {
     return 'Good evening, chef! ☀️';
   };
 
-  const getFormattedTimestamp = () =>
-    new Date().toLocaleTimeString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: true
-    });
+  // Removed getFormattedTimestamp as it was used by GreetingHeader
+  // const getFormattedTimestamp = () =>
+  //   new Date().toLocaleTimeString('en-US', {
+  //     weekday: 'long',
+  //     month: 'long',
+  //     day: 'numeric',
+  //     hour: 'numeric',
+  //     minute: 'numeric',
+  //     hour12: true
+  //   });
 
   const todayKey = format(new Date(), 'yyyy-MM-dd');
   const meals = [
@@ -141,7 +190,7 @@ export default function HomeScreen() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <LinearGradient colors={[colors.primaryLight, colors.accentOrangeLight]} style={{ flex: 1 }}>
+      <LinearGradient colors={[colors.white, colors.cardContentBg]} style={{ flex: 1 }}>
         <SafeAreaView style={styles.container}>
           <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
           <ScrollView
@@ -151,22 +200,51 @@ export default function HomeScreen() {
           >
             <View style={styles.header}>
               <LinearGradient
-                colors={[colors.backgroundGradientStart, colors.backgroundGradientEnd]}
+                colors={[colors.background, colors.background]}
                 style={[styles.headerGradient, { paddingTop: insets.top }]}
               >
-                <GreetingHeader greeting={getGreeting()} subTitle="What would you like to cook?" timestamp={getFormattedTimestamp()} />
-                <PrimaryActions onAddIngredientsPress={() => router.push('/input')} onSurpriseMePress={() => router.push('/generate')} />
+                {/* <GreetingHeader 
+                  greeting={getGreeting()} 
+                  eventMessage={eventMessage}
+                  subTitle="What would you like to cook?" 
+                  timestamp={getFormattedTimestamp()}
+                /> */}
+                {isOffline ? null : weatherRecipeSuggestion && currentWeather && (
+                  <WeatherBanner
+                    weatherCondition={`${currentWeather.city}: ${currentWeather.temp}°C, ${currentWeather.description}`}
+                    recipeSuggestionText={`${weatherRecipeSuggestion.suggestionReason} How about ${weatherRecipeSuggestion.title}?`}
+                    weatherIconName={currentWeather.iconName}
+                    recipeIdToNavigate={weatherRecipeSuggestion.id}
+                  />
+                )}
+                <PrimaryActions
+                  onAddIngredientsPress={() => router.push('/input')}
+                  onChefsPickPress={() => {
+                    const queryParams = new URLSearchParams();
+                    queryParams.append('dietaryProfile', preferences.dietaryProfile);
+                    queryParams.append('allergies', JSON.stringify(preferences.allergies));
+                    queryParams.append('dislikedIngredients', JSON.stringify(preferences.dislikedIngredients));
+                    queryParams.append('spiceLevel', preferences.spiceLevel);
+                    queryParams.append('cuisineTypes', JSON.stringify(preferences.cuisineTypes));
+                    queryParams.append('cookingTimeLimit', preferences.cookingTimeLimit.toString());
+                    queryParams.append('maxCalories', preferences.maxCalories.toString());
+                    queryParams.append('portionSize', preferences.portionSize);
+                    queryParams.append('microPreferences', JSON.stringify(preferences.microPreferences));
+                    queryParams.append('cookingGoals', JSON.stringify(preferences.cookingGoals));
+                    queryParams.append('mealTimePreference', preferences.mealTimePreference);
+                    router.push(`/generate?${queryParams.toString()}`);
+                  }} 
+                />
               </LinearGradient>
             </View>
 
             <QuickCookCard
-              recipeName="Try this Creamy Broccoli Pasta"
+              introText="Need food fast? Try this!" // Added new required prop
+              recipeName="Creamy Broccoli Pasta" // Kept existing, but "Try this" removed as it's in introText
               durationText="Ready in 20 minutes"
               imageUrl="https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9"
               onNavigate={() => router.push('/recipe/1')}
-              onSaveRecipe={() => handleSaveToggle('1')} // Assuming '1' is the ID for "Creamy Broccoli Pasta"
-              isSaved={isSaved("Creamy Broccoli Pasta")}
-              urgencyLevel="high" // Example urgency
+              // Removed onSaveRecipe, isSaved, and urgencyLevel props
             />
 
             <TodaysPlanSummary
@@ -210,6 +288,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollView: { flex: 1 },
   contentContainer: { paddingBottom: Platform.OS === 'ios' ? 30 : 20 },
-  header: { minHeight: 280, backgroundColor: colors.background },
+  header: { minHeight: 200, backgroundColor: colors.background }, // Adjusted minHeight
   headerGradient: { flex: 1, position: 'relative', paddingBottom: 16 }
 });

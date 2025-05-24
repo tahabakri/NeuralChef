@@ -14,8 +14,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import colors from '@/constants/colors';
+import spacing from '@/constants/spacing'; // Added spacing import
 import { LinearGradient } from 'expo-linear-gradient';
-import typography from '@/constants/typography';
+import typography, { fontSize, lineHeight, fontFamily as appFontFamily, fontWeight as appFontWeight } from '@/constants/typography'; // Import fontSize, lineHeight, fontFamily, fontWeight
 
 import { Recipe as ServiceRecipe, Ingredient, Step } from '@/services/recipeService';
 
@@ -211,6 +212,7 @@ export const prepareRecipeForCard = (
 interface RecipeCardProps {
   recipe: Recipe;
   type?: 'featured' | 'horizontal' | 'vertical';
+  variant?: 'default' | 'todaysPick'; // New variant prop
   onSaveToggle?: (id: string) => void;
   onPress?: (id: string) => void;
   style?: ViewStyle;
@@ -238,17 +240,19 @@ const NewBadge = ({ themeColors }: { themeColors: ThemeColors }) => (
 const RecipeCard: React.FC<RecipeCardProps> = ({
   recipe,
   type = 'vertical',
+  variant = 'default', // Default to 'default' variant
   onSaveToggle,
   onPress,
   style,
   backgroundComponent,
-  // large = false, // large prop seems unused for vertical/horizontal, only featured implies size
+  // large = false,
   selectable = false,
   selected = false,
   onLongPress,
   isNew = false
 }) => {
   const themeColors = getThemeColors(recipe.theme);
+  const isTodaysPickVariant = variant === 'todaysPick';
 
   // Handle save button press
   const handleSavePress = () => {
@@ -290,16 +294,19 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
     const baseStyle =
       type === 'featured' ? styles.featuredContainer :
       type === 'horizontal' ? styles.horizontalContainer :
-      styles.verticalContainer;
+      isTodaysPickVariant ? styles.todaysPickCardContainer : styles.verticalContainer; // Use todaysPick specific container
+
+    const currentCardBackground = isTodaysPickVariant ? '#FFF9F5' : themeColors.cardBackground;
 
     return (
       <Pressable
-        style={({ pressed }: { pressed: boolean }) => [ // Typed pressed parameter
+        style={({ pressed }: { pressed: boolean }) => [
           baseStyle,
-          { backgroundColor: themeColors.cardBackground },
-          style,
+          { backgroundColor: currentCardBackground },
+          style, // User-provided style
           selected && [styles.selectedCard, { borderColor: themeColors.accentColor, backgroundColor: `${themeColors.accentColor}1A` }],
           pressed && styles.pressedCard,
+          isTodaysPickVariant && styles.todaysPickCardSpecific // Additional specific styles for shadow etc.
         ]}
         onPress={handlePress}
         onLongPress={handleLongPress}
@@ -414,51 +421,80 @@ const RecipeCard: React.FC<RecipeCardProps> = ({
     );
   }
 
-  // Vertical recipe card (default)
-  return (
-    <CardWrapper>
-      {backgroundComponent}
-      <View style={styles.imageContainer}>
-        <ImageBackground
+  // Vertical recipe card (default or todaysPick)
+  if (isTodaysPickVariant) {
+    // TodaysPick variant specific structure
+    return (
+      <CardWrapper>
+        {backgroundComponent}
+        <Image
           source={getImageSource()}
-          style={styles.verticalImage}
+          style={styles.todaysPickImage} // Full width image, specific height
           resizeMode="cover"
-        >
-        <LinearGradient // Subtle gradient for text readability if image is too light
-            colors={['transparent', 'rgba(0,0,0,0.0)', 'rgba(0,0,0,0.2)']}
-            style={styles.verticalImageOverlay}
         />
-        </ImageBackground>
-        {isNew && <NewBadge themeColors={themeColors} />}
-        {onSaveToggle && (
-          <TouchableOpacity
-            style={[styles.verticalSaveButton, { backgroundColor: `${themeColors.accentColor}AA`}]} // Themed save button
-            onPress={handleSavePress}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons
-              name={recipe.saved ? "bookmark" : "bookmark-outline"}
-              size={20}
-              color={themeColors.tagTextColor} // Use tagTextColor for good contrast on accent bg
-            />
-          </TouchableOpacity>
-        )}
-      </View>
-      <View style={[styles.verticalContent, { backgroundColor: themeColors.cardBackground }]}>
-        <Text style={[styles.verticalTitle, { color: themeColors.titleColor }]} numberOfLines={2}>{recipe.title}</Text>
-        <View style={styles.verticalMetadata}>
-          <View style={styles.verticalMetadataItem}>
-            <Ionicons name="time-outline" size={14} color={themeColors.iconColor} />
-            <Text style={[styles.verticalMetadataText, { color: themeColors.textColor }]}>{formatCookTime(recipe.cookTime)}</Text>
-          </View>
-          <View style={styles.verticalMetadataItem}>
-            <Ionicons name="star" size={14} color={themeColors.accentColor} />
-            <Text style={[styles.verticalMetadataText, { color: themeColors.accentColor }]}>{recipe.rating.toFixed(1)}</Text>
+        <View style={styles.todaysPickContentContainer}>
+          <Text style={styles.todaysPickTitle} numberOfLines={2}>{recipe.title}</Text>
+          <View style={styles.todaysPickMetadataContainer}>
+            <View style={styles.verticalMetadataItem}>
+              <Ionicons name="time-outline" size={fontSize.sm} color={colors.textSecondary} />
+              <Text style={styles.todaysPickMetadataText}>{formatCookTime(recipe.cookTime)}</Text>
+            </View>
+            <View style={styles.verticalMetadataItem}>
+              <Ionicons name="star" size={fontSize.sm} color={colors.accentOrange} />
+              <Text style={styles.todaysPickMetadataText}>{recipe.rating.toFixed(1)}</Text>
+            </View>
           </View>
         </View>
-      </View>
-    </CardWrapper>
-  );
+        {/* Save button and New badge are omitted for todaysPick variant as per interpretation of prompt */}
+      </CardWrapper>
+    );
+  } else {
+    // Default vertical card
+    return (
+      <CardWrapper>
+        {backgroundComponent}
+        <View style={styles.imageContainer}>
+          <ImageBackground
+            source={getImageSource()}
+            style={styles.verticalImage}
+            resizeMode="cover"
+          >
+            <LinearGradient // Subtle gradient for text readability if image is too light
+              colors={['transparent', 'rgba(0,0,0,0.0)', 'rgba(0,0,0,0.2)']}
+              style={styles.verticalImageOverlay}
+            />
+          </ImageBackground>
+          {isNew && <NewBadge themeColors={themeColors} />}
+          {onSaveToggle && (
+            <TouchableOpacity
+              style={styles.verticalSaveButton}
+              onPress={handleSavePress}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons
+                name={recipe.saved ? "bookmark" : "bookmark-outline"}
+                size={20}
+                color={colors.white} // White icon
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={styles.verticalContent}>
+          <Text style={styles.verticalTitle} numberOfLines={2}>{recipe.title}</Text>
+          <View style={styles.verticalMetadata}>
+            <View style={styles.verticalMetadataItem}>
+              <Ionicons name="time-outline" size={fontSize.sm} color={colors.textSecondary} />
+              <Text style={styles.verticalMetadataText}>{formatCookTime(recipe.cookTime)}</Text>
+            </View>
+            <View style={styles.verticalMetadataItem}>
+              <Ionicons name="star" size={fontSize.sm} color={colors.accentOrange} />
+              <Text style={styles.verticalMetadataText}>{recipe.rating.toFixed(1)}</Text>
+            </View>
+          </View>
+        </View>
+      </CardWrapper>
+    );
+  }
 };
 
 const styles = StyleSheet.create({
@@ -634,35 +670,91 @@ const styles = StyleSheet.create({
   },
   verticalSaveButton: {
     position: 'absolute',
-    top: 10, // Adjusted position
-    right: 10,
-    width: 32, // Slightly smaller
-    height: 32,
-    borderRadius: 16,
-    // backgroundColor will be themed
+    top: spacing.md, // Use spacing constant
+    right: spacing.md, // Use spacing constant
+    width: 36,
+    height: 36,
+    borderRadius: 18, // Circular
+    backgroundColor: colors.primary, // Mockup: reddish-orange, colors.primary is Warm Orange
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1, // Ensure it's above image
+    zIndex: 1,
+    ...Platform.select({ // Optional: add a slight shadow to the button
+      ios: { shadowColor: colors.shadowDark, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3, },
+      android: { elevation: 4, },
+    }),
   },
   verticalContent: {
-    padding: 12,
-    // backgroundColor will be set by theme (redundant if verticalContainer has it, but safe)
+    padding: spacing.md, // Use spacing constant
+    backgroundColor: colors.cardContentBg, // Light peach/beige background from mockup
+    borderBottomLeftRadius: spacing.borderRadius.lg, // Match overall card radius
+    borderBottomRightRadius: spacing.borderRadius.lg, // Match overall card radius
   },
   verticalTitle: {
-    // color will be set by theme
-    fontSize: 15, // Adjusted size
-    fontWeight: '600',
-    marginBottom: 6, // Adjusted spacing
-    fontFamily: 'Poppins-SemiBold', // Reverted to explicit font name
-    minHeight: 36, // Ensure space for two lines
+    fontFamily: 'Poppins-Bold', // As per mockup: Poppins Bold
+    fontSize: fontSize.lg, // typography.bodyLarge font size (18)
+    fontWeight: appFontWeight.bold, // Poppins Bold
+    color: colors.textPrimary, // Dark text
+    marginBottom: spacing.sm, // Use spacing constant
+    minHeight: lineHeight.lg * 1.5, // Adjusted for Poppins, typically needs a bit less than 2 lines for 1 line of text
   },
-  verticalMetadata: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, },
-  verticalMetadataItem: { flexDirection: 'row', alignItems: 'center', },
+  verticalMetadata: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between', // As per mockup
+    marginTop: spacing.xs, // Use spacing constant
+  },
+  verticalMetadataItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    // marginRight: spacing.lg, // Removed, space-between will handle spacing
+  },
   verticalMetadataText: {
-    // color will be set by theme
-    fontSize: 12,
-    marginLeft: 4,
-    fontFamily: 'Poppins-Regular', // Reverted to explicit font name
+    fontFamily: appFontFamily.regular, 
+    fontSize: fontSize.sm, 
+    color: colors.textSecondary, 
+    marginLeft: spacing.xs, 
+  },
+
+  // TodaysPick Variant Styles
+  todaysPickCardContainer: { // Base container for TodaysPick, backgroundColor set in CardWrapper
+    width: '100%',
+    borderRadius: spacing.borderRadius.md, // As per prompt
+    overflow: 'hidden',
+  },
+  todaysPickCardSpecific: { // Specific shadow for TodaysPick
+    ...Platform.select({
+      ios: { shadowColor: colors.shadow, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+      android: { elevation: 3 },
+    }),
+  },
+  todaysPickImage: {
+    width: '100%',
+    height: 160, // Midpoint of 150-180px from prompt
+    borderTopLeftRadius: spacing.borderRadius.md, // Match card's top radius
+    borderTopRightRadius: spacing.borderRadius.md,
+  },
+  todaysPickContentContainer: {
+    padding: spacing.md, // As per prompt
+    // Background color will be the card's overall background (#FFF9F5)
+  },
+  todaysPickTitle: {
+    fontFamily: 'Poppins-Bold', // As per prompt
+    fontSize: fontSize.lg, // Equivalent to typography.bodyLarge.fontSize
+    color: colors.textPrimary, // As per prompt
+    marginBottom: spacing.sm,
+  },
+  todaysPickMetadataContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between', // As per prompt
+    marginTop: spacing.xs,
+  },
+  todaysPickMetadataText: {
+    fontFamily: appFontFamily.regular, // OpenSans-Regular (bodySmall)
+    fontSize: fontSize.sm, // bodySmall font size
+    color: colors.textSecondary, // As per prompt
+    marginLeft: spacing.xs,
   },
 
   // Common styles for selected state and new badge

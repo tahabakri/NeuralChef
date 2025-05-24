@@ -1,28 +1,25 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withTiming, 
-  withSpring,
-  interpolate,
-  Easing 
-} from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import colors from '@/constants/colors';
 import typography from '@/constants/typography';
-import TimerButton from './TimerButton';
+import spacing from '@/constants/spacing';
+import TimerButton from './TimerButton'; // Assuming this is components/recipe/TimerButton.tsx
+import ImageStep from '../ImageStep'; // Assuming this is components/ImageStep.tsx
 
 interface Step {
   description: string;
+  imageUrl?: string;
   time?: number; // Time in minutes
+  altText?: string; // For ImageStep
 }
 
 interface StepListProps {
   steps: Step[];
   completedSteps: number[];
   onToggleStep: (index: number) => void;
+  // onRegenerateImage?: (index: number) => void; // Optional: if image regeneration is per step
 }
 
 const StepList = ({ steps, completedSteps, onToggleStep }: StepListProps) => {
@@ -33,53 +30,81 @@ const StepList = ({ steps, completedSteps, onToggleStep }: StepListProps) => {
       </View>
     );
   }
-  
+
+  const activeStepIndex = steps.findIndex((_, i) => !completedSteps.includes(i));
+
   return (
     <View style={styles.container}>
       {steps.map((step, index) => {
         const isCompleted = completedSteps.includes(index);
-        
+        const isActive = index === activeStepIndex;
+
         return (
-          <View 
-            key={`step-${index}`} 
-            style={[
-              styles.stepItem,
-              index === steps.length - 1 && styles.lastStepItem
-            ]}
-          >
-            <View style={styles.stepHeader}>
+          <View key={`step-${index}`} style={styles.stepItemContainer}>
+            <View style={styles.stepRow}>
               <TouchableOpacity
-                style={[
-                  styles.checkbox,
-                  isCompleted && styles.checkboxChecked
-                ]}
-                onPress={() => onToggleStep(index)}
+                style={styles.checkboxAndNumberContainer}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  onToggleStep(index);
+                }}
+                accessibilityLabel={`Step ${index + 1}, ${step.description}. Status: ${isCompleted ? 'Completed' : isActive ? 'Current step' : 'Pending'}`}
+                accessibilityRole="button"
               >
-                {isCompleted && (
-                  <Ionicons name="checkmark" size={16} color={colors.white} />
-                )}
-              </TouchableOpacity>
-              
-              <View style={styles.stepNumberContainer}>
-                <LinearGradient
-                  colors={[colors.sunriseOrange, '#FB8C00']}
-                  style={styles.stepNumberBadge}
+                <View
+                  style={[
+                    styles.stepIndicator,
+                    isCompleted && styles.completedIndicator,
+                    isActive && styles.activeIndicator,
+                  ]}
                 >
-                  <Text style={styles.stepNumber}>{index + 1}</Text>
-                </LinearGradient>
-              </View>
-              
-              <View style={styles.timerButtonContainer}>
-                {step.time && step.time > 0 && (
-                  <TimerButton minutes={step.time} />
-                )}
+                  {isCompleted ? (
+                    <Ionicons name="checkmark" size={16} color={colors.white} />
+                  ) : (
+                    <Text style={[
+                      styles.stepIndicatorText,
+                      isActive && styles.activeIndicatorText
+                    ]}>
+                      {index + 1}
+                    </Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              <View style={styles.stepContent}>
+                <Text
+                  style={[
+                    styles.stepDescription,
+                    isCompleted && styles.completedDescription,
+                    isActive && styles.activeDescription,
+                  ]}
+                >
+                  {step.description}
+                </Text>
               </View>
             </View>
-            
-            <StepDescription 
-              description={step.description} 
-              isCompleted={isCompleted} 
-            />
+
+            {/* Content below the step text (image, timer) */}
+            {(step.imageUrl || (step.time && step.time > 0)) && (
+              <View style={styles.stepExtrasContainer}>
+                {step.imageUrl && (
+                  <View style={styles.imageWrapper}>
+                    <ImageStep
+                      imageUrl={step.imageUrl}
+                      altText={step.altText || `Image for step ${index + 1}`}
+                      isCompleted={isCompleted}
+                      // onRegenerateImage={onRegenerateImage ? () => onRegenerateImage(index) : undefined}
+                    />
+                  </View>
+                )}
+
+                {step.time && step.time > 0 && (
+                  <View style={styles.timerWrapper}>
+                    <TimerButton minutes={step.time} />
+                  </View>
+                )}
+              </View>
+            )}
           </View>
         );
       })}
@@ -87,112 +112,89 @@ const StepList = ({ steps, completedSteps, onToggleStep }: StepListProps) => {
   );
 };
 
-interface StepDescriptionProps {
-  description: string;
-  isCompleted: boolean;
-}
-
-// Animated description component for slide-in effect
-const StepDescription = ({ description, isCompleted }: StepDescriptionProps) => {
-  const slideAnim = useSharedValue(0);
-  
-  React.useEffect(() => {
-    slideAnim.value = withTiming(1, { 
-      duration: 300, 
-      easing: Easing.bezier(0.25, 0.1, 0.25, 1) 
-    });
-  }, []);
-  
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { translateX: interpolate(slideAnim.value, [0, 1], [-20, 0]) }
-      ],
-      opacity: slideAnim.value,
-    };
-  });
-  
-  return (
-    <Animated.View style={animatedStyle}>
-      <Text style={[
-        styles.stepDescription,
-        isCompleted && styles.completedDescription
-      ]}>
-        {description}
-      </Text>
-    </Animated.View>
-  );
-};
-
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 4,
+    paddingVertical: spacing.sm,
   },
-  stepItem: {
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
+  stepItemContainer: {
+    marginBottom: spacing.lg,
+    paddingLeft: spacing.sm, // Give a bit of left padding for the whole item
   },
-  lastStepItem: {
-    borderBottomWidth: 0,
-  },
-  stepHeader: {
+  stepRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
+    alignItems: 'flex-start', // Align checkbox to top of text
   },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1,
+  checkboxAndNumberContainer: {
+    marginRight: spacing.md,
+    alignItems: 'center',
+    paddingTop: 2, // Fine-tune vertical alignment with text
+  },
+  stepIndicator: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
     borderColor: colors.border,
+    backgroundColor: colors.backgroundAlt,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
   },
-  checkboxChecked: {
-    backgroundColor: colors.primary,
+  completedIndicator: {
+    backgroundColor: colors.success,
+    borderColor: colors.success,
+  },
+  activeIndicator: {
     borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
   },
-  stepNumberContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  stepNumberBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  stepNumber: {
+  stepIndicatorText: {
     ...typography.bodySmall,
-    fontFamily: 'Poppins-Medium',
-    color: colors.white,
+    fontFamily: 'Poppins-SemiBold',
+    color: colors.textSecondary,
   },
-  timerButtonContainer: {
-    marginLeft: 'auto',
+  activeIndicatorText: {
+    color: colors.primary,
+  },
+  stepContent: {
+    flex: 1,
   },
   stepDescription: {
     ...typography.bodyMedium,
+    fontFamily: 'OpenSans-Regular',
     color: colors.text,
-    lineHeight: 22,
-    paddingLeft: 36, // To align with checkbox and step number
+    lineHeight: 23,
   },
   completedDescription: {
     color: colors.textSecondary,
-    opacity: 0.5,
+    textDecorationLine: 'line-through',
+    opacity: 0.7,
+  },
+  activeDescription: {
+    fontFamily: 'OpenSans-SemiBold',
+    color: colors.primary,
+  },
+  stepExtrasContainer: {
+    // This container will hold image and timer, aligned with step text
+    marginLeft: 28 + spacing.md, // (indicator width + margin)
+    marginTop: spacing.sm,
+  },
+  imageWrapper: {
+    marginBottom: spacing.md,
+    borderRadius: spacing.borderRadius.md,
+    overflow: 'hidden', // Ensures ImageStep respects border radius
+  },
+  timerWrapper: {
+    alignSelf: 'flex-start', // Make timer pill not take full width
   },
   emptyContainer: {
-    paddingVertical: 20,
+    paddingVertical: spacing.xl,
     alignItems: 'center',
   },
   emptyText: {
     ...typography.bodyMedium,
+    fontFamily: 'OpenSans-Regular',
     color: colors.textSecondary,
   },
 });
 
-export default StepList; 
+export default StepList;

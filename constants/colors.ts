@@ -47,6 +47,7 @@ const colors = {
     backgroundGradientEnd: "#F1F5F8",
     card: "#FFFFFF",
     cardAlt: "#FAFBFC",
+    cardContentBg: '#FEF7F0', // Light peach/beige for recipe card content area
     searchBackground: '#FAFAFA',
     
     // Text colors

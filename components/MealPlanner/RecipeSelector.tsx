@@ -21,6 +21,8 @@ export default function RecipeSelector({ visible, onClose, onSelectRecipe }: Rec
       difficulty: item.difficulty,
       rating: item.rating || 0,
       tags: item.tags,
+      description: item.description, // Added missing property
+      servings: item.servings,     // Added missing property
     };
 
     return (
@@ -101,14 +103,20 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   title: {
-    ...typography.heading3,
+    fontFamily: typography?.heading3?.fontFamily ?? 'Poppins-Bold',
+    fontSize: typography?.heading3?.fontSize ?? 24,
+    lineHeight: typography?.heading3?.lineHeight ?? 36,
+    fontWeight: typography?.heading3?.fontWeight ?? '700',
     color: colors.text,
   },
   placeholder: {
     width: 40,
   },
   sectionTitle: {
-    ...typography.heading4,
+    fontFamily: typography?.heading4?.fontFamily ?? 'Poppins-SemiBold',
+    fontSize: typography?.heading4?.fontSize ?? 20,
+    lineHeight: typography?.heading4?.lineHeight ?? 30,
+    fontWeight: typography?.heading4?.fontWeight ?? '600',
     color: colors.text,
     marginHorizontal: 16,
     marginTop: 16,
@@ -126,7 +134,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    ...typography.bodyMedium,
+    fontFamily: typography?.bodyMedium?.fontFamily ?? 'Poppins-Regular',
+    fontSize: typography?.bodyMedium?.fontSize ?? 16,
+    lineHeight: typography?.bodyMedium?.lineHeight ?? 24,
+    fontWeight: typography?.bodyMedium?.fontWeight ?? '400',
     color: colors.textSecondary,
     marginTop: 12,
   },
@@ -137,13 +148,19 @@ const styles = StyleSheet.create({
     padding: 32,
   },
   emptyStateText: {
-    ...typography.bodyLarge,
+    fontFamily: typography?.bodyLarge?.fontFamily ?? 'Poppins-Medium',
+    fontSize: typography?.bodyLarge?.fontSize ?? 18,
+    lineHeight: typography?.bodyLarge?.lineHeight ?? 27,
+    fontWeight: typography?.bodyLarge?.fontWeight ?? '500',
     color: colors.textSecondary,
     marginTop: 16,
     marginBottom: 8,
   },
   emptyStateSubText: {
-    ...typography.bodyMedium,
+    fontFamily: typography?.bodyMedium?.fontFamily ?? 'Poppins-Regular',
+    fontSize: typography?.bodyMedium?.fontSize ?? 16,
+    lineHeight: typography?.bodyMedium?.lineHeight ?? 24,
+    fontWeight: typography?.bodyMedium?.fontWeight ?? '400',
     color: colors.textTertiary,
     textAlign: 'center',
   },

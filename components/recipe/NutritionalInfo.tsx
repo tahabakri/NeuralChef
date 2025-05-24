@@ -13,6 +13,7 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import colors from '@/constants/colors';
 import typography from '@/constants/typography';
+import spacing from '@/constants/spacing';
 
 interface NutritionalValue {
   calories: number;
@@ -29,50 +30,61 @@ interface NutritionalInfoProps {
 const NutritionalInfo = ({ nutritionalInfo }: NutritionalInfoProps) => {
   const [expanded, setExpanded] = useState(false);
   const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
-  
-  const rotateArrow = useSharedValue(0);
-  const bounceTrigger = useSharedValue(0);
-  
+
+  const arrowRotation = useSharedValue(0); // Stores the rotation value in degrees
+  const contentHeight = useSharedValue(0);
+  const contentOpacity = useSharedValue(0);
+
   const toggleExpanded = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setExpanded(!expanded);
-    
-    // Animate arrow with bounce
-    rotateArrow.value = expanded ? 0 : 1;
-    bounceTrigger.value += 1;
-  };
-  
-  const contentAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      maxHeight: withTiming(expanded ? 500 : 0, {
+    const newExpandedState = !expanded;
+    setExpanded(newExpandedState);
+
+    if (newExpandedState) { // Expanding
+      arrowRotation.value = withSequence(
+        withTiming(190, { duration: 120, easing: Easing.out(Easing.ease) }),
+        withTiming(180, { duration: 120, easing: Easing.inOut(Easing.ease) })
+      );
+      contentHeight.value = withTiming(500, { // Approximate max height
         duration: 300,
         easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-      }),
-      opacity: withTiming(expanded ? 1 : 0, {
-        duration: expanded ? 300 : 200,
+      });
+      contentOpacity.value = withTiming(1, {
+        duration: 300,
         easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-      }),
-    };
-  });
-  
-  const arrowAnimatedStyle = useAnimatedStyle(() => {
-    const rotation = withTiming(expanded ? 180 : 0, {
-      duration: 300,
-      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-    });
-    
-    // Add micro-bounce on expand/collapse
-    const bounce = bounceTrigger.value === 0 ? 0 : 
-      withSequence(
-        withTiming(expanded ? 190 : 10, { duration: 100 }),
-        withTiming(expanded ? 180 : 0, { duration: 100 })
+      });
+    } else { // Collapsing
+      arrowRotation.value = withSequence(
+        withTiming(-10, { duration: 120, easing: Easing.out(Easing.ease) }),
+        withTiming(0, { duration: 120, easing: Easing.inOut(Easing.ease) })
       );
-    
+      contentHeight.value = withTiming(0, {
+        duration: 300,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      });
+      contentOpacity.value = withTiming(0, {
+        duration: 200,
+        easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      });
+    }
+  };
+
+  const contentAnimatedStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ rotateZ: `${expanded ? rotation : bounce}deg` }],
+      maxHeight: contentHeight.value,
+      opacity: contentOpacity.value,
+      marginTop: contentOpacity.value > 0 ? spacing.md : 0, // Apply margin only when visible
     };
   });
-  
+
+  const arrowAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      // Ensure rotateZ receives a string like '180deg'.
+      // arrowRotation.value should be a number here.
+      transform: [{ rotateZ: `${arrowRotation.value}deg` }],
+    };
+  });
+
   // Get all nutrition keys except the main ones that we display separately
   const additionalNutrition = Object.keys(nutritionalInfo)
     .filter(key => !['calories', 'protein', 'carbs', 'fat'].includes(key));
@@ -94,36 +106,34 @@ const NutritionalInfo = ({ nutritionalInfo }: NutritionalInfoProps) => {
         </Animated.View>
       </TouchableOpacity>
       
-      {/* Always visible nutrition summary */}
-      <View style={styles.summaryContainer}>
-        <View style={styles.nutritionItem}>
-          <View style={[styles.pillBadge, styles.caloriesPill]}>
-            <Text style={styles.nutritionValue}>{nutritionalInfo.calories}</Text>
-            <Text style={styles.nutritionLabel}>Calories</Text>
+      <Animated.View style={[styles.expandedContent, contentAnimatedStyle]}>
+        <View style={styles.statBlocksContainer}>
+          {/* Calories Pill */}
+          <View style={[styles.statBlock, {backgroundColor: colors.backgroundAlt }]}>
+            <Text style={styles.statValue}>{nutritionalInfo.calories}</Text>
+            <Text style={styles.statLabel}>Calories</Text>
+          </View>
+          
+          {/* Protein Pill */}
+          <View style={[styles.statBlock, {backgroundColor: colors.accentBlueLight}]}>
+            <Text style={styles.statValue}>{nutritionalInfo.protein}g</Text>
+            <Text style={styles.statLabel}>Protein</Text>
           </View>
         </View>
-        
-        <View style={styles.nutritionItem}>
-          <View style={[styles.pillBadge, styles.proteinPill]}>
-            <Text style={styles.nutritionValue}>{nutritionalInfo.protein}g</Text>
-            <Text style={styles.nutritionLabel}>Protein</Text>
+        <View style={styles.statBlocksContainer}>
+          {/* Carbs Pill */}
+          <View style={[styles.statBlock, {backgroundColor: colors.accentOrangeLight}]}>
+            <Text style={styles.statValue}>{nutritionalInfo.carbs}g</Text>
+            <Text style={styles.statLabel}>Carbs</Text>
+          </View>
+          
+          {/* Fat Pill */}
+          <View style={[styles.statBlock, {backgroundColor: colors.errorLight}]}>
+            <Text style={styles.statValue}>{nutritionalInfo.fat}g</Text>
+            <Text style={styles.statLabel}>Fat</Text>
           </View>
         </View>
-        
-        <View style={styles.nutritionItem}>
-          <View style={[styles.pillBadge, styles.carbsPill]}>
-            <Text style={styles.nutritionValue}>{nutritionalInfo.carbs}g</Text>
-            <Text style={styles.nutritionLabel}>Carbs</Text>
-          </View>
-        </View>
-        
-        <View style={styles.nutritionItem}>
-          <View style={[styles.pillBadge, styles.fatPill]}>
-            <Text style={styles.nutritionValue}>{nutritionalInfo.fat}g</Text>
-            <Text style={styles.nutritionLabel}>Fat</Text>
-          </View>
-        </View>
-      </View>
+      </Animated.View>
       
       {/* Expandable detailed nutrition */}
       <Animated.View style={[styles.detailsContainer, contentAnimatedStyle]}>
@@ -191,63 +201,47 @@ const NutritionalInfo = ({ nutritionalInfo }: NutritionalInfoProps) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: spacing.borderRadius.lg,
+    padding: spacing.lg,
     overflow: 'hidden',
-    shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
   },
   title: {
-    ...typography.heading2,
+    ...typography.subtitle1,
+    fontFamily: 'Poppins-SemiBold',
+    color: colors.textPrimary,
+  },
+  expandedContent: {
+    // marginTop will be handled by animated style
+  },
+  statBlocksContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: spacing.md, // Add margin between rows of pills
+  },
+  statBlock: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: spacing.borderRadius.pill, // Use pill shape for stat blocks
+    minWidth: 100, // Ensure pills have some minimum width
+    marginHorizontal: spacing.xs, // Add small horizontal margin between pills
+  },
+  statValue: {
+    ...typography.bodyLarge,
+    fontFamily: 'OpenSans-Bold',
     color: colors.text,
   },
-  summaryContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  nutritionItem: {
-    alignItems: 'center',
-  },
-  pillBadge: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    alignItems: 'center',
-    minWidth: 70,
-  },
-  caloriesPill: {
-    backgroundColor: colors.accentGreenLight,
-  },
-  proteinPill: {
-    backgroundColor: colors.accentBlueLight,
-  },
-  carbsPill: {
-    backgroundColor: colors.accentYellowLight,
-  },
-  fatPill: {
-    backgroundColor: colors.accentOrangeLight,
-  },
-  nutritionLabel: {
-    ...typography.bodySmall,
+  statLabel: {
+    ...typography.caption,
+    fontFamily: 'OpenSans-Regular',
     color: colors.textSecondary,
     marginTop: 2,
-  },
-  nutritionValue: {
-    ...typography.bodyLarge,
-    color: colors.text,
-    fontFamily: 'Poppins-Medium',
   },
   detailsContainer: {
     overflow: 'hidden',
@@ -269,13 +263,14 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     ...typography.bodyMedium,
+    fontFamily: 'OpenSans-Regular', // Ensure OpenSans for body text
     color: colors.textSecondary,
     paddingLeft: 16,
   },
   detailValue: {
     ...typography.bodyMedium,
+    fontFamily: 'OpenSans-SemiBold', // Ensure OpenSans for body text
     color: colors.text,
-    fontFamily: 'Poppins-Medium',
   },
   infoButton: {
     flexDirection: 'row',
@@ -287,6 +282,7 @@ const styles = StyleSheet.create({
   },
   infoButtonText: {
     ...typography.bodySmall,
+    fontFamily: 'OpenSans-Regular', // Ensure OpenSans for body text
     color: colors.info,
     marginLeft: 4,
   },
@@ -314,6 +310,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     ...typography.heading3,
+    fontFamily: 'Poppins-SemiBold', // Ensure Poppins for heading
     color: colors.text,
   },
   closeButton: {
@@ -324,9 +321,10 @@ const styles = StyleSheet.create({
   },
   disclaimerText: {
     ...typography.bodyMedium,
+    fontFamily: 'OpenSans-Regular', // Ensure OpenSans for body text
     color: colors.textSecondary,
     marginBottom: 12,
   },
 });
 
-export default NutritionalInfo; 
+export default NutritionalInfo;

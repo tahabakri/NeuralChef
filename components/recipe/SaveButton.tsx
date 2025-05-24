@@ -48,9 +48,9 @@ const SaveButton = ({ saved, onPress, light = false }: SaveButtonProps) => {
   
   // Color flash animation style
   const flashAnimatedStyle = useAnimatedStyle(() => {
-    const backgroundColor = saved 
-      ? `rgba(76, 175, 80, ${colorFlash.value})` // Green flash when saved
-      : `rgba(255, 167, 38, ${colorFlash.value})`; // Orange flash when unsaved
+    const backgroundColor = saved
+      ? `rgba(148, 231, 156, ${colorFlash.value})` // colors.success with opacity
+      : `rgba(255, 179, 138, ${colorFlash.value})`; // colors.primary with opacity
     
     return {
       backgroundColor,
@@ -79,7 +79,7 @@ const SaveButton = ({ saved, onPress, light = false }: SaveButtonProps) => {
           <Ionicons
             name={saved ? 'bookmark' : 'bookmark-outline'}
             size={24}
-            color={light ? colors.white : colors.primary}
+            color={saved ? (light ? colors.white : colors.success) : (light ? colors.white : colors.primary)}
           />
         </View>
       </TouchableOpacity>
@@ -116,4 +116,4 @@ const styles = StyleSheet.create({
   }
 });
 
-export default SaveButton; 
+export default SaveButton;

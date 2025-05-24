@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useEffect } from 'react';
+import { shallow } from 'zustand/shallow';
 
 export type DietaryProfile = 
   | 'noRestrictions' 
@@ -36,7 +36,19 @@ export interface PreferencesState {
 
   updatePreferences: (preferences: Partial<Omit<PreferencesState, 'updatePreferences' | 'resetPreferences'>>) => void;
   resetPreferences: () => void;
-  loadPreferences: () => Promise<void>;
+  
+  // New selective update methods for better performance
+  updateDietaryProfile: (profile: DietaryProfile) => void;
+  updateAllergies: (allergies: string[]) => void;
+  updateDislikedIngredients: (ingredients: string[]) => void;
+  updateSpiceLevel: (level: SpiceLevel) => void;
+  updateCuisineTypes: (cuisines: string[]) => void;
+  updateCookingTimeLimit: (timeLimit: number) => void;
+  updateMaxCalories: (calories: number) => void;
+  updatePortionSize: (size: PortionSize) => void;
+  updateMicroPreferences: (preferences: MicroPreference[]) => void;
+  updateCookingGoals: (goals: CookingGoal[]) => void;
+  updateMedicalConditions: (conditions: MedicalCondition[]) => void;
 }
 
 const defaultPreferences = {
@@ -54,13 +66,15 @@ const defaultPreferences = {
   mealTimePreference: '',
 };
 
+// Using legacy create method with a comment to acknowledge the warning
+// DEPRECATED: Will update to createWithEqualityFn in a future version
 export const usePreferencesStore = create<PreferencesState>()(
   persist(
     (set) => ({
       ...defaultPreferences,
       
-      updatePreferences: (preferences) =>
-        set((state) => ({
+      updatePreferences: (preferences: Partial<Omit<PreferencesState, 'updatePreferences' | 'resetPreferences'>>) =>
+        set((state: PreferencesState) => ({
           ...state,
           ...preferences,
         })),
@@ -69,83 +83,65 @@ export const usePreferencesStore = create<PreferencesState>()(
         set(() => ({
           ...defaultPreferences,
         })),
-      
-      loadPreferences: async () => {
-        try {
-          const [
-            storedPreferences,
-            storedAllergies,
-            storedDislikedIngredients,
-            storedSpiceLevel,
-            storedCuisineTypes,
-            storedCookingTimeLimit,
-            storedMaxCalories,
-            storedPortionSize,
-            storedMicroPreferences,
-            storedCookingGoals,
-            storedMedicalConditions,
-            storedMealTimePreference
-          ] = await AsyncStorage.multiGet([
-            'dietaryProfile',
-            'allergies',
-            'dislikedIngredients',
-            'spiceLevel',
-            'cuisineTypes',
-            'cookingTimeLimit',
-            'maxCalories',
-            'portionSize',
-            'microPreferences',
-            'cookingGoals',
-            'medicalConditions',
-            'mealTimePreference'
-          ]);
-          
-          set({
-            dietaryProfile: storedPreferences[1] as DietaryProfile || 'noRestrictions',
-            allergies: storedAllergies[1] ? JSON.parse(storedAllergies[1]) : [],
-            dislikedIngredients: storedDislikedIngredients[1] ? JSON.parse(storedDislikedIngredients[1]) : [],
-            spiceLevel: (storedSpiceLevel[1] as SpiceLevel) || 'medium',
-            cuisineTypes: storedCuisineTypes[1] ? JSON.parse(storedCuisineTypes[1]) : [],
-            cookingTimeLimit: storedCookingTimeLimit[1] ? parseInt(storedCookingTimeLimit[1], 10) : 0,
-            maxCalories: storedMaxCalories[1] ? parseInt(storedMaxCalories[1], 10) : 0,
-            portionSize: (storedPortionSize[1] as PortionSize) || 'family',
-            microPreferences: storedMicroPreferences[1] ? JSON.parse(storedMicroPreferences[1]) : [],
-            cookingGoals: storedCookingGoals[1] ? JSON.parse(storedCookingGoals[1]) : [],
-            medicalConditions: storedMedicalConditions[1] ? JSON.parse(storedMedicalConditions[1]) : [],
-            mealTimePreference: storedMealTimePreference[1] || ''
-          });
-        } catch (error) {
-          console.error('Failed to load preferences:', error);
-        }
-      },
+        
+      // Selective update methods for better performance
+      updateDietaryProfile: (profile: DietaryProfile) => 
+        set((state: PreferencesState) => ({ ...state, dietaryProfile: profile })),
+        
+      updateAllergies: (allergies: string[]) => 
+        set((state: PreferencesState) => ({ ...state, allergies })),
+        
+      updateDislikedIngredients: (ingredients: string[]) => 
+        set((state: PreferencesState) => ({ ...state, dislikedIngredients: ingredients })),
+        
+      updateSpiceLevel: (level: SpiceLevel) => 
+        set((state: PreferencesState) => ({ ...state, spiceLevel: level })),
+        
+      updateCuisineTypes: (cuisines: string[]) => 
+        set((state: PreferencesState) => ({ ...state, cuisineTypes: cuisines })),
+        
+      updateCookingTimeLimit: (timeLimit: number) => 
+        set((state: PreferencesState) => ({ ...state, cookingTimeLimit: timeLimit })),
+        
+      updateMaxCalories: (calories: number) => 
+        set((state: PreferencesState) => ({ ...state, maxCalories: calories })),
+        
+      updatePortionSize: (size: PortionSize) => 
+        set((state: PreferencesState) => ({ ...state, portionSize: size })),
+        
+      updateMicroPreferences: (preferences: MicroPreference[]) => 
+        set((state: PreferencesState) => ({ ...state, microPreferences: preferences })),
+        
+      updateCookingGoals: (goals: CookingGoal[]) => 
+        set((state: PreferencesState) => ({ ...state, cookingGoals: goals })),
+        
+      updateMedicalConditions: (conditions: MedicalCondition[]) => 
+        set((state: PreferencesState) => ({ ...state, medicalConditions: conditions })),
     }),
     {
       name: 'preferences-storage',
       storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        dietaryProfile: state.dietaryProfile,
+        allergies: state.allergies,
+        dislikedIngredients: state.dislikedIngredients,
+        spiceLevel: state.spiceLevel,
+        cuisineTypes: state.cuisineTypes,
+        cookingTimeLimit: state.cookingTimeLimit,
+        maxCalories: state.maxCalories,
+        portionSize: state.portionSize,
+        microPreferences: state.microPreferences,
+        cookingGoals: state.cookingGoals,
+        medicalConditions: state.medicalConditions,
+        mealTimePreference: state.mealTimePreference,
+      }),
     }
   )
 );
 
-export const useLoadPreferences = () => {
-  const loadPreferences = usePreferencesStore(state => state.loadPreferences);
-  
-  useEffect(() => {
-    loadPreferences();
-  }, [loadPreferences]);
-  
-  return usePreferencesStore(state => ({
-    dietaryProfile: state.dietaryProfile,
-    allergies: state.allergies,
-    dislikedIngredients: state.dislikedIngredients,
-    spiceLevel: state.spiceLevel,
-    cuisineTypes: state.cuisineTypes,
-    cookingTimeLimit: state.cookingTimeLimit,
-    maxCalories: state.maxCalories,
-    portionSize: state.portionSize,
-    microPreferences: state.microPreferences,
-    cookingGoals: state.cookingGoals,
-    mealTimePreference: state.mealTimePreference
-  }));
+// Helper function to get specific parts of state with shallow comparison
+export const usePreferenceSelector = <T>(selector: (state: PreferencesState) => T) => {
+  return usePreferencesStore(selector, shallow);
 };
 
 export const getDietaryProfiles = (): DietaryProfile[] => [
