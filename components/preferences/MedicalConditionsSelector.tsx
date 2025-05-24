@@ -15,6 +15,7 @@ import { medicalConditions } from './constants';
 import { MedicalConditionsSelectorProps } from './types';
 import { MedicalCondition } from '@/stores/preferencesStore';
 import colors from '@/constants/colors';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Default chef icons for animation
 const WINKING_CHEF_ICON = "happy-outline";
@@ -182,79 +183,95 @@ const MedicalConditionsSelector = memo<MedicalConditionsSelectorProps>(({
   });
 
   return (
-    <View style={styles.section}>
-      <Animated.View style={[styles.chefIconContainer, { transform: [{ scale: chefIconScale }] }]}>
-        <Ionicons name={chefIconName as any} size={30} color={colors.primary} />
-      </Animated.View>
-
-      {chefMessage && (
-        <Animated.View 
-          style={[
-            styles.speechBubbleContainer,
-            { opacity: chefMessageOpacity, transform: [{ translateY: chefMessageTranslateY }] }
-          ]}
-        >
-          <View style={styles.speechBubble}>
-            <Text style={styles.speechBubbleText}>{chefMessage}</Text>
-          </View>
+    <LinearGradient
+      colors={['rgba(255, 195, 102, 0.15)', 'rgba(255, 255, 255, 0.8)']}
+      style={styles.gradientContainer}
+    >
+      <View style={styles.section}>
+        <Animated.View style={[styles.chefIconContainer, { transform: [{ scale: chefIconScale }] }]}>
+          <Ionicons name={chefIconName as any} size={30} color={colors.primary} />
         </Animated.View>
-      )}
 
-      <Text style={styles.sectionTitle}>Health Considerations</Text>
-      <Text style={styles.sectionSubtitle}>Any health-related dietary needs?</Text>
+        {chefMessage && (
+          <Animated.View 
+            style={[
+              styles.speechBubbleContainer,
+              { opacity: chefMessageOpacity, transform: [{ translateY: chefMessageTranslateY }] }
+            ]}
+          >
+            <View style={styles.speechBubble}>
+              <Text style={styles.speechBubbleText}>{chefMessage}</Text>
+            </View>
+          </Animated.View>
+        )}
 
-      <View style={styles.optionsContainer}>
-        {medicalConditions.map((condition) => (
-          <ConditionOption
-            key={condition.id}
-            condition={condition}
-            isSelected={selectedPredefinedConditions.includes(condition.id as MedicalCondition)}
-            onToggle={handleToggleCondition}
-            scaleAnim={conditionCardScaleAnims[condition.id]}
-          />
-        ))}
-      </View>
+        <Text style={styles.sectionTitle}>Health Considerations</Text>
+        <Text style={styles.sectionSubtitle}>Any health-related dietary needs?</Text>
 
-      {customMedicalConditions.length > 0 && (
-        <View style={styles.customConditionsContainer}>
-          {customMedicalConditions.map((condition, index) => (
-            <CustomConditionChip
-              key={`${condition}-${index}`}
+        <View style={styles.optionsContainer}>
+          {medicalConditions.map((condition) => (
+            <ConditionOption
+              key={condition.id}
               condition={condition}
-              onRemove={onRemoveCustomCondition}
+              isSelected={selectedPredefinedConditions.includes(condition.id as MedicalCondition)}
+              onToggle={handleToggleCondition}
+              scaleAnim={conditionCardScaleAnims[condition.id]}
             />
           ))}
         </View>
-      )}
 
-      <View style={styles.addCustomContainer}>
-        <TextInput
-          style={styles.customConditionInput}
-          placeholder="Add other health condition…"
-          placeholderTextColor={colors.textSecondary}
-          value={newCondition}
-          onChangeText={setNewCondition}
-          onSubmitEditing={handleAddCustom}
-          returnKeyType="done"
-        />
-        <TouchableOpacity onPress={handleAddCustom} style={styles.addButtonTouch}>
-          <Animated.View style={[styles.addButton, { transform: [{ scale: addBtnScale }] }]}>
-            <Ionicons name="add-outline" size={24} color={colors.white} />
-          </Animated.View>
-        </TouchableOpacity>
+        {customMedicalConditions.length > 0 && (
+          <View style={styles.customConditionsContainer}>
+            {customMedicalConditions.map((condition, index) => (
+              <CustomConditionChip
+                key={`${condition}-${index}`}
+                condition={condition}
+                onRemove={onRemoveCustomCondition}
+              />
+            ))}
+          </View>
+        )}
+
+        <View style={styles.addCustomContainer}>
+          <TextInput
+            style={styles.customConditionInput}
+            placeholder="Add other health condition…"
+            placeholderTextColor={colors.textSecondary}
+            value={newCondition}
+            onChangeText={setNewCondition}
+            onSubmitEditing={handleAddCustom}
+            returnKeyType="done"
+          />
+          <TouchableOpacity onPress={handleAddCustom} style={styles.addButtonTouch}>
+            <Animated.View style={[styles.addButton, { transform: [{ scale: addBtnScale }] }]}>
+              <Ionicons name="add-outline" size={24} color={colors.white} />
+            </Animated.View>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </LinearGradient>
   );
 });
 
 const styles = StyleSheet.create({
+  gradientContainer: {
+    borderRadius: 15,
+    marginBottom: 20,
+    overflow: 'hidden',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
+  },
   section: {
     paddingVertical: 15,
-    paddingHorizontal: 5,
-    marginBottom: 20,
+    paddingHorizontal: 15,
     backgroundColor: 'transparent',
     borderRadius: 15,
     position: 'relative',
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
   chefIconContainer: {
     position: 'absolute',
@@ -270,7 +287,7 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   speechBubble: {
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.white,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
@@ -285,7 +302,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 5,
     color: colors.primary,
@@ -311,12 +328,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   selectedOptionChip: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: colors.success,
+    borderColor: colors.success,
   },
   unselectedOptionChip: {
-    backgroundColor: colors.primaryLight,
-    borderColor: colors.primaryLight,
+    backgroundColor: colors.backgroundAlt,
+    borderColor: colors.border,
   },
   optionText: {
     fontSize: 14,
@@ -327,7 +344,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   unselectedOptionText: {
-    color: colors.textPrimary,
+    color: colors.textSecondary,
   },
   customConditionsContainer: {
     flexDirection: 'row',
@@ -356,32 +373,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 15,
-    backgroundColor: colors.white,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.primaryLight,
-    paddingLeft: 10,
-    height: 48,
   },
   customConditionInput: {
     flex: 1,
-    height: '100%',
-    paddingHorizontal: 10,
-    fontSize: 16,
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
     color: colors.textPrimary,
+    marginRight: 10,
   },
   addButtonTouch: {
-    // Wrapper for consistent touch area
+    borderRadius: 10,
+    overflow: 'hidden',
   },
   addButton: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    height: '100%',
-    borderTopRightRadius: 8,
-    borderBottomRightRadius: 8,
+    backgroundColor: colors.success,
+    width: 42,
+    height: 42,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 5,
   },
 });
 

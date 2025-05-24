@@ -15,6 +15,7 @@ import * as Haptics from 'expo-haptics';
 import { commonAllergies } from './constants';
 import { AllergiesSectionProps } from './types';
 import colors from '@/constants/colors'; // Import global colors
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Chef icon states
 const WINKING_CHEF_ICON = "happy-outline";
@@ -131,7 +132,7 @@ const AllergiesSection = memo<AllergiesSectionProps>(({
 
     // Reset icon after a delay if not showing a message
     if (!message) {
-      setTimeout(() => setChefIconName(DEFAULT_CHEF_ICON), 800);
+        setTimeout(() => setChefIconName(DEFAULT_CHEF_ICON), 800);
     }
   }, [chefIconScale, chefMessageAnim]);
 
@@ -182,79 +183,95 @@ const AllergiesSection = memo<AllergiesSectionProps>(({
   });
 
   return (
-    <View style={styles.section}>
-      <Animated.View style={[styles.chefIconContainer, { transform: [{ scale: chefIconScale }] }]}>
-        <Ionicons name={chefIconName as any} size={30} color={colors.primary} />
-      </Animated.View>
-
-      {chefMessage && (
-        <Animated.View 
-          style={[
-            styles.speechBubbleContainer,
-            { opacity: chefMessageOpacity, transform: [{ translateY: chefMessageTranslateY }] }
-          ]}
-        >
-          <View style={styles.speechBubble}>
-            <Text style={styles.speechBubbleText}>{chefMessage}</Text>
-          </View>
+    <LinearGradient
+      colors={['rgba(255, 102, 102, 0.15)', 'rgba(255, 255, 255, 0.8)']}
+      style={styles.gradientContainer}
+    >
+      <View style={styles.section}>
+        <Animated.View style={[styles.chefIconContainer, { transform: [{ scale: chefIconScale }] }]}>
+          <Ionicons name={chefIconName as any} size={30} color={colors.primary} />
         </Animated.View>
-      )}
 
-      <Text style={styles.sectionTitle}>Allergies to Avoid</Text>
-      <Text style={styles.sectionSubtitle}>Keep lunch safe!</Text>
+        {chefMessage && (
+          <Animated.View 
+            style={[
+              styles.speechBubbleContainer,
+              { opacity: chefMessageOpacity, transform: [{ translateY: chefMessageTranslateY }] }
+            ]}
+          >
+            <View style={styles.speechBubble}>
+              <Text style={styles.speechBubbleText}>{chefMessage}</Text>
+            </View>
+          </Animated.View>
+        )}
 
-      <View style={styles.optionsContainer}>
-        {commonAllergies.map((allergy) => (
-          <AllergyOption
-            key={allergy.id}
-            allergy={allergy}
-            isSelected={selectedAllergies.includes(allergy.id)}
-            onToggle={handleToggleAllergy}
-            scaleAnim={allergyCardScaleAnims[allergy.id]}
-          />
-        ))}
-      </View>
+        <Text style={styles.sectionTitle}>Allergies to Avoid</Text>
+        <Text style={styles.sectionSubtitle}>Keep lunch safe!</Text>
 
-      {customAllergies.length > 0 && (
-        <View style={styles.customAllergyListContainer}>
-          {customAllergies.map((allergy, index) => (
-            <CustomAllergyChip
-              key={`${allergy}-${index}`}
+        <View style={styles.optionsContainer}>
+          {commonAllergies.map((allergy) => (
+            <AllergyOption
+              key={allergy.id}
               allergy={allergy}
-              onRemove={onRemoveCustomAllergy}
+              isSelected={selectedAllergies.includes(allergy.id)}
+              onToggle={handleToggleAllergy}
+              scaleAnim={allergyCardScaleAnims[allergy.id]}
             />
           ))}
         </View>
-      )}
 
-      <View style={styles.addCustomContainer}>
-        <TextInput
-          style={styles.customAllergyInput}
-          placeholder="Add an allergy…"
-          placeholderTextColor={colors.textSecondary} 
-          value={newAllergy}
-          onChangeText={setNewAllergy}
-          onSubmitEditing={handleAddCustom}
-          returnKeyType="done"
-        />
-        <TouchableOpacity onPress={handleAddCustom} style={styles.addButtonTouch}>
-          <Animated.View style={[styles.addButton, { transform: [{ scale: addBtnScale }] }]}>
-            <Ionicons name="add-outline" size={24} color={colors.white} />
-          </Animated.View>
-        </TouchableOpacity>
+        {customAllergies.length > 0 && (
+          <View style={styles.customAllergyListContainer}>
+            {customAllergies.map((allergy, index) => (
+              <CustomAllergyChip
+                key={`${allergy}-${index}`}
+                allergy={allergy}
+                onRemove={onRemoveCustomAllergy}
+              />
+            ))}
+          </View>
+        )}
+
+        <View style={styles.addCustomContainer}>
+          <TextInput
+            style={styles.customAllergyInput}
+            placeholder="Add an allergy…"
+            placeholderTextColor={colors.textSecondary} 
+            value={newAllergy}
+            onChangeText={setNewAllergy}
+            onSubmitEditing={handleAddCustom}
+            returnKeyType="done"
+          />
+          <TouchableOpacity onPress={handleAddCustom} style={styles.addButtonTouch}>
+            <Animated.View style={[styles.addButton, { transform: [{ scale: addBtnScale }] }]}>
+              <Ionicons name="add-outline" size={24} color={colors.white} />
+            </Animated.View>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </LinearGradient>
   );
 });
 
 const styles = StyleSheet.create({
+  gradientContainer: {
+    borderRadius: 15,
+    marginBottom: 20,
+    overflow: 'hidden',
+    shadowColor: colors.shadow,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
+  },
   section: {
     paddingVertical: 15,
-    paddingHorizontal: 5,
-    marginBottom: 20,
+    paddingHorizontal: 15,
     backgroundColor: 'transparent',
     borderRadius: 15,
     position: 'relative',
+    borderWidth: 2,
+    borderColor: colors.primary,
   },
   chefIconContainer: {
     position: 'absolute',
@@ -264,31 +281,29 @@ const styles = StyleSheet.create({
   },
   speechBubbleContainer: {
     position: 'absolute',
-    top: 50, 
-    right: 15,
-    alignItems: 'flex-end',
-    zIndex: 20,
+    top: 10,
+    right: 50,
+    zIndex: 11,
   },
   speechBubble: {
-    backgroundColor: colors.primaryLight, 
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
+    backgroundColor: colors.white,
+    padding: 8,
+    borderRadius: 12,
     shadowColor: colors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
     elevation: 3,
   },
   speechBubbleText: {
+    fontSize: 12,
     color: colors.textPrimary,
-    fontSize: 13,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 5,
-    color: colors.primary, 
+    color: colors.primary,
   },
   sectionSubtitle: {
     fontSize: 14,
@@ -302,23 +317,25 @@ const styles = StyleSheet.create({
     marginHorizontal: -4,
   },
   allergyOption: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: 10,
     margin: 4,
-    borderWidth: 1.5,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 80,
+    borderWidth: 1.5,
   },
-  unselectedAllergyOption: {
+  selectedAllergyOption: {
     backgroundColor: colors.success,
     borderColor: colors.success,
   },
-  selectedAllergyOption: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+  unselectedAllergyOption: {
+    backgroundColor: colors.backgroundAlt,
+    borderColor: colors.border,
   },
-  allergyOptionText: { // General text style, color defined by selection state
+  allergyOptionText: {
     fontSize: 14,
     fontWeight: '600',
   },
@@ -327,22 +344,22 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   unselectedOptionText: {
-    color: colors.white,
+    color: colors.textSecondary,
   },
   customAllergyListContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 10,
-    marginHorizontal: -3,
+    marginTop: 15,
+    marginHorizontal: -4,
   },
   customAllergyChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.success, // Green chips for custom allergies
-    borderRadius: 15,
-    paddingVertical: 6,
+    backgroundColor: colors.primary,
+    borderRadius: 20,
     paddingHorizontal: 10,
-    margin: 3,
+    paddingVertical: 6,
+    margin: 4,
   },
   customAllergyChipText: {
     color: colors.white,
@@ -356,33 +373,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 15,
-    backgroundColor: colors.white,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.primaryLight,
-    paddingLeft: 10,
-    height: 48, // Fixed height for input container
   },
   customAllergyInput: {
     flex: 1,
-    height: '100%', // Ensure input fills container
-    paddingHorizontal: 10,
-    fontSize: 16,
+    backgroundColor: colors.backgroundAlt,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
     color: colors.textPrimary,
+    marginRight: 10,
   },
   addButtonTouch: {
-    // Wrapper for consistent touch area if needed
+    borderRadius: 10,
+    overflow: 'hidden',
   },
   addButton: {
-    backgroundColor: colors.success, // Green '+' button
-    paddingHorizontal: 16,
-    // Match container height
-    height: '100%',
-    borderTopRightRadius: 8, // Match container's borderRadius (approx)
-    borderBottomRightRadius: 8,
-    justifyContent: 'center',
+    backgroundColor: colors.success,
+    width: 42,
+    height: 42,
+    borderRadius: 10,
     alignItems: 'center',
-    marginLeft: 5, // space between input and button
+    justifyContent: 'center',
   },
 });
 

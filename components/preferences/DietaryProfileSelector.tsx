@@ -115,13 +115,17 @@ const DietaryProfileSelector: React.FC<DietaryProfileSelectorProps> = ({
 
 const styles = StyleSheet.create({
   section: {
-    paddingVertical: 15, // Adjusted padding
-    paddingHorizontal: 5, // Adjusted padding to align with overall screen padding if needed
+    paddingVertical: 15,
+    paddingHorizontal: 5,
     marginBottom: 20,
-    backgroundColor: 'transparent', // Use transparent background
+    backgroundColor: colors.card,
     borderRadius: 15,
-    // Remove card-specific styles like borderWidth, borderColor, shadow
-    position: 'relative', // For absolute positioning of chef icon
+    position: 'relative',
+    shadowColor: colors.shadowDark,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   chefIconContainer: {
     position: 'absolute',
@@ -130,17 +134,15 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   sectionTitle: {
-    fontSize: 18, // Adjusted to match general style
+    fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 5,
-    color: colors.primary, // Use global primary color (orange)
-    // fontFamily: 'PlayfulFont-Bold', // Removed custom font for now
+    color: colors.primary,
   },
   sectionSubtitle: {
-    fontSize: 14, // Adjusted
+    fontSize: 14,
     marginBottom: 15,
-    color: colors.textSecondary, // Use global text secondary color
-    // fontFamily: 'PlayfulFont-Regular', // Removed custom font for now
+    color: colors.textSecondary,
   },
   optionsContainer: {
     flexDirection: 'row',
@@ -151,34 +153,32 @@ const styles = StyleSheet.create({
   profileOption: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 10, // Adjusted border radius to match image
+    borderRadius: 10,
     margin: 4,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 90, 
-    borderWidth: 1.5, // Keep a border as in the image
+    borderWidth: 1.5,
   },
   unselectedOption: {
-    backgroundColor: colors.success, // Use global success color (green)
-    borderColor: colors.success, // Border same as background for solid look
+    backgroundColor: colors.backgroundAlt,
+    borderColor: colors.border,
   },
   selectedOption: {
-    backgroundColor: colors.primary, // Use global primary color (orange)
-    borderColor: colors.primary, // Border same as background for solid look
+    backgroundColor: colors.success,
+    borderColor: colors.success,
   },
-  profileOptionText: { // General text style for options
+  profileOptionText: {
     fontSize: 14,
     fontWeight: '600',
-    // color: colors.white, // Text color will be set in specific selected/unselected styles
-    // fontFamily: 'PlayfulFont-SemiBold', 
   },
   selectedOptionText: {
-    color: colors.white, // White text for orange cards
+    color: colors.white,
     fontWeight: 'bold',
   },
-  unselectedOptionText: { // Added style for unselected option text
-    color: colors.white, // White text for green cards
+  unselectedOptionText: {
+    color: colors.textSecondary,
   },
   // Remove chefMessageOverlay, chefIcon, speechBubble, speechBubbleText, lunchIcon styles
   // as they are replaced or handled differently.

@@ -95,11 +95,16 @@ const PortionSizeSelector: React.FC<PortionSizeSelectorProps> = ({
 const styles = StyleSheet.create({
   section: {
     paddingVertical: 15,
-    paddingHorizontal: 5,
+    paddingHorizontal: 15,
     marginBottom: 20,
-    backgroundColor: 'transparent',
+    backgroundColor: colors.card,
     borderRadius: 15,
     position: 'relative',
+    shadowColor: colors.shadowDark,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   chefIconContainer: {
     position: 'absolute',
@@ -136,12 +141,12 @@ const styles = StyleSheet.create({
     minWidth: '45%',
   },
   unselectedOption: {
-    backgroundColor: colors.success,
-    borderColor: colors.success,
+    backgroundColor: colors.backgroundAlt,
+    borderColor: colors.border,
   },
   selectedOption: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: colors.success,
+    borderColor: colors.success,
   },
   portionOptionText: {
     fontSize: 14,
@@ -152,7 +157,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   unselectedOptionText: {
-    color: colors.white,
+    color: colors.textSecondary,
   },
 });
 

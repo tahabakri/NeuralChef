@@ -11,24 +11,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-// import colors from '@/constants/colors'; // Removed
+import colors from '@/constants/colors';
 import { DislikedIngredientsSectionProps } from './types';
 
-// Theme colors matching other preference sections
-const theme = {
-  orange: '#FF8C00',
-  green: '#50C878',
-  white: '#FFFFFF',
-  textLight: '#777777',
-  lightOrangeFill: 'rgba(255, 140, 0, 0.1)', // For input background
-  // glassBg: 'rgba(255, 255, 255, 0.2)', // Not needed here, parent provides background
-  // borderColor: 'rgba(255, 255, 255, 0.3)',
-  // shadowColor: 'rgba(0, 0, 0, 0.1)',
-};
-
-// Chef icon states for this section (can be expanded)
+// Chef icon states for this section
 const WINKING_CHEF_ICON = "happy-outline"; // For successful add
-// const FROWNING_CHEF_ICON = "sad-outline"; // Could be used for removal or other interactions
 
 // TypeScript interfaces for memoized components
 interface IngredientChipProps {
@@ -62,7 +49,7 @@ const IngredientChip = memo<IngredientChipProps>(({
         style={styles.removeChipButton}
         onPress={handleRemove}
       >
-        <Ionicons name="close-outline" size={20} color={theme.green} />
+        <Ionicons name="close-outline" size={20} color={colors.white} />
       </TouchableOpacity>
     </Animated.View>
   );
@@ -179,7 +166,7 @@ const DislikedIngredientsSection = memo<DislikedIngredientsSectionProps>(({
             { opacity: chefMessageOpacity, transform: [{ translateY: chefMessageTransform }] }
           ]}
         >
-          <Ionicons name={WINKING_CHEF_ICON as any} size={22} color={theme.green} />
+          <Ionicons name={WINKING_CHEF_ICON as any} size={22} color={colors.success} />
           <Text style={styles.chefMessageText}>{chefMessage}</Text>
         </Animated.View>
       )}
@@ -188,7 +175,7 @@ const DislikedIngredientsSection = memo<DislikedIngredientsSectionProps>(({
         <TextInput
           style={styles.ingredientInput}
           placeholder="Add an ingredient…"
-          placeholderTextColor={theme.textLight} // Playful font to be handled by global styles
+          placeholderTextColor={colors.textTertiary}
           value={newIngredient}
           onChangeText={setNewIngredient}
           onSubmitEditing={handleAddIngredient}
@@ -199,7 +186,7 @@ const DislikedIngredientsSection = memo<DislikedIngredientsSectionProps>(({
                 style={styles.addButton}
                 onPress={handleAddIngredient}
             >
-                <Ionicons name="add-outline" size={28} color={theme.white} />
+                <Ionicons name="add-outline" size={28} color={colors.white} />
             </TouchableOpacity>
         </Animated.View>
       </View>
@@ -230,84 +217,72 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: theme.orange,
-    marginBottom: 3,
-    fontFamily: 'PlayfulFont-Bold', // Placeholder
+    color: colors.primary,
+    marginBottom: 5,
   },
   sectionSubtitle: {
     fontSize: 14,
-    color: theme.green,
+    color: colors.textSecondary,
     marginBottom: 15,
-    fontFamily: 'PlayfulFont-Regular', // Placeholder
   },
   chefMessageContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(76, 175, 80, 0.15)', // Light green subtle background
+    backgroundColor: 'rgba(148, 231, 156, 0.15)', // Light green background
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     marginBottom: 10,
   },
   chefMessageText: {
-    marginLeft: 8,
-    color: theme.green,
     fontSize: 14,
-    fontWeight: '500',
-    fontFamily: 'PlayfulFont-SemiBold', // Placeholder
+    color: colors.textPrimary,
+    marginLeft: 8,
   },
   addIngredientContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15, // Space before the list of ingredients
+    marginBottom: 15,
   },
   ingredientInput: {
     flex: 1,
-    borderWidth: 2,
-    borderColor: theme.green,
-    backgroundColor: theme.lightOrangeFill,
+    backgroundColor: colors.backgroundAlt,
     borderRadius: 10,
     paddingHorizontal: 15,
     paddingVertical: Platform.OS === 'ios' ? 12 : 10,
-    fontSize: 16,
-    color: theme.orange,
+    fontSize: 14,
+    color: colors.textPrimary,
     marginRight: 10,
-    fontFamily: 'PlayfulFont-Regular', // Placeholder
   },
   addButton: {
-    backgroundColor: theme.green,
-    padding: 10,
+    backgroundColor: colors.success,
+    width: 42,
+    height: 42,
     borderRadius: 10,
-    borderWidth: 2,
-    borderColor: theme.orange,
     alignItems: 'center',
     justifyContent: 'center',
   },
   ingredientsListContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -4, // To offset chip margin
+    marginHorizontal: -4,
   },
   ingredientChip: {
-    backgroundColor: theme.orange, // Orange chips
-    borderRadius: 15,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     margin: 4,
-    borderWidth: 1, // Thin border for chips
-    borderColor: theme.green, // Green border
   },
   ingredientChipText: {
-    color: theme.green, // Green text on orange chip
+    color: colors.white,
     fontSize: 14,
-    marginRight: 8,
-    fontFamily: 'PlayfulFont-Regular', // Placeholder
+    marginRight: 6,
   },
   removeChipButton: {
-    // Potentially add padding for easier tap target
-    // padding: 2,
+    padding: 2,
   },
 });
 

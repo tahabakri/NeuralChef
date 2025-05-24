@@ -33,7 +33,10 @@ const MoreOptionsSection = memo<MoreOptionsSectionProps>(({ children, title = "M
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={toggleExpansion} style={styles.header} activeOpacity={0.8}>
+      <TouchableOpacity onPress={toggleExpansion} style={[
+        styles.header,
+        isExpanded ? { borderBottomWidth: 1, borderBottomColor: colors.border } : null
+      ]} activeOpacity={0.8}>
         <Text style={styles.headerText}>{title}</Text>
         <Ionicons name={iconName} size={24} color={colors.primary} />
       </TouchableOpacity>
@@ -46,8 +49,14 @@ const MoreOptionsSection = memo<MoreOptionsSectionProps>(({ children, title = "M
 const styles = StyleSheet.create({
   container: {
     marginBottom: 20,
+    backgroundColor: colors.card,
     borderRadius: 15,
     overflow: 'hidden',
+    shadowColor: colors.shadowDark,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   header: {
     flexDirection: 'row',
@@ -63,6 +72,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   contentContainer: {
+    paddingHorizontal: 10,
     paddingBottom: 10,
   },
 });

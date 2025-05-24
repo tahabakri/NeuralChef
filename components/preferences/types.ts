@@ -49,6 +49,9 @@ export interface SpiceLevelSelectorProps {
 export interface CuisineTypeSelectorProps {
   selectedCuisines: string[];
   onToggleCuisine: (id: string) => void;
+  customCuisines: string[]; // New: to hold custom entered cuisines
+  onAddCustomCuisine: (cuisine: string) => void; // New: handler to add custom cuisine
+  onRemoveCustomCuisine: (cuisine: string) => void; // New: handler to remove custom cuisine
 }
 
 export interface CookingTimeSelectorProps {

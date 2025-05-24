@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+// @ts-ignore: ignore type errors in LottieView library
 import LottieView from 'lottie-react-native'; // For confetti and other animations
 
 import {
@@ -54,6 +55,8 @@ import {
 // Import app colors and gradients
 import colors from '@/constants/colors';
 import gradients, { directions } from '@/constants/gradients';
+// Assuming cuisineTypes from constants might be useful for distinguishing predefined from custom
+import { cuisineTypes as predefinedCuisineTypesConstant } from '@/components/preferences/constants';
 
 const CONFETTI_LOTTIE = require('@/assets/animations/confetti.json'); // Placeholder path
 
@@ -76,7 +79,8 @@ export default function PreferencesScreen() {
   const allergies = usePreferenceSelector(state => state.allergies || []);
   const dislikedIngredients = usePreferenceSelector(state => state.dislikedIngredients || []);
   const spiceLevel = usePreferenceSelector(state => state.spiceLevel);
-  const cuisineTypes = usePreferenceSelector(state => state.cuisineTypes || []);
+  // cuisineTypes from store will hold BOTH predefined IDs and custom string names
+  const storedCuisineTypes = usePreferenceSelector(state => state.cuisineTypes || []);
   const cookingTimeLimit = usePreferenceSelector(state => state.cookingTimeLimit || 0);
   const maxCalories = usePreferenceSelector(state => state.maxCalories || 0);
   const portionSize = usePreferenceSelector(state => state.portionSize);
@@ -96,7 +100,7 @@ export default function PreferencesScreen() {
   const updateMicroPreferences = usePreferencesStore(state => state.updateMicroPreferences);
   const updateCookingGoals = usePreferencesStore(state => state.updateCookingGoals);
   const updateMedicalConditions = usePreferencesStore(state => state.updateMedicalConditions);
-
+  
   // Predefined medical conditions list
   const predefinedMedicalConditionsList: MedicalCondition[] = ['Diabetes', 'Hypertension', 'Celiac Disease', 'High Cholesterol', 'IBS'];
   
@@ -109,7 +113,15 @@ export default function PreferencesScreen() {
 
   const [localDislikedIngredients, setLocalDislikedIngredients] = useState<string[]>(dislikedIngredients);
   const [localSpiceLevel, setLocalSpiceLevel] = useState<SpiceLevelType>(spiceLevel);
-  const [localCuisines, setLocalCuisines] = useState<string[]>(cuisineTypes);
+  
+  // Separate state for predefined cuisine IDs and custom cuisine strings
+  const [localCuisines, setLocalCuisines] = useState<string[]>(() => 
+    storedCuisineTypes.filter(c => predefinedCuisineTypesConstant.some(pc => pc.id === c))
+  );
+  const [localCustomCuisines, setLocalCustomCuisines] = useState<string[]>(() => 
+    storedCuisineTypes.filter(c => !predefinedCuisineTypesConstant.some(pc => pc.id === c))
+  );
+
   const [localCookingTime, setLocalCookingTime] = useState<string>(String(cookingTimeLimit));
   const [localMaxCalories, setLocalMaxCalories] = useState<string>(String(maxCalories));
   const [localPortionSize, setLocalPortionSize] = useState<PortionSizeType>(portionSize);
@@ -133,6 +145,7 @@ export default function PreferencesScreen() {
   // Animation refs
   const saveButtonScaleAnim = useRef(new Animated.Value(1)).current;
   const confettiRef = useRef<LottieView>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   // Memoized handlers for better performance
   const handleToggleAllergy = useCallback((id: string) => {
@@ -168,7 +181,21 @@ export default function PreferencesScreen() {
   }, []);
 
   const handleToggleCuisine = useCallback((id: string) => {
-    setLocalCuisines(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
+    setLocalCuisines(prev => 
+      prev.includes(id) 
+        ? prev.filter(item => item !== id) 
+        : [...prev, id]
+    );
+  }, []);
+
+  const handleAddCustomCuisine = useCallback((cuisine: string) => {
+    if (cuisine.trim() && !localCustomCuisines.includes(cuisine.trim())) {
+      setLocalCustomCuisines(prev => [...prev, cuisine.trim()]);
+    }
+  }, [localCustomCuisines]);
+
+  const handleRemoveCustomCuisine = useCallback((cuisine: string) => {
+    setLocalCustomCuisines(prev => prev.filter(item => item !== cuisine));
   }, []);
 
   const handleToggleMicroPreference = useCallback((id: MicroPreference) => {
@@ -203,17 +230,15 @@ export default function PreferencesScreen() {
       Animated.timing(saveButtonScaleAnim, { toValue: 1, duration: 100, useNativeDriver: true }),
     ]).start();
 
-    if (confettiRef.current) {
-      confettiRef.current.reset();
-      confettiRef.current.play();
-    }
+    setShowConfetti(true);
     
     // Use selective update methods for better performance
     updateDietaryProfile(localDietaryProfile as DietaryProfile);
     updateAllergies([...commonSelectedAllergies, ...customAllergies]);
     updateDislikedIngredients(localDislikedIngredients);
     updateSpiceLevel(localSpiceLevel as SpiceLevel);
-    updateCuisineTypes(localCuisines);
+    // Combine predefined and custom cuisines for saving
+    updateCuisineTypes([...localCuisines, ...localCustomCuisines]);
     updateCookingTimeLimit(Number(localCookingTime) || 0);
     updateMaxCalories(Number(localMaxCalories) || 0);
     updatePortionSize(localPortionSize as PortionSize);
@@ -230,90 +255,116 @@ export default function PreferencesScreen() {
     updateAllergies, commonSelectedAllergies, customAllergies, 
     updateDislikedIngredients, localDislikedIngredients, 
     updateSpiceLevel, localSpiceLevel, 
-    updateCuisineTypes, localCuisines, 
+    updateCuisineTypes, localCuisines, localCustomCuisines,
     updateCookingTimeLimit, localCookingTime, 
     updateMaxCalories, localMaxCalories, 
     updatePortionSize, localPortionSize, 
     updateMicroPreferences, localMicroPreferences, 
     updateCookingGoals, localCookingGoals, 
     updateMedicalConditions, localPredefinedMedicalConditions, localCustomMedicalConditions, 
-    router
+    router, setShowConfetti
   ]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-      <StatusBar style="dark" backgroundColor={colors.backgroundGradientStart} />
+      <StatusBar style="light" backgroundColor={colors.orangeAccentStart} />
       <Stack.Screen options={{ headerShown: false }} />
 
-      <LinearGradient
-        colors={[colors.backgroundGradientStart, colors.backgroundGradientEnd]}
-        style={styles.gradientBackground}
-        locations={[0, 1]}
-      >
-        {/* TODO: Subtle lunch icons overlay view here */}
-        {/* <View style={styles.lunchIconsOverlay}> ... </View> */}
-
-        <View style={styles.headerContainer}>
-          <AnimatedHeaderChefIcon />
-          <Text style={styles.headerTitle}>Hey Chef, Let's Set Your Preferences! 🍽️</Text>
-        </View>
-
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContentContainer}
-          showsVerticalScrollIndicator={false}
-          removeClippedSubviews={true}
+      <View style={styles.container}>
+        {/* Header with gradient */}
+        <LinearGradient
+          colors={[colors.orangeAccentStart, colors.orangeAccentEnd]}
+          style={styles.headerGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
         >
-          <DietaryProfileSelector selectedProfile={localDietaryProfile} onSelectProfile={setLocalDietaryProfile} />
-          <AllergiesSection
-            selectedAllergies={commonSelectedAllergies}
-            customAllergies={customAllergies}
-            onToggleAllergy={handleToggleAllergy}
-            onAddCustomAllergy={handleAddCustomAllergy}
-            onRemoveCustomAllergy={handleRemoveCustomAllergy}
-          />
-          <MedicalConditionsSelector
-            selectedPredefinedConditions={localPredefinedMedicalConditions}
-            customMedicalConditions={localCustomMedicalConditions}
-            onTogglePredefinedCondition={handleTogglePredefinedMedicalCondition}
-            onAddCustomCondition={handleAddCustomMedicalCondition}
-            onRemoveCustomCondition={handleRemoveCustomMedicalCondition}
-          />
-          <CookingTimeSelector selectedTime={localCookingTime} onSelectTime={setLocalCookingTime} />
-          <PortionSizeSelector selectedSize={localPortionSize} onSelectSize={setLocalPortionSize} />
+          <View style={styles.headerContainer}>
+            <AnimatedHeaderChefIcon />
+            <Text style={styles.headerTitle}>Hey Chef, Let's Set Your Preferences! 🍽️</Text>
+          </View>
+        </LinearGradient>
 
-          <MoreOptionsSection title="More Lunch Options">
-            <SpiceLevelSelector selectedLevel={localSpiceLevel} onSelectLevel={setLocalSpiceLevel} />
-            <CuisineTypeSelector selectedCuisines={localCuisines} onToggleCuisine={handleToggleCuisine} />
-            <CalorieSelector maxCalories={localMaxCalories} onChangeCalories={setLocalMaxCalories} />
-            <MicroPreferencesSection selectedPreferences={localMicroPreferences} onTogglePreference={handleToggleMicroPreference} />
-            <CookingGoalsSection selectedGoals={localCookingGoals} onToggleGoal={handleToggleCookingGoal} />
-            <DislikedIngredientsSection
-              dislikedIngredients={localDislikedIngredients}
-              onAddIngredient={handleAddDislikedIngredient}
-              onRemoveIngredient={handleRemoveDislikedIngredient}
+        {/* Main content area */}
+        <View style={styles.contentContainer}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContentContainer}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <DietaryProfileSelector selectedProfile={localDietaryProfile} onSelectProfile={setLocalDietaryProfile} />
+            <AllergiesSection
+              selectedAllergies={commonSelectedAllergies}
+              customAllergies={customAllergies}
+              onToggleAllergy={handleToggleAllergy}
+              onAddCustomAllergy={handleAddCustomAllergy}
+              onRemoveCustomAllergy={handleRemoveCustomAllergy}
             />
-          </MoreOptionsSection>
-        </ScrollView>
+            <MedicalConditionsSelector
+              selectedPredefinedConditions={localPredefinedMedicalConditions}
+              customMedicalConditions={localCustomMedicalConditions}
+              onTogglePredefinedCondition={handleTogglePredefinedMedicalCondition}
+              onAddCustomCondition={handleAddCustomMedicalCondition}
+              onRemoveCustomCondition={handleRemoveCustomMedicalCondition}
+            />
+            <CookingTimeSelector selectedTime={localCookingTime} onSelectTime={setLocalCookingTime} />
+            <PortionSizeSelector selectedSize={localPortionSize} onSelectSize={setLocalPortionSize} />
 
-        <View style={styles.stickyButtonOuterContainer}>
-          <TouchableOpacity onPress={handleSave} activeOpacity={0.8} style={styles.saveButtonTouch}>
-            <Animated.View style={[styles.saveButton, { transform: [{ scale: saveButtonScaleAnim }] }]}>
-              <Ionicons name="checkmark-circle-outline" size={26} color={colors.white} style={styles.saveButtonIcon} />
-              <Text style={styles.saveButtonText}>Save Preferences!</Text>
-            </Animated.View>
-          </TouchableOpacity>
+            <MoreOptionsSection title="More Lunch Options">
+              <SpiceLevelSelector selectedLevel={localSpiceLevel} onSelectLevel={setLocalSpiceLevel} />
+              <CuisineTypeSelector
+                selectedCuisines={localCuisines}
+                onToggleCuisine={handleToggleCuisine}
+                customCuisines={localCustomCuisines}
+                onAddCustomCuisine={handleAddCustomCuisine}
+                onRemoveCustomCuisine={handleRemoveCustomCuisine}
+              />
+              <CalorieSelector maxCalories={localMaxCalories} onChangeCalories={setLocalMaxCalories} />
+              <MicroPreferencesSection selectedPreferences={localMicroPreferences} onTogglePreference={handleToggleMicroPreference} />
+              <CookingGoalsSection selectedGoals={localCookingGoals} onToggleGoal={handleToggleCookingGoal} />
+              <DislikedIngredientsSection
+                dislikedIngredients={localDislikedIngredients}
+                onAddIngredient={handleAddDislikedIngredient}
+                onRemoveIngredient={handleRemoveDislikedIngredient}
+              />
+            </MoreOptionsSection>
+          </ScrollView>
+
+          {/* Save button at bottom */}
+          <View style={styles.stickyButtonOuterContainer}>
+            <TouchableOpacity onPress={handleSave} activeOpacity={0.8} style={styles.saveButtonTouch}>
+              <LinearGradient
+                colors={[colors.accentGreenStart, colors.accentGreenEnd]}
+                style={[styles.saveButton]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Animated.View style={{ transform: [{ scale: saveButtonScaleAnim }] }}>
+                  <View style={styles.saveButtonInner}>
+                    <Ionicons name="checkmark-circle-outline" size={26} color={colors.white} style={styles.saveButtonIcon} />
+                    <Text style={styles.saveButtonText}>Save Preferences!</Text>
+                  </View>
+                </Animated.View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
         </View>
         
-        <LottieView
-          ref={confettiRef}
-          source={CONFETTI_LOTTIE} 
-          loop={false}
-          autoPlay={false}
-          style={styles.lottieConfetti}
-          resizeMode="cover"
-        />
-      </LinearGradient>
+        {/* Confetti overlay - only shown when needed */}
+        {showConfetti && (
+          <LottieView
+            ref={confettiRef as any}
+            source={CONFETTI_LOTTIE as any}
+            loop={false}
+            autoPlay={true}
+            style={styles.lottieConfetti}
+            resizeMode="cover"
+            onAnimationFinish={() => {
+              setShowConfetti(false);
+            }}
+          />
+        )}
+      </View>
     </SafeAreaView>
   );
 }
@@ -321,20 +372,19 @@ export default function PreferencesScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.backgroundGradientEnd, // Match bottom of gradient
+    backgroundColor: colors.background,
   },
-  gradientBackground: {
+  container: {
     flex: 1,
-    // position: 'relative', // For absolute positioned overlays like lunch icons
+    backgroundColor: colors.background,
   },
-  // lunchIconsOverlay: { StyleSheet.absoluteFillObject, zIndex: -1, opacity: 0.1 /* Add lunch icons here */ },
+  headerGradient: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+  },
   headerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: Platform.OS === 'android' ? 20 : 10, // Adjust for status bar
-    paddingBottom: 15,
-    // backgroundColor: 'transparent', // Over gradient
   },
   headerChefIconImage: {
     width: 40,
@@ -344,44 +394,49 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.textPrimary,
+    color: colors.white,
     flexShrink: 1,
     marginLeft: 10,
+  },
+  contentContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
   },
   scrollContentContainer: {
     paddingHorizontal: 15,
-    paddingBottom: 100, // Ensure space for sticky button not to overlap content
+    paddingTop: 15,
+    paddingBottom: 100,
   },
   stickyButtonOuterContainer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    paddingBottom: Platform.OS === 'ios' ? 25 : 15, // Avoid system navigation
+    paddingBottom: Platform.OS === 'ios' ? 25 : 15,
     paddingHorizontal: 20,
     paddingTop: 10,
-    backgroundColor: colors.backgroundGradientEnd, // Match screen bottom to blend
-    // borderTopWidth: 1, // Optional: subtle separator
-    // borderTopColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: colors.background,
   },
   saveButtonTouch: {
-    // Allows shadow to be visible if button has shadow
+    width: '100%',
   },
   saveButton: {
-    backgroundColor: colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 15,
-    borderRadius: 15, // Rounded like Home screen buttons
+    borderRadius: 15,
+    overflow: 'hidden',
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+  },
+  saveButtonInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15,
   },
   saveButtonIcon: {
     marginRight: 8,
@@ -397,7 +452,5 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    zIndex: 1000,
-    pointerEvents: 'none',
   },
 });

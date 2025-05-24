@@ -1,16 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
-// import colors from '@/constants/colors'; // Removed
+import colors from '@/constants/colors';
 import { microPreferences } from './constants'; // Ensure this has {id: string, label: string}
 import { MicroPreferencesSectionProps, MicroPreference } from './types'; // Ensure MicroPreference matches type in store
-
-// Theme colors matching other preference sections
-const theme = {
-  orange: '#FF8C00',
-  green: '#50C878',
-  white: '#FFFFFF',
-};
 
 const MicroPreferencesSection: React.FC<MicroPreferencesSectionProps> = ({
   selectedPreferences,
@@ -36,7 +29,10 @@ const MicroPreferencesSection: React.FC<MicroPreferencesSectionProps> = ({
                 onTogglePreference(preference.id as MicroPreference);
               }}
             >
-              <Text style={styles.optionText}>
+              <Text style={[
+                styles.optionText,
+                isSelected ? styles.selectedOptionText : styles.unselectedOptionText
+              ]}>
                 {preference.label}
               </Text>
             </TouchableOpacity>
@@ -50,46 +46,48 @@ const MicroPreferencesSection: React.FC<MicroPreferencesSectionProps> = ({
 const styles = StyleSheet.create({
   container: {
     paddingVertical: 10,
-    // Transparent background, styling handled by MoreOptionsSection
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: theme.orange,
-    marginBottom: 3,
-    fontFamily: 'PlayfulFont-Bold', // Placeholder
+    color: colors.primary,
+    marginBottom: 5,
   },
   sectionSubtitle: {
     fontSize: 14,
-    color: theme.green,
-    marginBottom: 12,
-    fontFamily: 'PlayfulFont-Regular', // Placeholder
+    color: colors.textSecondary,
+    marginBottom: 15,
   },
   optionsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginHorizontal: -4, // Offset for chip margins
+    marginHorizontal: -4,
   },
   optionChip: {
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 20, // Fully rounded chips
-    borderWidth: 2,
-    margin: 4, // Spacing between chips
+    borderRadius: 20,
+    borderWidth: 1.5,
+    margin: 4,
   },
   unselectedOptionChip: {
-    backgroundColor: theme.green,
-    borderColor: theme.orange,
+    backgroundColor: colors.backgroundAlt,
+    borderColor: colors.border,
   },
   selectedOptionChip: {
-    backgroundColor: theme.orange,
-    borderColor: theme.green,
+    backgroundColor: colors.success,
+    borderColor: colors.success,
   },
   optionText: {
     fontSize: 14,
-    color: theme.white,
     fontWeight: '600',
-    fontFamily: 'PlayfulFont-SemiBold', // Placeholder
+  },
+  selectedOptionText: {
+    color: colors.white,
+    fontWeight: 'bold',
+  },
+  unselectedOptionText: {
+    color: colors.textSecondary,
   },
 });
 

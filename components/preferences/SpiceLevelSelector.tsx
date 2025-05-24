@@ -2,21 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-// import colors from '@/constants/colors'; // Removed, using new theme
+import colors from '@/constants/colors';
 import { spiceLevels } from './constants'; // Ensure this has id, label, and potentially iconName
 import { SpiceLevelSelectorProps } from './types';
-
-// Theme colors matching other preference sections
-const theme = {
-  orange: '#FF8C00',
-  green: '#50C878',
-  white: '#FFFFFF',
-  // glassBg: 'rgba(255, 255, 255, 0.2)', // Not needed here, parent provides background
-  // borderColor: 'rgba(255, 255, 255, 0.3)', // Not needed here
-  // shadowColor: 'rgba(0, 0, 0, 0.1)', // Not needed here
-  textDark: '#333333', // For general text if needed
-  textLight: '#555555', // For subtitles or less prominent text
-};
 
 // Helper to map spice level ID to an icon name
 const getSpiceIconName = (levelId: string): keyof typeof Ionicons.glyphMap => {
@@ -44,7 +32,7 @@ const SpiceLevelSelector: React.FC<SpiceLevelSelectorProps> = ({
         {spiceLevels.map((level) => {
           const isSelected = selectedLevel === level.id;
           const iconName = getSpiceIconName(level.id);
-          const iconColor = isSelected ? theme.orange : theme.green;
+          const iconColor = isSelected ? colors.white : colors.textSecondary;
 
           return (
             <TouchableOpacity
@@ -59,7 +47,12 @@ const SpiceLevelSelector: React.FC<SpiceLevelSelectorProps> = ({
               }}
             >
               <Ionicons name={iconName} size={20} color={iconColor} style={styles.iconStyle} />
-              <Text style={styles.optionText}>{level.label}</Text>
+              <Text style={[
+                styles.optionText,
+                isSelected ? styles.selectedOptionText : styles.unselectedOptionText
+              ]}>
+                {level.label}
+              </Text>
             </TouchableOpacity>
           );
         })}
@@ -74,23 +67,18 @@ const styles = StyleSheet.create({
     // No margin/background/border/shadow here - handled by MoreOptionsSection contentContainer
   },
   sectionTitle: {
-    fontSize: 18, // Adjusted size for sub-section
+    fontSize: 18,
     fontWeight: 'bold',
-    color: theme.orange,
-    marginBottom: 3,
-    fontFamily: 'PlayfulFont-Bold', // Placeholder
+    marginBottom: 5,
+    color: colors.primary,
   },
   sectionSubtitle: {
     fontSize: 14,
-    color: theme.green,
-    marginBottom: 12,
-    fontFamily: 'PlayfulFont-Regular', // Placeholder
+    marginBottom: 15,
+    color: colors.textSecondary,
   },
   optionsContainer: {
-    // Using flex-wrap and row direction for options if they should be side-by-side
-    // If they are full-width buttons, this can be simpler (column direction)
-    // For this example, let's assume full-width option cards (like list items)
-    flexDirection: 'column', 
+    marginTop: 10,
   },
   optionCard: {
     flexDirection: 'row',
@@ -98,25 +86,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 12,
     borderRadius: 10,
-    borderWidth: 2,
+    borderWidth: 1.5,
     marginVertical: 5, // Spacing between options
   },
   unselectedOptionCard: {
-    backgroundColor: theme.green,
-    borderColor: theme.orange,
+    backgroundColor: colors.backgroundAlt,
+    borderColor: colors.border,
   },
   selectedOptionCard: {
-    backgroundColor: theme.orange,
-    borderColor: theme.green,
+    backgroundColor: colors.success,
+    borderColor: colors.success,
   },
   iconStyle: {
     marginRight: 10,
   },
   optionText: {
     fontSize: 15,
-    color: theme.white,
     fontWeight: '600',
-    fontFamily: 'PlayfulFont-SemiBold', // Placeholder
+  },
+  selectedOptionText: {
+    color: colors.white,
+    fontWeight: 'bold',
+  },
+  unselectedOptionText: {
+    color: colors.textSecondary,
   },
   // No selectedOptionText needed if text color is always white on both green/orange BG
 });
